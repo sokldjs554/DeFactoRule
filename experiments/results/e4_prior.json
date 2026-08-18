@@ -1,0 +1,36 @@
+{
+  "name": "prior",
+  "gold_size": 170,
+  "matched": 170,
+  "coverage": 1.0,
+  "unknown": 0,
+  "errors": 0,
+  "accuracy_on_scored": 0.7823529411764706,
+  "macro_f1": 0.5037878787878788,
+  "macro_f1_ci95": [
+    0.41825311942959004,
+    0.6048721564707212
+  ],
+  "n_scored": 170,
+  "per_label": {
+    "비조치": {
+      "support": 126,
+      "precision": 0.8478260869565217,
+      "recall": 0.9285714285714286,
+      "f1": 0.8863636363636365
+    },
+    "조치": {
+      "support": 14,
+      "precision": 0.5,
+      "recall": 0.07142857142857142,
+      "f1": 0.125
+    },
+    "기타": {
+      "support": 30,
+      "precision": 0.5,
+      "recall": 0.5,
+      "f1": 0.5
+    }
+  },
+  "ungrounded_evidence": 2
+}
