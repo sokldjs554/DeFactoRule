@@ -1,0 +1,162 @@
+{
+  "settings": {
+    "ngram_lengths": [
+      3,
+      4,
+      5,
+      6
+    ],
+    "min_df": 4,
+    "max_df_ratio": 0.6,
+    "min_support": 4,
+    "min_precision": 0.8,
+    "max_depth": 3,
+    "beam": 12
+  },
+  "default_label": "비조치",
+  "rules": [
+    {
+      "order": 1,
+      "label": "비조치",
+      "description": "본문에 '에따른' 포함 AND 길이 보통(200-600자) -> 비조치",
+      "atoms": [
+        {
+          "kind": "ngram",
+          "value": "에따른"
+        },
+        {
+          "kind": "length",
+          "value": "보통(200-600자)"
+        }
+      ],
+      "dev_support": 13,
+      "dev_precision": 1.0,
+      "test_support": 32,
+      "test_precision": 0.84375
+    },
+    {
+      "order": 2,
+      "label": "비조치",
+      "description": "본문에 '정상화' 포함 -> 비조치",
+      "atoms": [
+        {
+          "kind": "ngram",
+          "value": "정상화"
+        }
+      ],
+      "dev_support": 11,
+      "dev_precision": 1.0,
+      "test_support": 16,
+      "test_precision": 0.9375
+    },
+    {
+      "order": 3,
+      "label": "비조치",
+      "description": "본문에 '100' 포함 -> 비조치",
+      "atoms": [
+        {
+          "kind": "ngram",
+          "value": "100"
+        }
+      ],
+      "dev_support": 9,
+      "dev_precision": 1.0,
+      "test_support": 5,
+      "test_precision": 1.0
+    },
+    {
+      "order": 4,
+      "label": "조치",
+      "description": "본문에 '것이전' 포함 -> 조치",
+      "atoms": [
+        {
+          "kind": "ngram",
+          "value": "것이전"
+        }
+      ],
+      "dev_support": 5,
+      "dev_precision": 1.0,
+      "test_support": 5,
+      "test_precision": 0.2
+    },
+    {
+      "order": 5,
+      "label": "기타",
+      "description": "본문에 '공하는' 포함 -> 기타",
+      "atoms": [
+        {
+          "kind": "ngram",
+          "value": "공하는"
+        }
+      ],
+      "dev_support": 5,
+      "dev_precision": 1.0,
+      "test_support": 7,
+      "test_precision": 0.7142857142857143
+    },
+    {
+      "order": 6,
+      "label": "비조치",
+      "description": "본문에 '위반하' 포함 -> 비조치",
+      "atoms": [
+        {
+          "kind": "ngram",
+          "value": "위반하"
+        }
+      ],
+      "dev_support": 5,
+      "dev_precision": 1.0,
+      "test_support": 19,
+      "test_precision": 1.0
+    },
+    {
+      "order": 7,
+      "label": "기타",
+      "description": "본문에 '제1항' 포함 AND 본문에 '는지여' 포함 -> 기타",
+      "atoms": [
+        {
+          "kind": "ngram",
+          "value": "제1항"
+        },
+        {
+          "kind": "ngram",
+          "value": "는지여"
+        }
+      ],
+      "dev_support": 6,
+      "dev_precision": 1.0,
+      "test_support": 8,
+      "test_precision": 0.375
+    },
+    {
+      "order": 8,
+      "label": "비조치",
+      "description": "본문에 '에따라' 포함 -> 비조치",
+      "atoms": [
+        {
+          "kind": "ngram",
+          "value": "에따라"
+        }
+      ],
+      "dev_support": 5,
+      "dev_precision": 1.0,
+      "test_support": 12,
+      "test_precision": 0.9166666666666666
+    },
+    {
+      "order": 9,
+      "label": "비조치",
+      "description": "본문에 '제2항' 포함 -> 비조치",
+      "atoms": [
+        {
+          "kind": "ngram",
+          "value": "제2항"
+        }
+      ],
+      "dev_support": 5,
+      "dev_precision": 1.0,
+      "test_support": 3,
+      "test_precision": 1.0
+    }
+  ]
+}

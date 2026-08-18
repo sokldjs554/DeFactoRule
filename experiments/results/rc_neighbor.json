@@ -1,0 +1,80 @@
+{
+  "n": 170,
+  "aurc": {
+    "neighbor": 0.20678797279560912,
+    "sector": 0.12361344537815125,
+    "keyword": 0.2820069204152249
+  },
+  "curves": {
+    "neighbor": [
+      {
+        "min_confidence_rank": 3,
+        "coverage": 0.3,
+        "n": 51,
+        "risk": 0.11764705882352941,
+        "accuracy": 0.8823529411764706,
+        "macro_f1": 0.5930851063829787
+      },
+      {
+        "min_confidence_rank": 2,
+        "coverage": 0.5117647058823529,
+        "n": 87,
+        "risk": 0.1724137931034483,
+        "accuracy": 0.8275862068965517,
+        "macro_f1": 0.582374245472837
+      },
+      {
+        "min_confidence_rank": 1,
+        "coverage": 1.0,
+        "n": 170,
+        "risk": 0.27647058823529413,
+        "accuracy": 0.7235294117647059,
+        "macro_f1": 0.5383306281048645
+      }
+    ],
+    "sector": [
+      {
+        "min_confidence_rank": 3,
+        "coverage": 0.3352941176470588,
+        "n": 57,
+        "risk": 0.07017543859649122,
+        "accuracy": 0.9298245614035088,
+        "macro_f1": 0.4818181818181818
+      },
+      {
+        "min_confidence_rank": 2,
+        "coverage": 0.7411764705882353,
+        "n": 126,
+        "risk": 0.11904761904761904,
+        "accuracy": 0.8809523809523809,
+        "macro_f1": 0.698989898989899
+      },
+      {
+        "min_confidence_rank": 1,
+        "coverage": 1.0,
+        "n": 170,
+        "risk": 0.2,
+        "accuracy": 0.8,
+        "macro_f1": 0.6361483556800747
+      }
+    ],
+    "keyword": [
+      {
+        "min_confidence_rank": 3,
+        "coverage": 0.11764705882352941,
+        "n": 20,
+        "risk": 0.5,
+        "accuracy": 0.5,
+        "macro_f1": 0.45321637426900585
+      },
+      {
+        "min_confidence_rank": 1,
+        "coverage": 1.0,
+        "n": 170,
+        "risk": 0.2529411764705882,
+        "accuracy": 0.7470588235294118,
+        "macro_f1": 0.49424890729238563
+      }
+    ]
+  }
+}
