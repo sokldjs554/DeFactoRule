@@ -50,10 +50,30 @@ RE_DECISION = re.compile(r"(?:[☑☒þ■▣◉]|[√✓Vv]\s*□)\s*(비조치
 #   금융위 소분류: "•∙<장식문자>∙•\n금융정책 일반"
 #   금감원:        "1. 공통"                                     (번호 → 이름)
 RE_SECTOR_MAJOR_NAME_FIRST = re.compile(r"^\s*([가-힣]{2,10})\s*\n\s*(\d)\s*$", re.MULTILINE)
+# 2022년 비조치의견서판: "공 통\n2022년\n비조치의견서 사례집" — 이름 뒤에 연도가 온다.
+# 제목이 자간을 벌려 조판돼 "공 통" 처럼 글자 사이에 공백이 들어간다.
+RE_SECTOR_NAME_THEN_YEAR = re.compile(
+    r"^\s*([가-힣][가-힣\s]{1,14})\s*\n\s*\d{4}\s*년\s*$", re.MULTILINE
+)
 RE_SECTOR_NUM_FIRST = re.compile(r"^\s*\d\s*[.．]\s*([가-힣·∙\s]{2,20})\s*$", re.MULTILINE)
 RE_SECTOR_MINOR = re.compile(
-    r"^[•∙\s\ue000-\uf8ff]+\n\s*([가-힣][가-힣\s]{1,20})\s*$", re.MULTILINE
+    r"^[•∙\s\ue000-\uf8ff]+\n\s*([가-힣]{2,12}(?:\s[가-힣]{2,6})?)\s*$", re.MULTILINE
 )
+# 구분 페이지는 아주 짧다. 넉넉히 잡으면 본문 첫 페이지가 업권으로 오인된다
+# ("1. 기초서류에서 정하는 방법에 따른 경우" 가 업권으로 잡힌 사례가 있었다).
+SECTOR_PAGE_MAX_CHARS = 90
+
+# 같은 업권을 연도마다 다르게 적는다. 표기를 하나로 모은다.
+SECTOR_ALIASES = {
+    "상호저축은행": "상호저축은행업",
+    "여신전문금융": "여신전문금융업",
+    "온라인투자연계금융": "온라인투자연계금융업",
+}
+
+
+def canonical_sector(name: str | None) -> str | None:
+    return SECTOR_ALIASES.get(name, name) if name else name
+
 
 NONACTION_FIELDS = ["요청대상행위", "판단", "판단이유"]
 INTERP_FIELDS = ["질의요지", "회답", "이유"]
@@ -67,7 +87,8 @@ class Case:
     sector: str | None
     subsector: str | None
     page: int
-    decision: str | None  # 비조치 | 조치 | 기타 — 비조치의견서만
+    decision: str | None  # 단일 체크일 때만. 복수 체크면 None
+    decisions: list[str] = field(default_factory=list)  # 체크된 것 전부
     fields: dict[str, str] = field(default_factory=dict)
     raw: str = ""
     warnings: list[str] = field(default_factory=list)
@@ -103,11 +124,15 @@ def page_sector_map(doc: pymupdf.Document) -> dict[int, tuple[str | None, str | 
     minor_marks: dict[int, str] = {}
     for i, page in enumerate(doc):
         text = page.get_text().strip()
-        if len(text) > 200:  # 본문 페이지
+        if len(text) > SECTOR_PAGE_MAX_CHARS:  # 본문 페이지
             continue
         m = RE_SECTOR_MAJOR_NAME_FIRST.search(text)
         if m:
-            major_marks[i] = m.group(1)
+            major_marks[i] = re.sub(r"\s+", "", m.group(1))
+            continue
+        m = RE_SECTOR_NAME_THEN_YEAR.search(text)
+        if m:
+            major_marks[i] = re.sub(r"\s+", "", m.group(1))
             continue
         m = RE_SECTOR_NUM_FIRST.search(text)
         if m:
@@ -124,7 +149,7 @@ def page_sector_map(doc: pymupdf.Document) -> dict[int, tuple[str | None, str | 
             major, minor = major_marks[i], None
         if i in minor_marks:
             minor = minor_marks[i]
-        out[i] = (major, minor)
+        out[i] = (canonical_sector(major), canonical_sector(minor))
     return out
 
 
@@ -194,12 +219,18 @@ def parse_nonaction(doc: pymupdf.Document, source: str) -> list[Case]:
         e = starts[n + 1] if n + 1 < len(starts) else len(full)
         chunk = full[s:e]
         serial = RE_SERIAL.search(chunk)
-        decision = RE_DECISION.search(chunk)
+        # 헤더 구간에서만 찾는다. 본문에 같은 낱말이 나와도 걸리지 않게 한다.
+        header = chunk[:200]
+        found = list(dict.fromkeys(m.group(1) for m in RE_DECISION.finditer(header)))
         fields, warns = split_fields(chunk, NONACTION_FIELDS)
         if not serial:
             warns.append("missing_serial")
-        if not decision:
+        if not found:
             warns.append("missing_decision")
+        elif len(found) > 1:
+            # 한 건에 두 결론이 함께 표시된 사례가 실재한다. 임의로 하나를 고르면
+            # 라벨이 조용히 오염되므로 단일 라벨은 비우고 표시만 남긴다.
+            warns.append("multi_decision")
         if spacing_lost(chunk):
             warns.append("spacing_lost")
         pg = page_of(s)
@@ -211,7 +242,8 @@ def parse_nonaction(doc: pymupdf.Document, source: str) -> list[Case]:
                 sector=sectors.get(pg, (None, None))[0],
                 subsector=sectors.get(pg, (None, None))[1],
                 page=pg + 1,
-                decision=decision.group(1) if decision else None,
+                decision=found[0] if len(found) == 1 else None,
+                decisions=found,
                 fields=fields,
                 raw=squeeze(chunk),
                 warnings=warns,
@@ -241,6 +273,7 @@ def parse_interpretation(doc: pymupdf.Document, source: str) -> list[Case]:
                     subsector=sectors.get(i, (None, None))[1],
                     page=i + 1,
                     decision=None,  # 회답 본문에서 별도 판정 — 여기서 규칙으로 정하지 않는다
+                    decisions=[],
                     fields=fields,
                     raw=squeeze(chunk),
                     warnings=warns,
@@ -265,11 +298,16 @@ def report(cases: list[Case]) -> None:
     for k, v in by_type.items():
         print(f"  {k}: {v}")
 
-    dec = Counter(c.decision for c in cases if c.doc_type == "nonaction")
-    if dec:
+    na = [c for c in cases if c.doc_type == "nonaction"]
+    if na:
         print("\n비조치의견서 결론 분포")
-        for k, v in dec.most_common():
-            print(f"  {k or '(미확인)'}: {v}")
+        for k, v in Counter(c.decision for c in na).most_common():
+            print(f"  {k or '(단일 라벨 없음)'}: {v}")
+        multi = [c for c in na if len(c.decisions) > 1]
+        if multi:
+            print(f"  └ 복수 체크 {len(multi)}건: " + ", ".join(
+                f"{c.serial}={'+'.join(c.decisions)}" for c in multi[:5]
+            ))
 
     sec = Counter(c.sector for c in cases)
     print("\n업권 분포")
