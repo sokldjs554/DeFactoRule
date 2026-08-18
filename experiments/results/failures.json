@@ -1,0 +1,951 @@
+{
+  "total": 46,
+  "min_required": 30,
+  "by_layer": {
+    "extraction": {
+      "format-unhandled": 4,
+      "silent-empty": 3,
+      "encoding-normalization": 3,
+      "unreadable-source": 1,
+      "boundary-missplit": 4
+    },
+    "labeling": {
+      "answer-leakage": 3,
+      "label-conflation": 2,
+      "split-discipline": 3
+    },
+    "evaluation": {
+      "sample-mismatch": 2,
+      "metric-misuse": 3,
+      "incomparable-comparison": 1,
+      "misdiagnosis": 2
+    },
+    "agent": {
+      "ungrounded-evidence": 1,
+      "schema-violation": 1,
+      "prior-overcorrection": 1,
+      "miscalibration": 3
+    },
+    "infrastructure": {
+      "error-classification": 2,
+      "path-resolution": 1,
+      "continuous-integration": 2,
+      "environment": 2,
+      "reproducibility": 2
+    }
+  },
+  "cases": [
+    {
+      "id": "EX-01",
+      "layer": "extraction",
+      "category": "format-unhandled",
+      "title": "체크 표시 서식이 한 권 안에서 여섯 종",
+      "symptom": "2024년판을 넣자 결론 검출률이 97%에서 38%로 떨어졌다. 파싱은 '성공' 했고 건수도 정상이라 산출물만 보면 알 수 없었다.",
+      "detection": "서식 지문 회귀 테스트가 알려지지 않은 체크 글자를 즉시 실패로 만든다.",
+      "fix": "Wingdings þ, 상자 앞 체크(√□) 를 포함한 여덟 종을 한 정규식으로 받는다.",
+      "metric": {
+        "name": "결론 미검출",
+        "before": 49,
+        "after": 2,
+        "kind": "measured",
+        "unit": "건",
+        "source": "docs/02-w1-gate.md"
+      },
+      "probe": "checkbox_glyph_variants",
+      "status": "fixed",
+      "guard": "tests/regression/test_casebook_formats.py::test_no_unknown_checkbox_format",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "서식 8종 중 미검출 0: []"
+      }
+    },
+    {
+      "id": "EX-02",
+      "layer": "extraction",
+      "category": "format-unhandled",
+      "title": "체크 표시가 상자 앞에 오는 서식",
+      "symptom": "'√ □ 비조치' 는 상자를 먼저 찾는 패턴으로는 통째로 안 잡힌다.",
+      "detection": "probe 가 여덟 종 서식을 매번 대조한다.",
+      "fix": "[√✓Vv]\\s*□ 를 대안 분기로 추가.",
+      "metric": null,
+      "probe": "check_before_box",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "매치: '√ □ 비조치'"
+      }
+    },
+    {
+      "id": "EX-03",
+      "layer": "extraction",
+      "category": "format-unhandled",
+      "title": "Wingdings 체크가 유니코드 þ 로 추출된다",
+      "symptom": "눈으로는 체크로 보이는데 코드포인트는 U+00FE 다. 사람 검수로는 절대 안 걸린다.",
+      "detection": "probe.",
+      "fix": "글자 집합에 þ 를 포함.",
+      "metric": null,
+      "probe": "wingdings_thorn",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "þ 검출: True"
+      }
+    },
+    {
+      "id": "EX-04",
+      "layer": "extraction",
+      "category": "silent-empty",
+      "title": "'판단' 이 '판단이유' 를 삼킨다",
+      "symptom": "항목명이 '판단\\n이유' 로 줄바꿈되면, 한 줄씩 짧은 이름부터 맞추는 매칭이 첫 줄에 걸려 판단이유를 영영 못 잡는다. 빈 값만 남고 예외는 없다.",
+      "detection": "probe 가 옛 매칭과 현재 매칭을 같은 입력에 돌려 나란히 보여준다.",
+      "fix": "줄 span 은 넓은 것부터, 이름은 긴 것부터 본다.",
+      "metric": {
+        "name": "missing_field:판단이유",
+        "before": 54,
+        "after": 2,
+        "kind": "measured",
+        "unit": "건",
+        "source": "docs/02-w1-gate.md"
+      },
+      "probe": "field_name_longest_first",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "옛 매칭이 잡은 항목 ['요청대상행위', '판단'] (판단이유=None) · 현재 ['요청대상행위', '판단', '판단이유'] (판단이유='관련 규정상 문제 없음')"
+      }
+    },
+    {
+      "id": "EX-05",
+      "layer": "extraction",
+      "category": "silent-empty",
+      "title": "항목명의 뒷조각이 값 맨 앞에 남는다",
+      "symptom": "이름을 span 2 로 올바로 알아보고도 값의 시작을 한 줄 뒤로만 잡아, '이유'·'행위'·'요지' 가 값 앞에 붙었다. 1,095건 중 406건.",
+      "detection": "레지스트리 probe 가 코퍼스 전체를 훑어 항목명의 접미 조각을 찾는다.",
+      "fix": "값의 시작을 line_no + span 으로. gold 단계의 `^행위\\n` 우회로가 사실 이 버그의 증상을 덮고 있었고, 234건만 가리고 172건은 통과시켰다.",
+      "metric": {
+        "name": "항목명 잔재",
+        "before": 406,
+        "after": 0,
+        "kind": "live",
+        "unit": "건"
+      },
+      "probe": "field_name_tail_not_in_value",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "항목명 잔재 0건"
+      }
+    },
+    {
+      "id": "EX-06",
+      "layer": "extraction",
+      "category": "format-unhandled",
+      "title": "업권 구분 페이지가 기관·연도마다 네 가지 서식",
+      "symptom": "전 사례가 업권 미분류. 금융위는 이름→번호, 금감원은 번호→이름, 2022년판은 자간을 벌린 '공 통'.",
+      "detection": "probe 가 네 서식을 모두 대조.",
+      "fix": "네 패턴을 각각 처리하고 구분 페이지에 길이 상한을 둔다.",
+      "metric": {
+        "name": "업권 미분류",
+        "before": 159,
+        "after": 0,
+        "kind": "measured",
+        "unit": "건",
+        "source": "docs/02-w1-gate.md"
+      },
+      "probe": "sector_divider_formats",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "구분 서식 4종 중 미검출 0: []"
+      }
+    },
+    {
+      "id": "EX-07",
+      "layer": "extraction",
+      "category": "encoding-normalization",
+      "title": "같은 업권이 두 이름으로 온다",
+      "symptom": "'상호저축은행' 과 '상호저축은행업' 이 다른 업권으로 집계된다.",
+      "detection": "probe 가 별칭 네 쌍의 정규화 결과가 같은지 본다.",
+      "fix": "별칭 표로 정규화.",
+      "metric": null,
+      "probe": "sector_alias_normalized",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "별칭 4쌍 중 불일치 0: []"
+      }
+    },
+    {
+      "id": "EX-08",
+      "layer": "extraction",
+      "category": "silent-empty",
+      "title": "구분 페이지 판정에 길이 상한이 없다",
+      "symptom": "본문 페이지가 업권 구분 페이지로 오인되어 이후 사례의 업권이 통째로 뒤집힌다.",
+      "detection": "probe 가 상한 존재를 확인.",
+      "fix": "페이지 글자 수 90자 상한.",
+      "metric": null,
+      "probe": "sector_page_length_cap",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "상한 90자"
+      }
+    },
+    {
+      "id": "EX-09",
+      "layer": "extraction",
+      "category": "unreadable-source",
+      "title": "ToUnicode 없는 CID 폰트 PDF 가 쓰레기 문자열을 준다",
+      "symptom": "2021년 비조치 사례집이 예외 없이 0건으로 파싱됐다. 추출된 문자열은 그럴듯한 길이라 오류로 보이지 않는다.",
+      "detection": "추출 직후 읽을 수 있는 글자 비율을 재고 문턱 미만이면 예외.",
+      "fix": "text_health() 와 UnreadablePdfError. 해당 자료는 37.4%였고 명시적으로 제외한다.",
+      "metric": {
+        "name": "읽을 수 있는 글자 비율",
+        "before": 0.374,
+        "after": 0.8,
+        "kind": "measured",
+        "unit": "비율(문턱)",
+        "source": "docs/04-spacing-restoration.md",
+        "note": "복구가 아니라 탐지다. after 는 통과 문턱이며 이 자료는 OCR 없이는 살릴 수 없다."
+      },
+      "probe": "unreadable_pdf_detected",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "깨진 PDF 0.0% · 정상 100.0% · 문턱 80%"
+      }
+    },
+    {
+      "id": "EX-10",
+      "layer": "extraction",
+      "category": "encoding-normalization",
+      "title": "macOS zip 의 한글 파일명은 NFD",
+      "symptom": "자모가 분리되어 들어와 서로 다른 두 파일이 같은 출력 경로에 쓰였다.",
+      "detection": "probe 가 NFD/NFC 왕복을 확인.",
+      "fix": "파일명을 NFC 로 정규화.",
+      "metric": null,
+      "probe": "nfd_filename_collision",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "NFD 길이 13 vs NFC 6 — 정규화 없이는 다른 경로"
+      }
+    },
+    {
+      "id": "EX-11",
+      "layer": "extraction",
+      "category": "encoding-normalization",
+      "title": "제어문자가 일련번호 정규식을 끊는다",
+      "symptom": "'일련번호' 와 숫자 사이에 조판 잔재가 끼어 번호를 못 읽는다.",
+      "detection": "probe.",
+      "fix": "정규식에 [\\x00-\\x1f] 를 허용.",
+      "metric": null,
+      "probe": "control_chars_do_not_break_serial",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "추출: 250123"
+      }
+    },
+    {
+      "id": "EX-12",
+      "layer": "extraction",
+      "category": "boundary-missplit",
+      "title": "회답 안의 순번을 질의 구분으로 오인",
+      "symptom": "'회답에만 순번이 있으면 회답만 자른다' 는 폴백이 81쌍을 만들었고 전부 오분할이었다. 그 순번은 질의 구분이 아니라 요건 열거였다.",
+      "detection": "분할 모드가 {single, paired} 를 벗어나면 실패.",
+      "fix": "폴백을 제거하고 질의·회답 양쪽에 순번이 있을 때만 나눈다.",
+      "metric": {
+        "name": "오분할 쌍",
+        "before": 81,
+        "after": 0,
+        "kind": "measured",
+        "unit": "쌍",
+        "source": "docs/03-splitting-and-regression.md"
+      },
+      "probe": "answer_only_split_removed",
+      "status": "fixed",
+      "guard": "tests/regression/test_processed_data.py::test_split_modes_are_conservative",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "분할 모드 ['paired', 'single'] · 허용 밖 []"
+      }
+    },
+    {
+      "id": "EX-13",
+      "layer": "extraction",
+      "category": "boundary-missplit",
+      "title": "서로 다른 사례집의 같은 일련번호를 한 이름공간에서 센다",
+      "symptom": "중복 16건으로 집계됐으나 실제 문서 내 중복은 1건이었다.",
+      "detection": "probe 가 일련번호 기준 중복과 전체 키 기준 중복을 나란히 센다.",
+      "fix": "레코드 키를 (출처, 쪽, 번호, 쌍 번호) 로 정의하고 한 곳에만 둔다.",
+      "metric": {
+        "name": "키 기준 중복",
+        "before": 153,
+        "after": 0,
+        "kind": "live",
+        "unit": "건",
+        "note": "일련번호만으로 세면 153건이 중복으로 보인다."
+      },
+      "probe": "record_key_is_unique",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "일련번호 기준 중복 153건 · 전체 키 기준 0건"
+      }
+    },
+    {
+      "id": "EX-14",
+      "layer": "extraction",
+      "category": "boundary-missplit",
+      "title": "띄어쓰기 경계 라벨이 한 칸 밀렸다",
+      "symptom": "공백을 만난 시점에 직전 경계를 세웠다. 학습과 평가가 같은 함수를 써서 지표는 버그와 일관되어 멀쩡해 보였고, 출력을 눈으로 보고서야 드러났다('후유증으 로').",
+      "detection": "probe 가 옛 구현과 현재 구현으로 원문을 재구성해 본다. 지표가 아니라 불변조건으로 잡는다.",
+      "fix": "labels[i] 를 chars[i] 와 chars[i+1] 사이로 정의.",
+      "metric": {
+        "name": "비조치 F1",
+        "before": 0.786,
+        "after": 0.816,
+        "kind": "measured",
+        "unit": "F1",
+        "source": "docs/04-spacing-restoration.md"
+      },
+      "probe": "boundary_labels_not_shifted",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "원문 재구성 4줄 중 — 옛 구현 0 · 현재 4"
+      }
+    },
+    {
+      "id": "EX-15",
+      "layer": "extraction",
+      "category": "boundary-missplit",
+      "title": "복원기가 원문의 공백을 지운다",
+      "symptom": "모델이 확신하면 사람이 넣은 공백까지 없앤다.",
+      "detection": "probe.",
+      "fix": "복원기는 넣기만 한다.",
+      "metric": null,
+      "probe": "restore_only_adds_spaces",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "입력 공백 1 · 출력 1"
+      }
+    },
+    {
+      "id": "LB-01",
+      "layer": "labeling",
+      "category": "answer-leakage",
+      "title": "요청문에 '비조치' 가 그대로 남아 있다",
+      "symptom": "모델이 판단할 필요 없이 읽기만 하면 된다. 성능이 좋아 보이지만 아무것도 배우지 않았다.",
+      "detection": "probe 가 코퍼스 전체에서 누출 표현을 센다.",
+      "fix": "결론 표현을 낱말 단위로 삭제.",
+      "metric": {
+        "name": "누출 표현이 있는 요청문",
+        "before": 61,
+        "after": 0,
+        "kind": "live",
+        "unit": "건"
+      },
+      "probe": "leak_words_removed",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "요청문 259건 — 가리기 전 누출 61건 · 가린 뒤 0건"
+      }
+    },
+    {
+      "id": "LB-02",
+      "layer": "labeling",
+      "category": "answer-leakage",
+      "title": "낱말만 지우면 조사 흔적이 신호로 남는다",
+      "symptom": "'비조치를 요청' 에서 낱말만 빼면 '를요청' 이 남고, 그 흔적이 다시 클래스 신호가 된다.",
+      "detection": "probe.",
+      "fix": "뒤따르는 조사까지 함께 삼킨다.",
+      "metric": null,
+      "probe": "leak_particles_removed",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "가린 뒤: '당사는 요청드립니다'"
+      }
+    },
+    {
+      "id": "LB-03",
+      "layer": "labeling",
+      "category": "answer-leakage",
+      "title": "마스크 토큰 자체가 새 누출이 됐다",
+      "symptom": "'[결론표현]' 으로 치환했더니 그 토큰의 출현이 클래스별로 갈렸다. 무엇을 가렸다는 사실을 남기면 '그 낱말이 있었다' 는 정보가 그대로 보존된다.",
+      "detection": "probe 가 옛 마스크와 현재 마스크의 계급별 출현을 나란히 센다.",
+      "fix": "표시를 남기지 않고 삭제한다.",
+      "metric": {
+        "name": "마스크 토큰이 있는 사례",
+        "before": 60,
+        "after": 0,
+        "kind": "live",
+        "unit": "건",
+        "note": "계급별로 비조치 58 · 기타 2. docs/06 의 23회는 다른 집계(발생 횟수 기준)다."
+      },
+      "probe": "mask_token_is_not_a_new_leak",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "옛 마스크 계급별 출현 {'기타': 2, '비조치': 58} · 현재 없음"
+      }
+    },
+    {
+      "id": "LB-04",
+      "layer": "labeling",
+      "category": "label-conflation",
+      "title": "'규칙이 못 읽음' 을 '판단유보' 로 접는다",
+      "symptom": "당국이 판단을 유보한 것과 파서가 실패한 것이 한 라벨에 섞이면, 나중에 '언제 판단하면 안 되는가' 를 배울 근거가 사라진다.",
+      "detection": "probe.",
+      "fix": "미분류를 별도 값으로 두고 커버리지로 뺀다.",
+      "metric": null,
+      "probe": "unknown_is_not_abstain",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "'미분류' vs '판단유보'"
+      }
+    },
+    {
+      "id": "LB-05",
+      "layer": "labeling",
+      "category": "label-conflation",
+      "title": "체크가 둘 이상인 사례를 조용히 하나로 접는다",
+      "symptom": "단일 라벨만 기록하면 문서가 실제로 무엇을 표시했는지 되돌아볼 수 없다.",
+      "detection": "probe 가 decisions 필드와 multi_decision 경고를 확인.",
+      "fix": "모든 체크를 decisions 에 남기고 복수면 경고.",
+      "metric": null,
+      "probe": "multiple_checks_are_recorded",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "decisions 필드 259/259 · 복수 체크 1건 중 경고 1건"
+      }
+    },
+    {
+      "id": "LB-06",
+      "layer": "labeling",
+      "category": "split-discipline",
+      "title": "dev/test 를 난수로 나누면 실험을 다시 돌릴 수 없다",
+      "symptom": "같은 명령이 다른 분할을 내면 그 뒤의 모든 수치가 재현되지 않는다.",
+      "detection": "probe 가 입력 순서를 뒤집어도 같은 분할이 나오는지 본다.",
+      "fix": "정렬을 고정하고 인덱스 3의 배수로 나눈다.",
+      "metric": null,
+      "probe": "split_is_deterministic",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "입력 순서를 뒤집어도 동일한 분할: True (dev 85 / test 170)"
+      }
+    },
+    {
+      "id": "LB-07",
+      "layer": "labeling",
+      "category": "split-discipline",
+      "title": "dev 와 test 가 겹치면 모든 수치가 무의미해진다",
+      "symptom": "교집합이 하나라도 있으면 test 는 더 이상 보류 집합이 아니다.",
+      "detection": "probe.",
+      "fix": "인덱스 기준 분할이라 구조적으로 겹치지 않는다.",
+      "metric": null,
+      "probe": "dev_and_test_do_not_overlap",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "dev 85 · test 170 · 교집합 0"
+      }
+    },
+    {
+      "id": "LB-08",
+      "layer": "labeling",
+      "category": "split-discipline",
+      "title": "122건 gold 사전 라벨링은 검수가 아니라 추인이 된다",
+      "symptom": "이미 정답이 있는 항목을 사람이 다시 라벨링하면, 표시된 답을 보고 따라가게 되어 '검증했다' 는 착각만 남는다.",
+      "detection": "사용자 지적으로 드러났다. 자동 검사로는 잡을 수 없는 종류다.",
+      "fix": "비조치 트랙은 문서의 체크박스를 그대로 정답으로 쓴다 — 어떤 모델도 답을 만들지 않았으므로 순환이 없다. 사전 라벨링 계획을 폐기.",
+      "metric": null,
+      "probe": null,
+      "status": "fixed",
+      "result": {
+        "ran": false,
+        "passed": null,
+        "detail": "probe 없음 (기록만)"
+      }
+    },
+    {
+      "id": "EV-01",
+      "layer": "evaluation",
+      "category": "sample-mismatch",
+      "title": "30건 예측을 170건 gold 로 채점했다",
+      "symptom": "커버리지 17.6% 가 출력에 있었는데도 지나쳤다. 매칭이 줄어도 예외가 나지 않는다.",
+      "detection": "probe 가 실제 CLI 를 돌려 경고가 나오는지 본다.",
+      "fix": "미매칭 건수를 경고로 띄우고 --limit 으로 표본을 맞출 수 있게 한다.",
+      "metric": {
+        "name": "커버리지",
+        "before": 0.176,
+        "after": 1.0,
+        "kind": "measured",
+        "unit": "비율",
+        "source": "docs/11-architecture.md"
+      },
+      "probe": "missing_predictions_are_flagged",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "gold 5건 · 예측 1건 · 경고 출력: True"
+      }
+    },
+    {
+      "id": "EV-02",
+      "layer": "evaluation",
+      "category": "metric-misuse",
+      "title": "정확도를 대표 지표로 쓰면 다수만 찍는 분류기가 좋아 보인다",
+      "symptom": "test 의 74.1%가 비조치라 아무 생각 없이 찍어도 정확도 74%가 나온다.",
+      "detection": "probe 가 실제 test 로 정확도와 매크로 F1 을 함께 잰다.",
+      "fix": "대표 지표를 매크로 F1 으로.",
+      "metric": {
+        "name": "다수 클래스만 예측",
+        "before": 0.741,
+        "after": 0.284,
+        "kind": "live",
+        "unit": "정확도 → 매크로 F1",
+        "note": "같은 예측의 두 지표다. 개선 전후가 아니라 지표 선택의 차이를 보여준다."
+      },
+      "probe": "macro_f1_exposes_majority_baseline",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "다수 클래스만 예측 — 정확도 74.1% · 매크로 F1 0.284 (차이 0.457)"
+      }
+    },
+    {
+      "id": "EV-03",
+      "layer": "evaluation",
+      "category": "incomparable-comparison",
+      "title": "커버리지가 다른 두 F1 을 나란히 놓았다",
+      "symptom": "'LLM 0.819(커버리지 72.9%)' 와 '규칙 0.494(커버리지 100%)' 를 한 표에 적었다. 쉬운 것만 골라 답하면 점수는 저절로 오른다.",
+      "detection": "probe 가 기권 신호 없는 모델의 곡선이 한 점인지 확인.",
+      "fix": "위험-커버리지 곡선과 AURC 로 곡선 전체를 비교하고, 규칙 쪽에도 신뢰도를 부여.",
+      "metric": {
+        "name": "AURC (keyword − llm)",
+        "before": 0.282,
+        "after": 0.125,
+        "kind": "measured",
+        "unit": "AURC",
+        "source": "docs/08-e2-risk-coverage.md",
+        "note": "차이 +0.157 [95% CI +0.081–+0.233], 유의."
+      },
+      "probe": "risk_coverage_exists_for_fair_comparison",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "신호 없음 운영점 1개 AURC 0.667 · 신호 있음 2개 AURC 0.111"
+      }
+    },
+    {
+      "id": "EV-04",
+      "layer": "evaluation",
+      "category": "misdiagnosis",
+      "title": "업권을 절대 정확도로 줄세워 진단이 틀렸다",
+      "symptom": "'전자금융 62.2%로 가장 낮으니 이 업권 프롬프트를 손보자' 고 적었다. 업권마다 다수 클래스 비율이 달라 같은 정확도가 전혀 다른 의미다.",
+      "detection": "probe 가 정규화 lift 와 건수 병기가 살아 있는지 확인.",
+      "fix": "업권마다 그 업권의 다수 기준선을 세우고 정규화 lift 를 본다.",
+      "metric": null,
+      "probe": "sector_lift_is_normalized",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "정규화 lift 있음 · 건수 병기 있음 · 최소 표본 8"
+      }
+    },
+    {
+      "id": "EV-05",
+      "layer": "evaluation",
+      "category": "misdiagnosis",
+      "title": "정규화 lift 는 작은 표본에서 과장된다",
+      "symptom": "n=12 에서 한 건만 틀려도 −100% 가 찍힌다.",
+      "detection": "probe 가 items_vs_majority 병기를 확인.",
+      "fix": "다수 기준선 대비 실제 건수 차이를 함께 적고 표본 8건 미만은 줄세우기에서 뺀다.",
+      "metric": null,
+      "probe": "sector_lift_is_normalized",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "정규화 lift 있음 · 건수 병기 있음 · 최소 표본 8"
+      }
+    },
+    {
+      "id": "EV-06",
+      "layer": "evaluation",
+      "category": "metric-misuse",
+      "title": "점추정 하나로 모델 순위를 정한다",
+      "symptom": "소수 클래스가 3건이면 재현율이 네 값밖에 못 가져, 한 건이 뒤집히면 F1 이 0.1 이상 움직인다.",
+      "detection": "probe 가 같은 시드의 재현성과 다른 시드의 변동을 함께 본다.",
+      "fix": "부트스트랩 95% 구간을 함께 적고 시드를 고정한다.",
+      "metric": null,
+      "probe": "bootstrap_is_seeded",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "시드0 0.497–0.800 · 재실행 동일 True · 시드1 0.493–0.810 달라짐 True"
+      }
+    },
+    {
+      "id": "EV-07",
+      "layer": "evaluation",
+      "category": "metric-misuse",
+      "title": "지원이 0인 라벨이 매크로 평균을 희석한다",
+      "symptom": "라벨을 하나 더 정의하는 것만으로 점수가 내려간다.",
+      "detection": "probe.",
+      "fix": "지원이 있는 라벨만 평균한다.",
+      "metric": null,
+      "probe": "absent_labels_do_not_dilute_macro",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "매크로 1.000"
+      }
+    },
+    {
+      "id": "EV-08",
+      "layer": "evaluation",
+      "category": "sample-mismatch",
+      "title": "편향된 부분집합으로 3-way 비교를 하려 했다",
+      "symptom": "sector 예측이 131/170 만 성공했는데, 빠진 39건은 무작위가 아니라 2025년 35건 + 2024년 4건이고 라벨도 비조치 37 / 기타 1 / 조치 1 로 쏠려 있다. 살아남은 131건은 소수 클래스 비율이 32%로 전체 26%보다 높다.",
+      "detection": "probe 가 모든 예측 파일의 결측을 센다.",
+      "fix": "결측이 있으면 비교를 보고하지 않는다. 이 케이스는 아직 열려 있다.",
+      "metric": null,
+      "probe": "predictions_are_complete_before_reporting",
+      "status": "open",
+      "result": {
+        "ran": true,
+        "passed": false,
+        "detail": "pred_nonaction_keyword.jsonl 170/170 결측 0 · pred_nonaction_llm.jsonl 156/170 결측 0 · pred_nonaction_majority.jsonl 170/170 결측 0 · pred_nonaction_prior.jsonl 156/170 결측 0 · pred_nonaction_sector.jsonl 170/170 결측 39"
+      }
+    },
+    {
+      "id": "AG-01",
+      "layer": "agent",
+      "category": "ungrounded-evidence",
+      "title": "근거 인용이 원문에 없다",
+      "symptom": "모델이 그럴듯하게 요약하거나 뜻을 뒤집은 문장을 근거로 든다.",
+      "detection": "probe 가 원문 대조·공백 차이·위조·인용 포기 네 경우를 확인.",
+      "fix": "인용을 공백만 지운 뒤 원문과 글자 단위로 대조하고 결과를 레코드에 남긴다.",
+      "metric": null,
+      "probe": "evidence_must_be_verbatim",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "4종 중 오판 0: []"
+      }
+    },
+    {
+      "id": "AG-02",
+      "layer": "agent",
+      "category": "schema-violation",
+      "title": "자유 서술을 파싱하면 라벨이 아닌 값이 들어온다",
+      "symptom": "'아마 비조치인 것 같습니다' 같은 출력은 채점 단계에서야 터진다.",
+      "detection": "probe 가 스키마의 enum·필수 필드·추가 필드 금지를 확인.",
+      "fix": "JSON 스키마로 라벨과 신뢰도를 enum 강제.",
+      "metric": null,
+      "probe": "label_is_constrained_by_schema",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "라벨 enum ['비조치', '조치', '기타'] · 추가 필드 허용 False"
+      }
+    },
+    {
+      "id": "AG-03",
+      "layer": "agent",
+      "category": "prior-overcorrection",
+      "title": "전체 기저율을 프롬프트에 넣으면 소수 클래스가 지워진다",
+      "symptom": "정확도는 거의 그대로인데(78.8%→78.2%) 조치 재현율이 무너졌다. 정확도만 봤다면 '변화 없음' 으로 넘어갔을 실패다.",
+      "detection": "사전에 세운 가설을 매크로 F1 과 클래스별 재현율로 검증했다.",
+      "fix": "가설이 기각됐음을 그대로 기록한다. 업권별 기저율은 별도 실험으로 분리.",
+      "metric": {
+        "name": "조치 재현율",
+        "before": 0.286,
+        "after": 0.071,
+        "kind": "measured",
+        "unit": "재현율",
+        "source": "docs/10-e4-prompt-variants.md",
+        "note": "매크로 F1 도 0.587 → 0.504 로 내려갔다. 개선이 아니라 기각된 가설이다."
+      },
+      "probe": null,
+      "status": "fixed",
+      "result": {
+        "ran": false,
+        "passed": null,
+        "detail": "probe 없음 (기록만)"
+      }
+    },
+    {
+      "id": "AG-04",
+      "layer": "agent",
+      "category": "miscalibration",
+      "title": "기저율은 반드시 dev 에서만 뽑아야 한다",
+      "symptom": "test 분포를 프롬프트에 넣으면 정답을 흘리는 것이고 실험 자체가 무의미해진다.",
+      "detection": "probe 가 기저율 파일의 source 를 확인하고, 분류기도 실행 전에 검사한다.",
+      "fix": "base_rates 는 dev 만 읽고 source='dev' 를 파일에 남긴다.",
+      "metric": null,
+      "probe": "base_rates_come_from_dev_only",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "source='dev' n=85"
+      }
+    },
+    {
+      "id": "AG-05",
+      "layer": "agent",
+      "category": "miscalibration",
+      "title": "표본 3건짜리 업권 분포를 100%라고 알려준다",
+      "symptom": "잡음을 신호로 위장해 모델에 넘기는 셈이 된다.",
+      "detection": "probe 가 표본이 적은 업권에서 전체 값으로 대체되는지 확인.",
+      "fix": "5건 미만이면 업권별 값 대신 전체 값을 쓴다.",
+      "metric": null,
+      "probe": "small_sector_falls_back_to_overall",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "표본 3건 업권 문장: 참고 — 과거 유사 사례 85건에서 결론 분포는 비조치 70%, 조치 2…"
+      }
+    },
+    {
+      "id": "AG-06",
+      "layer": "agent",
+      "category": "miscalibration",
+      "title": "규칙 기준선에 기권 장치가 없어 비교가 성립하지 않는다",
+      "symptom": "LLM 만 낮은 신뢰도를 버릴 수 있으면 사과와 오렌지를 비교하게 된다.",
+      "detection": "probe 가 majority 는 항상 low, 규칙 적중은 high 를 내는지 확인.",
+      "fix": "규칙에도 자연스러운 신뢰도를 정의한다. majority 가 전부 low 라 곡선이 평평해지는 것 자체가 '자기가 틀릴 때를 모른다' 는 진단이다.",
+      "metric": null,
+      "probe": "rule_baseline_emits_confidence",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "majority=low · 규칙적중=high · 폴백=low"
+      }
+    },
+    {
+      "id": "IN-01",
+      "layer": "infrastructure",
+      "category": "error-classification",
+      "title": "계정 수준 오류를 항목 오류로 취급했다",
+      "symptom": "크레딧 소진은 다음 요청도 100% 실패한다. 그런데 루프가 계속 돌아 실패가 확정된 호출을 39건씩 두 번 던졌다.",
+      "detection": "probe 가 크레딧 오류는 치명으로, 일시 과부하는 재시도 가능으로 분류되는지 확인.",
+      "fix": "FATAL_MARKERS 로 즉시 중단하고 지금까지의 결과를 보존한다. 본 요청 전에 max_tokens=1 로 한 번 점검한다.",
+      "metric": {
+        "name": "실패가 확정된 호출",
+        "before": 78,
+        "after": 0,
+        "kind": "measured",
+        "unit": "회",
+        "source": "대화 기록",
+        "note": "39건 × 2회. 사전 점검이 있으면 0."
+      },
+      "probe": "account_errors_abort_immediately",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "치명 마커 5종 · 크레딧 오류 판정 True · 일시 오류 오판 False"
+      }
+    },
+    {
+      "id": "IN-02",
+      "layer": "infrastructure",
+      "category": "error-classification",
+      "title": "API 오류에서 상태 코드만 남겼다",
+      "symptom": "400 이 39건 났는데 무엇 때문인지 알 수 없었다.",
+      "detection": "probe 가 메시지·본문·프롬프트 길이를 기록하는지 확인.",
+      "fix": "error_detail, error_body, prompt_chars 를 함께 남긴다.",
+      "metric": {
+        "name": "진단 가능한 실패",
+        "before": 0,
+        "after": 39,
+        "kind": "measured",
+        "unit": "건",
+        "source": "대화 기록"
+      },
+      "probe": "api_errors_keep_their_message",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "기록 항목 ['error_detail', 'error_body', 'prompt_chars'] 중 누락 []"
+      }
+    },
+    {
+      "id": "IN-03",
+      "layer": "infrastructure",
+      "category": "path-resolution",
+      "title": "파일을 옮기자 parents[N] 이 조용히 틀어졌다",
+      "symptom": "아키텍처 재편에서 분류기를 app/agents/ 로 옮기자 기저율 경로가 app/data/eval/... 를 가리켰다. API 키가 필요한 경로라 어떤 테스트도 건드리지 않았다.",
+      "detection": "probe 가 ROOT 자체 검증과 경로 존재를 확인.",
+      "fix": "루트를 app/core/paths.py 한 곳에서만 계산하고 pyproject.toml 존재로 자체 검증.",
+      "metric": null,
+      "probe": "repository_paths_resolve",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "ROOT=defactorule · pyproject 존재 True · 기저율 경로 data/eval/dev_base_rates.json"
+      }
+    },
+    {
+      "id": "IN-04",
+      "layer": "infrastructure",
+      "category": "continuous-integration",
+      "title": "CI 가 한 번도 돈 적이 없다",
+      "symptom": "워크플로가 존재하지 않는 requirements-collect.txt 를 설치하고 있었다. 의존성 단계에서 죽었으므로 린트도 테스트도 실행된 적이 없다.",
+      "detection": "probe 가 워크플로가 참조하는 requirements 파일의 실재를 확인.",
+      "fix": "requirements-dev.txt 로 교정.",
+      "metric": null,
+      "probe": "ci_installs_an_existing_requirements_file",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "참조 ['requirements-dev.txt'] · 없는 파일 []"
+      }
+    },
+    {
+      "id": "IN-05",
+      "layer": "infrastructure",
+      "category": "continuous-integration",
+      "title": "린트 범위에 app/ 이 통째로 빠져 있었다",
+      "symptom": "ruff check scripts tests — 구현이 전부 들어 있는 디렉터리를 보지 않았다.",
+      "detection": "probe 가 린트 명령의 범위를 확인.",
+      "fix": "ruff check . 로 확장.",
+      "metric": null,
+      "probe": "ci_lints_the_whole_repository",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "린트 명령 ['run: ruff check .']"
+      }
+    },
+    {
+      "id": "IN-06",
+      "layer": "infrastructure",
+      "category": "environment",
+      "title": "StrEnum 하나로 실행이 막혔다",
+      "symptom": "macOS 기본 python3 가 3.9 인 경우가 많은데 StrEnum 은 3.11+ 다.",
+      "detection": "probe 가 실제 사용처를 찾고, CI 가 3.9·3.11 매트릭스를 돈다. 낱말 등장만 보던 첫 검사는 docstring 의 설명에 걸려 거짓 실패를 냈다.",
+      "fix": "str, Enum 으로 내리고 모듈 수준 별칭에서 X | None 을 쓰지 않는다.",
+      "metric": null,
+      "probe": "code_parses_on_python_39",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "컴파일 통과 · StrEnum 사용 파일 없음"
+      }
+    },
+    {
+      "id": "IN-07",
+      "layer": "infrastructure",
+      "category": "environment",
+      "title": "잘못된 인터프리터로 실행하면 진단조차 못 한다",
+      "symptom": "python(2.7) 으로 스크립트를 부르면 문법 오류만 나고 무엇이 문제인지 알려주지 못한다.",
+      "detection": "probe 가 check_env.py 에 f-string·타입 힌트·월러스가 없는지 확인.",
+      "fix": "환경 점검 스크립트만 Python 2 로도 파싱되게 유지한다.",
+      "metric": null,
+      "probe": "env_check_runs_on_python2",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "Python 2 파서가 걸릴 문법: 없음"
+      }
+    },
+    {
+      "id": "IN-08",
+      "layer": "infrastructure",
+      "category": "reproducibility",
+      "title": "예측이 낡았다는 사실이 드러나지 않는다",
+      "symptom": "파서를 고쳐 gold 본문이 바뀌어도 키는 그대로라, 낡은 예측이 새 gold 와 조용히 짝지어진다. 실제로 test 170건 중 14건의 본문이 바뀌었다.",
+      "detection": "예측 레코드에 프롬프트 지문(sha256 앞 16자리)을 남기고 --resume 이 대조한다.",
+      "fix": "input_sha 기록과 대조. 지문이 없는 옛 기록은 건수를 보고한다.",
+      "metric": {
+        "name": "낡은 채로 짝지어질 뻔한 예측",
+        "before": 14,
+        "after": 0,
+        "kind": "measured",
+        "unit": "건",
+        "source": "이번 재파싱"
+      },
+      "probe": null,
+      "status": "fixed",
+      "result": {
+        "ran": false,
+        "passed": null,
+        "detail": "probe 없음 (기록만)"
+      }
+    },
+    {
+      "id": "IN-09",
+      "layer": "infrastructure",
+      "category": "reproducibility",
+      "title": "핵심 모듈에 단위 테스트가 하나도 없었다",
+      "symptom": "매크로 F1 계산, 레코드 키, 라벨 체계, 규칙 기준선 — 모든 실험이 딛고 선 코드에 테스트가 없었다. 회귀 테스트는 산출물만 봤다.",
+      "detection": "테스트를 unit·integration·evaluation·regression 으로 나누면서 드러났다.",
+      "fix": "네 갈래로 나누고 순수 함수에 단위 테스트를 붙였다.",
+      "metric": {
+        "name": "테스트",
+        "before": 25,
+        "after": 59,
+        "kind": "measured",
+        "unit": "개",
+        "source": "docs/11-architecture.md"
+      },
+      "probe": null,
+      "status": "fixed",
+      "result": {
+        "ran": false,
+        "passed": null,
+        "detail": "probe 없음 (기록만)"
+      }
+    }
+  ]
+}
