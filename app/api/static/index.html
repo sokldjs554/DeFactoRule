@@ -1,0 +1,395 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>DeFactoRule — 모델이 자기가 틀릴 때를 아는가</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #fbfaf8; --panel: #fff; --ink: #1b1a18; --dim: #6b6862;
+    --line: #e3e0da; --accent: #1f5c8b; --warn: #a8500f; --ok: #2c6e49;
+    --llm: #1f5c8b; --keyword: #a8500f; --majority: #8a8578; --prior: #6a4c93; --sector: #2c6e49;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.65 -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", Pretendard, sans-serif;
+  }
+  header { padding: 44px 32px 28px; border-bottom: 1px solid var(--line); }
+  h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: -.02em; }
+  .thesis { margin: 0; max-width: 62ch; color: var(--dim); }
+  .thesis b { color: var(--ink); }
+  main { padding: 0 32px 80px; max-width: 1120px; }
+  section { margin-top: 44px; }
+  h2 { font-size: 18px; margin: 0 0 4px; letter-spacing: -.01em; }
+  .sub { margin: 0 0 18px; color: var(--dim); font-size: 13.5px; max-width: 72ch; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; }
+  .row { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+  .grow { flex: 1 1 380px; min-width: 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--dim); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  tr.best td { font-weight: 700; }
+  .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 7px; vertical-align: baseline; }
+  .flat { color: var(--warn); font-size: 12px; }
+  label { display: block; font-size: 12.5px; color: var(--dim); margin-bottom: 6px; }
+  textarea, select, input[type=range] { width: 100%; font: inherit; }
+  textarea {
+    min-height: 108px; padding: 11px; border: 1px solid var(--line);
+    border-radius: 8px; resize: vertical; background: #fff; color: var(--ink);
+  }
+  select { padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+  button {
+    margin-top: 12px; padding: 9px 18px; font: inherit; font-weight: 600; cursor: pointer;
+    background: var(--accent); color: #fff; border: 0; border-radius: 8px;
+  }
+  button:disabled { opacity: .5; cursor: progress; }
+  .verdict { margin-top: 16px; padding: 16px; border-radius: 8px; border: 1px solid var(--line); background: #fdfcfa; }
+  .verdict.abstain { border-color: #d9c9a3; background: #fdf8ec; }
+  .verdict .label { font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+  .verdict .why { color: var(--dim); font-size: 13px; margin-top: 6px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .chip { font-size: 11.5px; padding: 3px 9px; border-radius: 999px; background: #f1efe9; color: var(--dim); }
+  .bar { height: 9px; border-radius: 3px; background: #eeece6; overflow: hidden; display: flex; }
+  .bar i { display: block; height: 100%; }
+  .muted { color: var(--dim); }
+  .tax { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 10px; }
+  .tax div { border: 1px solid var(--line); border-radius: 8px; padding: 11px 13px; background: #fff; }
+  .tax b { display: block; font-size: 13px; }
+  .tax span { font-size: 12px; color: var(--dim); }
+  .case { border-bottom: 1px solid var(--line); padding: 9px 0; font-size: 13.5px; }
+  .case:last-child { border-bottom: 0; }
+  .case .id { font-variant-numeric: tabular-nums; color: var(--dim); margin-right: 8px; }
+  .case .st { float: right; font-size: 11.5px; padding: 2px 8px; border-radius: 999px; }
+  .st.ok { background: #e7f1ea; color: var(--ok); }
+  .st.bad { background: #fbe9e4; color: #9b2c1a; }
+  .st.open { background: #fdf1dc; color: var(--warn); }
+  .case .detail { color: var(--dim); font-size: 12px; margin-top: 3px; word-break: break-word; }
+  .err { color: #9b2c1a; font-size: 13px; }
+  footer { padding: 28px 32px; border-top: 1px solid var(--line); color: var(--dim); font-size: 12.5px; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#161513; --panel:#1e1d1a; --ink:#eceae5; --dim:#9b968c; --line:#302e2a;
+            --accent:#6fa8d6; --llm:#6fa8d6; --keyword:#d69553; --majority:#7a756a;
+            --prior:#a68cd0; --sector:#6fbf95; }
+    textarea, select, .tax div { background: #1a1917; color: var(--ink); }
+    .verdict { background: #1a1917; } .verdict.abstain { background: #241f16; border-color: #4a3d24; }
+    .chip { background: #26241f; } .bar { background: #26241f; }
+    .st.ok { background: #1c2f24; } .st.bad { background: #34211c; } .st.open { background: #33281a; }
+    button { color: #10201c; }
+  }
+</style>
+
+<header>
+  <h1>DeFactoRule</h1>
+  <p class="thesis">
+    금융 규제당국의 회신 이력에서, 문서 어디에도 적혀 있지 않은 판단 기준을 복원한다.
+    이 화면이 보여주는 것은 정확도가 아니라 <b>모델이 자기가 틀릴 때를 아는가</b>이다 —
+    실험 E2 에서 규칙과 LLM 의 매크로 F1 은 구분되지 않았고, 기권을 허용하고 나서야 갈렸다.
+  </p>
+</header>
+
+<main>
+  <section>
+    <h2>1. 위험–커버리지</h2>
+    <p class="sub">
+      가로축은 답한 비율, 세로축은 그중 틀린 비율. <b>왼쪽 아래로 내려가는 곡선</b>이
+      "자신 없을 때 답을 미룰 줄 안다"는 뜻이다. 곡선이 한 점뿐인 모델은 기권 신호가
+      아예 없다는 뜻이며, 그 평평함 자체가 진단이다. AURC 는 위험의 평균이므로 낮을수록 좋다.
+      커버리지가 서로 다른 두 F1 을 나란히 놓는 것은 비교가 아니다.
+    </p>
+    <div class="panel row">
+      <div class="grow"><svg id="rc" viewBox="0 0 520 340" style="width:100%;height:auto"></svg></div>
+      <div class="grow">
+        <table id="aurc"><tbody><tr><td class="muted">불러오는 중…</td></tr></tbody></table>
+        <p class="sub" id="rc-note" style="margin-top:12px"></p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. 같은 문턱을 직접 움직여 본다</h2>
+    <p class="sub">
+      위 곡선의 운영점을 고르는 것과 아래 <code>min_confidence</code> 를 올리는 것은
+      같은 행위다. 문턱을 올리면 모델은 자신 없는 사안에서 <b>기권</b>한다.
+      기권 판정은 모델이 아니라 결정론적 코드가 한다 — 모델은 신뢰도 등급까지만 말한다.
+    </p>
+    <div class="panel row">
+      <div class="grow">
+        <label for="text">요청대상행위 본문</label>
+        <textarea id="text">내부망과 외부망 사이의 망연계 구간에 정보처리시스템을 연결하여 운영하고자 합니다.</textarea>
+        <div class="row" style="margin-top:12px">
+          <div class="grow">
+            <label for="engine">엔진</label>
+            <select id="engine">
+              <option value="rule">rule — 결정론적 어휘 규칙 (비용 0)</option>
+              <option value="llm">llm — 문서 이해 (API 키 필요)</option>
+            </select>
+          </div>
+          <div class="grow">
+            <label for="conf">min_confidence — 이 등급 미만이면 기권</label>
+            <select id="conf">
+              <option value="low">low — 기권하지 않는다</option>
+              <option value="medium">medium</option>
+              <option value="high">high — 확실할 때만 답한다</option>
+            </select>
+          </div>
+        </div>
+        <button id="go">판정</button>
+      </div>
+      <div class="grow"><div id="out" class="muted">판정을 누르면 결과가 여기 나옵니다.</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>3. 업권별 기저율 — 어려운 구간과 못하는 구간은 다르다</h2>
+    <p class="sub">
+      업권마다 결론 분포가 다르다. 다수 클래스 비율이 51%인 업권과 88%인 업권에서
+      같은 정확도는 전혀 다른 의미다. E1 에서 절대 정확도로 줄세워 진단을 틀렸고,
+      E3 에서 바로잡았다. 표본이 적은 업권은 회색으로 표시한다 — 3건짜리 분포를
+      숫자로 내밀면 잡음을 신호로 위장하는 셈이다. <b>이 값은 dev 에서만 뽑는다.</b>
+    </p>
+    <div class="panel"><table id="rates"><tbody><tr><td class="muted">불러오는 중…</td></tr></tbody></table></div>
+  </section>
+
+  <section>
+    <h2>4. 실패 레지스트리 — 고친 것이 지금도 고쳐져 있는가</h2>
+    <p class="sub">
+      실패 케이스마다 실행 가능한 재현 검사가 붙어 있고, 이 화면은 그것을 지금 돌린 결과다.
+      문서에 적힌 과거형 서술과 달리 여기서 실패가 뜨면 그 수정은 지금 풀려 있는 것이다.
+    </p>
+    <div class="panel">
+      <div class="tax" id="tax"></div>
+      <div id="cases" style="margin-top:18px"></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  모든 수치는 커밋된 산출물에서 계산한다. 서버가 그 자리에서 모델을 돌려 숫자를 만들지 않는다 —
+  이 화면의 값과 <code>scripts/</code> 로 재현한 값이 다르면 그 자체가 버그다.
+</footer>
+
+<script>
+const COLORS = {llm:'--llm', keyword:'--keyword', majority:'--majority', prior:'--prior', sector:'--sector'};
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || '#888';
+const color = name => css(COLORS[name] || '--dim');
+const pct = v => (v * 100).toFixed(1) + '%';
+const el = (tag, attrs = {}, kids = []) => {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svgTags = ['svg','g','path','circle','line','text','rect','polyline'];
+  const n = svgTags.includes(tag) ? document.createElementNS(ns, tag) : document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') n.setAttribute('class', v);
+    else if (k === 'text') n.textContent = v;
+    else n.setAttribute(k, v);
+  }
+  kids.forEach(c => n.appendChild(c));
+  return n;
+};
+
+// ── 1. 위험–커버리지 ────────────────────────────────────────────
+async function drawRiskCoverage() {
+  const svg = document.getElementById('rc');
+  const tbody = document.querySelector('#aurc tbody');
+  let data;
+  try {
+    const r = await fetch('/evaluation/risk-coverage');
+    if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+    data = await r.json();
+  } catch (e) {
+    tbody.innerHTML = '';
+    tbody.appendChild(el('tr', {}, [el('td', {class: 'err', text: '곡선을 그릴 수 없습니다: ' + e.message})]));
+    return;
+  }
+
+  const W = 520, H = 340, P = {t: 16, r: 16, b: 44, l: 52};
+  const maxRisk = Math.max(0.05, ...data.curves.flatMap(c => c.points.map(p => p.risk))) * 1.15;
+  const X = v => P.l + v * (W - P.l - P.r);
+  const Y = v => H - P.b - (v / maxRisk) * (H - P.t - P.b);
+  svg.innerHTML = '';
+
+  for (let i = 0; i <= 4; i++) {
+    const y = P.t + i * (H - P.t - P.b) / 4;
+    svg.appendChild(el('line', {x1: P.l, y1: y, x2: W - P.r, y2: y, stroke: css('--line')}));
+    svg.appendChild(el('text', {
+      x: P.l - 8, y: y + 4, 'text-anchor': 'end', 'font-size': 10, fill: css('--dim'),
+      text: pct(maxRisk * (1 - i / 4))
+    }));
+  }
+  [0, .25, .5, .75, 1].forEach(v => svg.appendChild(el('text', {
+    x: X(v), y: H - P.b + 16, 'text-anchor': 'middle', 'font-size': 10, fill: css('--dim'), text: pct(v)
+  })));
+  svg.appendChild(el('text', {x: (P.l + W - P.r) / 2, y: H - 8, 'text-anchor': 'middle',
+    'font-size': 11, fill: css('--dim'), text: '커버리지 — 답한 비율'}));
+  svg.appendChild(el('text', {x: 13, y: H / 2, 'text-anchor': 'middle', 'font-size': 11,
+    fill: css('--dim'), transform: `rotate(-90 13 ${H / 2})`, text: '위험 — 답한 것 중 오류율'}));
+
+  for (const c of data.curves) {
+    const pts = [...c.points].sort((a, b) => a.coverage - b.coverage);
+    const stroke = color(c.name);
+    if (pts.length > 1) {
+      svg.appendChild(el('polyline', {
+        points: pts.map(p => `${X(p.coverage)},${Y(p.risk)}`).join(' '),
+        fill: 'none', stroke, 'stroke-width': 2, 'stroke-linejoin': 'round'
+      }));
+    }
+    pts.forEach(p => {
+      const dot = el('circle', {cx: X(p.coverage), cy: Y(p.risk), r: 4.5, fill: stroke});
+      dot.appendChild(el('title', {text:
+        `${c.name} — 커버리지 ${pct(p.coverage)} (${p.n}건) · 위험 ${pct(p.risk)} · 매크로 F1 ${p.macro_f1.toFixed(3)}`}));
+      svg.appendChild(dot);
+    });
+  }
+
+  const best = Math.min(...data.curves.map(c => c.aurc));
+  tbody.innerHTML = '';
+  tbody.appendChild(el('tr', {}, [
+    el('th', {text: `모델 (공통 표본 ${data.n}건)`}), el('th', {text: 'AURC'}),
+    el('th', {text: '최대 커버리지'}), el('th', {text: '그때 오류율'})
+  ]));
+  data.curves.sort((a, b) => a.aurc - b.aurc).forEach(c => {
+    const full = c.points.reduce((m, p) => p.coverage > m.coverage ? p : m, c.points[0]);
+    const tr = el('tr', c.aurc === best ? {class: 'best'} : {}, [
+      el('td', {}, [el('span', {class: 'swatch', style: `background:${color(c.name)}`}),
+                    document.createTextNode(c.name + (c.flat ? ' ' : ''))]),
+      el('td', {text: c.aurc.toFixed(3)}),
+      el('td', {text: pct(full.coverage)}),
+      el('td', {text: pct(full.risk)})
+    ]);
+    if (c.flat) tr.children[0].appendChild(el('span', {class: 'flat', text: ' 기권 신호 없음'}));
+    tbody.appendChild(tr);
+  });
+  document.getElementById('rc-note').textContent = data.note;
+}
+
+// ── 2. 판정 데모 ────────────────────────────────────────────────
+async function classify() {
+  const btn = document.getElementById('go'), out = document.getElementById('out');
+  btn.disabled = true;
+  out.className = 'muted';
+  out.textContent = '판정 중…';
+  try {
+    const r = await fetch('/classify', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        request_text: document.getElementById('text').value,
+        engine: document.getElementById('engine').value,
+        min_confidence: document.getElementById('conf').value
+      })
+    });
+    const body = await r.json();
+    if (!r.ok) {
+      out.className = 'err';
+      out.textContent = (r.status === 503 ? '엔진을 쓸 수 없습니다 — ' : '오류 — ') +
+        (typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail));
+      return;
+    }
+    out.className = '';
+    out.innerHTML = '';
+    const box = el('div', {class: 'verdict' + (body.abstained ? ' abstain' : '')});
+    box.appendChild(el('div', {class: 'label', text: body.abstained ? '판단 보류' : body.decision}));
+    box.appendChild(el('div', {class: 'why',
+      text: body.abstained ? body.abstain_reason : '이 문턱에서는 답한다.'}));
+    const chips = el('div', {class: 'chips'});
+    [`신뢰도 ${body.confidence}`, `엔진 ${body.engine}`,
+     body.rule ? `규칙 ${body.rule}` : null,
+     body.evidence && body.evidence.grounded !== null
+       ? `인용 대조 ${body.evidence.grounded ? '통과' : '실패'}` : null
+    ].filter(Boolean).forEach(t => chips.appendChild(el('span', {class: 'chip', text: t})));
+    box.appendChild(chips);
+    if (body.evidence && body.evidence.quote) {
+      box.appendChild(el('div', {class: 'why', style: 'margin-top:10px',
+        text: '근거 인용: ' + body.evidence.quote}));
+    }
+    if (body.base_rate_context) {
+      box.appendChild(el('div', {class: 'why', style: 'margin-top:6px', text: body.base_rate_context}));
+    }
+    out.appendChild(box);
+  } catch (e) {
+    out.className = 'err';
+    out.textContent = '요청 실패: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── 3. 기저율 ───────────────────────────────────────────────────
+async function drawRates() {
+  const tbody = document.querySelector('#rates tbody');
+  const r = await fetch('/base-rates');
+  tbody.innerHTML = '';
+  if (!r.ok) {
+    tbody.appendChild(el('tr', {}, [el('td', {class: 'muted', text: '기저율 파일이 없습니다.'})]));
+    return;
+  }
+  const d = await r.json();
+  const LABELS = Object.keys(d.overall);
+  const TONE = {'비조치': '--majority', '조치': '--keyword', '기타': '--accent'};
+  tbody.appendChild(el('tr', {}, [
+    el('th', {text: `업권 (dev ${d.n}건)`}), el('th', {text: '건수'}),
+    el('th', {text: '분포'}), el('th', {text: '쓰는 값'})
+  ]));
+  const row = (name, n, rates, reliable) => {
+    const bar = el('div', {class: 'bar'});
+    LABELS.forEach(l => {
+      if (!rates[l]) return;
+      const seg = el('i', {style: `width:${rates[l] * 100}%;background:${css(TONE[l] || '--dim')};opacity:${reliable ? 1 : .35}`});
+      seg.appendChild(el('title', {text: `${l} ${pct(rates[l])}`}));
+      bar.appendChild(seg);
+    });
+    const tr = el('tr', reliable ? {} : {class: 'muted'}, [
+      el('td', {text: name}), el('td', {text: n}), el('td', {}, [bar]),
+      el('td', {text: reliable ? '업권별' : '전체로 대체'})
+    ]);
+    tr.children[2].style.minWidth = '160px';
+    return tr;
+  };
+  tbody.appendChild(row('전체', d.n, d.overall, true));
+  d.sectors.forEach(s => tbody.appendChild(row(s.sector, s.n, s.rates, s.reliable)));
+}
+
+// ── 4. 실패 레지스트리 ──────────────────────────────────────────
+async function drawFailures() {
+  const d = await (await fetch('/failures')).json();
+  const tax = document.getElementById('tax');
+  tax.innerHTML = '';
+  Object.entries(d.by_layer).forEach(([layer, n]) => {
+    const cats = [...new Set(d.cases.filter(c => c.layer === layer).map(c => c.category))];
+    tax.appendChild(el('div', {}, [
+      el('b', {text: `${layer} — ${n}건`}),
+      el('span', {text: cats.join(' · ')})
+    ]));
+  });
+
+  const list = document.getElementById('cases');
+  list.innerHTML = '';
+  const failed = d.cases.filter(c => c.probe_passed === false && c.status === 'fixed');
+  const head = failed.length
+    ? `⚠ 고쳤다고 기록된 ${failed.length}건이 지금 실패합니다 — 수정이 풀렸습니다.`
+    : `${d.total}건 · 열린 케이스 ${d.open_cases.length}건 · 나머지는 재현 검사를 통과합니다.`;
+  list.appendChild(el('p', {class: failed.length ? 'err' : 'sub', text: head}));
+
+  const order = c => (c.probe_passed === false && c.status === 'fixed') ? 0 : (c.status === 'open' ? 1 : 2);
+  d.cases.sort((a, b) => order(a) - order(b) || a.id.localeCompare(b.id)).forEach(c => {
+    const div = el('div', {class: 'case'});
+    let cls = 'st ok', label = '유지됨';
+    if (c.status === 'open') { cls = 'st open'; label = '열림'; }
+    else if (c.probe_passed === false) { cls = 'st bad'; label = '풀렸음'; }
+    else if (c.probe_passed === null) { cls = 'st'; label = '기록만'; }
+    div.appendChild(el('span', {class: cls, text: label}));
+    div.appendChild(el('span', {class: 'id', text: c.id}));
+    div.appendChild(document.createTextNode(c.title));
+    if (c.metric) {
+      const m = c.metric;
+      div.appendChild(el('span', {class: 'chip', style: 'margin-left:8px',
+        text: `${m.name} ${m.before} → ${m.after}${m.unit ? ' ' + m.unit : ''}`}));
+    }
+    if (c.probe_detail) div.appendChild(el('div', {class: 'detail', text: c.probe_detail}));
+    list.appendChild(div);
+  });
+}
+
+document.getElementById('go').addEventListener('click', classify);
+drawRiskCoverage();
+drawRates();
+drawFailures();
+</script>
