@@ -20,7 +20,8 @@
 | **2g** | E4 — 기저율 프롬프트 변형 | 🔄 prior 완료(가설 실패) · sector 진행 |
 | **3a** | 아키텍처 재편 · 테스트 4분할 | ✅ app/ 9계층 |
 | **3b** | 실패 케이스 레지스트리 | ✅ **46건** · probe 42개 · 테스트 **154개** |
-| 3c~11 | API · UI · Agent 워크플로 | ⬜ 대기 |
+| **3c** | API 계층 (FastAPI · Pydantic) | ✅ 기권을 계약에 포함 · 테스트 **166개** |
+| 3d~11 | UI · Agent 워크플로 · 검색 | ⬜ 대기 |
 
 - [Phase −1 주제 선정 보고서](docs/01-topic-research.md)
 - [W1 게이트 실측 결과](docs/02-w1-gate.md)
@@ -110,6 +111,25 @@ python3 scripts/classify_llm.py --task nonaction \
 ```
 
 `--limit` 로 먼저 소량 실행하면 추정 비용이 출력됩니다.
+
+### API
+
+```bash
+python3 scripts/serve.py            # http://127.0.0.1:8000/docs
+```
+
+| 엔드포인트 | 무엇을 주는가 |
+|---|---|
+| `POST /classify` | 결론 예측. `min_confidence` 를 올리면 **기권**한다 |
+| `GET /base-rates` | dev 기저율 (업권별). test 에서 뽑은 값은 노출하지 않는다 |
+| `GET /evaluation/models` | 커버리지 100%에서의 매크로 F1. 결측이 있으면 표시한다 |
+| `GET /evaluation/risk-coverage` | 위험-커버리지 곡선과 AURC. 결측이 있는 예측은 제외 |
+| `GET /failures` | 실패 레지스트리 46건 + 재현 검사 결과 |
+
+기권을 계약에 넣은 것이 핵심이다. 이 프로젝트의 결론은 "LLM 이 규칙보다
+정확한 것이 아니라 **자기가 틀릴 때를 안다**" 는 것인데(E2), 서비스가
+'모르겠다' 를 못 돌려주면 그 이점이 경계에서 사라진다. 기권 판정은 모델이
+아니라 결정론적 코드가 한다 — 모델은 신뢰도 등급까지만 말한다.
 
 ### 실패 케이스 레지스트리
 
