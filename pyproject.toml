@@ -1,6 +1,11 @@
+[project]
+name = "defactorule"
+version = "0.1.0"
+requires-python = ">=3.9"
+
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py39"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
@@ -8,3 +13,8 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["scripts"]
+
+[tool.ruff.lint.per-file-ignores]
+# 잘못된 인터프리터로 실행했을 때도 메시지를 내야 하므로 Python 2 문법으로 유지한다.
+# f-string 도 최신 포맷 지정자도 쓸 수 없다.
+"scripts/check_env.py" = ["UP031", "UP032"]

@@ -15,8 +15,15 @@ LLM 이 맡을 자리다. 결론절의 표현이 사례마다 달라 열거로�
 대조에서 걸린다. 이 검증 없이 라벨만 받으면 환각을 발견할 방법이 없다.
 
     export ANTHROPIC_API_KEY=...   # 또는 `ant auth login`
-    python scripts/classify_llm.py --input data/processed/qa_pairs.jsonl \
+    # 법령해석 회답 -> 결론
+    python scripts/classify_llm.py --task verdict \
+        --input data/processed/qa_pairs.jsonl \
         --output data/processed/pred_llm.jsonl --limit 50
+
+    # 비조치 요청 -> 당국 결론 예측 (순환 없는 평가셋)
+    python scripts/classify_llm.py --task nonaction \
+        --input data/eval/nonaction_test.jsonl \
+        --output data/processed/pred_nonaction_llm.jsonl --limit 30
 """
 
 from __future__ import annotations
@@ -27,9 +34,24 @@ import re
 import sys
 from pathlib import Path
 
-from labels import GUIDELINE, VERDICTS
+from labels import GUIDELINE, NON_ACTIONS, VERDICTS
 
 MODEL = "claude-opus-5"
+
+# 비조치의견서 과제의 지침. 법령해석과 달리 **결론이 아니라 요청 자체를 보고
+# 당국이 어떻게 답했을지 예측**하는 것이므로 성격이 완전히 다르다.
+NONACTION_GUIDELINE = """\
+신청인이 하려는 행위만 보고, 금융당국이 어떤 결론을 냈을지 예측합니다.
+회답이나 판단 이유는 주어지지 않습니다.
+
+비조치  당국이 해당 행위에 대해 제재하지 않겠다고 회신한 경우
+조치    제재 대상이거나 규정 위반에 해당한다고 회신한 경우
+기타    비조치도 조치도 아닌 형태로 회신한 경우
+        (해석만 제시, 소관이 아님, 별도 절차 안내 등)
+
+이 과제는 어렵습니다. 세 부류의 요청문은 형태가 거의 같고
+("~하는 것이 ~에 해당하는지 여부"), 결론은 요청문의 표면이 아니라 법적 분석의
+결과입니다. 근거가 약하면 억지로 확신하지 말고 `confidence` 를 낮추십시오."""
 
 SYSTEM = f"""당신은 금융규제 법령해석 회신문을 읽고 결론을 분류합니다.
 
@@ -41,7 +63,58 @@ SYSTEM = f"""당신은 금융규제 법령해석 회신문을 읽고 결론을 �
 근거가 될 만한 결론절을 찾지 못하면 `verdict` 를 "판단유보" 로 두고
 `evidence` 를 빈 문자열로 두십시오. 추측하지 마십시오."""
 
-RESPONSE_SCHEMA = {
+NONACTION_SYSTEM = f"""당신은 금융규제 비조치의견서 신청 내용을 읽고, 당국이 어떤
+결론을 냈을지 예측합니다.
+
+{NONACTION_GUIDELINE}
+
+판단의 단서가 된 요청문 구절을 `evidence` 에 **그대로** 옮깁니다. 요약하거나 바꿔
+쓰지 마십시오. 옮긴 구절은 원문과 글자 단위로 대조됩니다.
+
+단서를 찾지 못하면 `evidence` 를 빈 문자열로 두고 `confidence` 를 "low" 로
+두십시오. 지어내지 마십시오."""
+
+
+def _schema(labels: tuple[str, ...], evidence_hint: str) -> dict:
+    return {
+        "type": "json_schema",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "verdict": {"type": "string", "enum": list(labels)},
+                "evidence": {"type": "string", "description": evidence_hint},
+                "confidence": {
+                    "type": "string",
+                    "enum": ["high", "medium", "low"],
+                },
+            },
+            "required": ["verdict", "evidence", "confidence"],
+            "additionalProperties": False,
+        },
+    }
+
+
+# 과제마다 지침·스키마·입력 필드가 다르다. 한 곳에 모아 두어 실험이 섞이지 않게 한다.
+TASKS = {
+    "verdict": {
+        "system": None,  # 아래에서 SYSTEM 을 넣는다
+        "labels": VERDICTS,
+        "evidence_hint": "판정 근거가 된 회답 원문 구절 (그대로 인용)",
+        "input_fields": ("question", "answer"),
+        "titles": ("질의", "회답"),
+        "source_field": "answer",
+    },
+    "nonaction": {
+        "system": NONACTION_SYSTEM,
+        "labels": NON_ACTIONS,
+        "evidence_hint": "판단 단서가 된 요청문 구절 (그대로 인용)",
+        "input_fields": ("request",),
+        "titles": ("요청대상행위",),
+        "source_field": "request",
+    },
+}
+
+_LEGACY_SCHEMA = {
     "type": "json_schema",
     "schema": {
         "type": "object",
@@ -75,23 +148,27 @@ def evidence_is_grounded(evidence: str, answer: str) -> bool:
     return normalize(evidence) in normalize(answer)
 
 
-def build_prompt(pair: dict) -> str:
-    question = pair.get("question", "").strip()
-    answer = pair.get("answer", "").strip()
-    return f"[질의]\n{question}\n\n[회답]\n{answer}"
+def build_prompt(row: dict, task: dict) -> str:
+    parts = []
+    for field, title in zip(task["input_fields"], task["titles"]):
+        parts.append(f"[{title}]\n{(row.get(field) or '').strip()}")
+    return "\n\n".join(parts)
 
 
-def classify_one(client, pair: dict) -> dict:
+def classify_one(client, row: dict, task: dict) -> dict:
     import anthropic
 
     try:
         response = client.messages.create(
             model=MODEL,
             max_tokens=2000,
-            system=SYSTEM,
+            system=task["system"],
             thinking={"type": "adaptive"},
-            output_config={"format": RESPONSE_SCHEMA, "effort": "medium"},
-            messages=[{"role": "user", "content": build_prompt(pair)}],
+            output_config={
+                "format": _schema(task["labels"], task["evidence_hint"]),
+                "effort": "medium",
+            },
+            messages=[{"role": "user", "content": build_prompt(row, task)}],
         )
     except anthropic.APIStatusError as exc:
         return {"error": f"{type(exc).__name__}: {exc.status_code}"}
@@ -107,7 +184,9 @@ def classify_one(client, pair: dict) -> dict:
     except json.JSONDecodeError:
         return {"error": "unparseable_output", "raw": text[:400]}
 
-    grounded = evidence_is_grounded(parsed.get("evidence", ""), pair.get("answer", ""))
+    grounded = evidence_is_grounded(
+        parsed.get("evidence", ""), row.get(task["source_field"], "")
+    )
     return {
         "predicted": parsed["verdict"],
         "evidence": parsed["evidence"],
@@ -122,9 +201,19 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--input", required=True)
     ap.add_argument("--output", required=True)
+    ap.add_argument(
+        "--task",
+        choices=sorted(TASKS),
+        default="verdict",
+        help="verdict: 회답 -> 결론 / nonaction: 요청 -> 당국 결론 예측",
+    )
     ap.add_argument("--doc-type", default="interpretation")
     ap.add_argument("--limit", type=int, default=0, help="0 이면 전체")
     args = ap.parse_args()
+
+    task = dict(TASKS[args.task])
+    if task["system"] is None:
+        task["system"] = SYSTEM
 
     try:
         import anthropic
@@ -144,9 +233,15 @@ def main() -> None:
         for line in Path(args.input).read_text(encoding="utf-8").splitlines()
         if line.strip()
     ]
-    targets = [r for r in rows if r["doc_type"] == args.doc_type and r.get("answer", "").strip()]
+    source_field = task["source_field"]
+    targets = [r for r in rows if (r.get(source_field) or "").strip()]
+    if args.task == "verdict":
+        # 법령해석 쌍 파일에는 두 문서 종류가 섞여 있다
+        targets = [r for r in targets if r.get("doc_type") == args.doc_type]
     if args.limit:
         targets = targets[: args.limit]
+    if not targets:
+        sys.exit(f"입력에서 '{source_field}' 필드를 가진 행을 찾지 못했습니다: {args.input}")
 
     from collections import Counter
 
@@ -154,13 +249,13 @@ def main() -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     results = []
     with out.open("w", encoding="utf-8") as fh:
-        for i, pair in enumerate(targets, 1):
-            result = classify_one(client, pair)
+        for i, row in enumerate(targets, 1):
+            result = classify_one(client, row, task)
             record = {
-                "source": pair["source"],
-                "serial": pair["serial"],
-                "page": pair["page"],
-                "pair_index": pair["pair_index"],
+                "source": row["source"],
+                "serial": row["serial"],
+                "page": row["page"],
+                "pair_index": row.get("pair_index", 1),
                 **result,
             }
             fh.write(json.dumps(record, ensure_ascii=False) + "\n")
