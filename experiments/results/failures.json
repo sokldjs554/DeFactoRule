@@ -1,5 +1,5 @@
 {
-  "total": 55,
+  "total": 56,
   "min_required": 30,
   "by_layer": {
     "agent": {
@@ -19,7 +19,7 @@
       "silent-empty": 3,
       "encoding-normalization": 3,
       "unreadable-source": 1,
-      "boundary-missplit": 4
+      "boundary-missplit": 5
     },
     "infrastructure": {
       "error-classification": 2,
@@ -488,7 +488,7 @@
       "result": {
         "ran": true,
         "passed": false,
-        "detail": "1건 어긋남 — README 실패 케이스 수: 문서 54 · 실제 55"
+        "detail": "1건 어긋남 — README 실패 케이스 수: 문서 55 · 실제 56"
       }
     },
     {
@@ -785,7 +785,7 @@
       "result": {
         "ran": true,
         "passed": true,
-        "detail": "일련번호 기준 중복 153건 · 전체 키 기준 0건"
+        "detail": "일련번호 기준 중복 151건 · 전체 키 기준 0건"
       }
     },
     {
@@ -826,6 +826,32 @@
         "ran": true,
         "passed": true,
         "detail": "입력 공백 1 · 출력 1"
+      }
+    },
+    {
+      "id": "EX-16",
+      "layer": "extraction",
+      "category": "boundary-missplit",
+      "title": "순번 교집합으로 짝을 지어 서로 다른 것을 붙였다",
+      "symptom": "질의와 회답 양쪽에 순번이 있으면 **교집합**이 2개 이상일 때 짝을 지어 잘랐다. 그러자 질의 ➊~➎ · 회답 󰊱󰊲 인 사례에서 {1,2} 로 짝을 지었는데, 질의의 ➊~➎ 는 다섯 개 질문이 아니라 한 질문 안의 행위 열거였고 회답의 󰊱󰊲 는 그것을 두 묶음으로 나눈 답변이었다. 질의①'보관'과 회답①'➌현금을 영수'를 붙인 셈이고, 질의 ➌➍➎ 는 경고도 없이 사라졌다. EX-12(회답 순번을 질의 구분으로 오인)와 같은 뿌리다.",
+      "detection": "분할 함수에 단위 테스트를 붙이다 '질의 3개 회답 2개면 어떻게 되나' 를 묻고 실제 코퍼스에서 세어 봤다. 2건이 그렇게 잘리고 있었다.",
+      "fix": "순번 집합이 **정확히 같을 때만** 자른다. 어긋나면 자르지 않고 mark_mismatch 경고를 남긴다 — 조용히 넘어가지 않는다. 순번은 질의 구분일 수도 열거일 수도 있고, 양쪽이 정확히 대응할 때만 구분이라고 믿을 수 있다.",
+      "metric": {
+        "name": "오분할된 사례",
+        "before": 2,
+        "after": 0,
+        "kind": "measured",
+        "unit": "건",
+        "source": "docs/03-splitting-and-regression.md",
+        "note": "쌍 1,124 -> 1,122. 짝 분할이 유지되는 18건은 순번 집합이 정확히 같다."
+      },
+      "probe": "marks_must_align_before_splitting",
+      "status": "fixed",
+      "guard": "tests/unit/test_splitting.py::test_mismatched_counts_fall_back_to_single",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "순번 일치 -> 2쌍(paired) · 불일치 -> 1쌍(single, 경고 ['mark_mismatch'])"
       }
     },
     {

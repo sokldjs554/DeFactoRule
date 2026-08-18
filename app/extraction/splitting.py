@@ -96,11 +96,22 @@ def split_case(case: dict) -> list[dict]:
         "case_warnings": case.get("warnings", []),
     }
 
-    # 양쪽 순번이 겹치면 짝을 지어 자른다
+    # 양쪽 순번이 **정확히 같을 때만** 짝을 지어 자른다.
+    #
+    # 처음에는 교집합이 2개 이상이면 잘랐다. 그러자 질의 ➊~➎ · 회답 󰊱󰊲 인
+    # 사례에서 {1,2} 로 짝을 지었는데, 질의의 ➊~➎ 는 다섯 개 질문이 아니라
+    # **한 질문 안의 행위 열거**였고 회답의 󰊱󰊲 는 그것을 두 묶음으로 나눈
+    # 답변이었다. 질의① "보관" 과 회답① "➌현금을 영수" 를 붙인 셈이다.
+    # 짝이 어긋난 데다 질의 ➌➍➎ 는 경고도 없이 사라졌다.
+    #
+    # 회답에만 순번이 있을 때 자르지 않기로 한 것과 같은 이유다 — 순번은
+    # 질의 구분일 수도 있고 열거일 수도 있으며, 양쪽이 정확히 대응할 때만
+    # 구분이라고 믿을 수 있다.
     if q_marks and a_marks:
         q_parts, a_parts = slice_by_marks(question, q_marks), slice_by_marks(answer, a_marks)
         shared = sorted(set(q_parts) & set(a_parts))
-        if len(shared) >= 2:
+        aligned = set(q_parts) == set(a_parts)
+        if aligned and len(shared) >= 2:
             return [
                 {
                     **base,
@@ -118,9 +129,16 @@ def split_case(case: dict) -> list[dict]:
     # 다만 그 사실을 표시해 두어 다운스트림에서 열거 구조를 살릴 수 있게 한다.
     enumerated = bool(a_marks) or bool(q_marks)
 
+    warnings = list(base["case_warnings"])
+    if q_marks and a_marks and {n for _, n in q_marks} != {n for _, n in a_marks}:
+        # 조용히 넘어가지 않는다. 양쪽에 순번이 있는데 대응하지 않는다는 것은
+        # 한쪽이 열거라는 뜻이고, 그 사실 자체가 기록할 가치가 있다.
+        warnings.append("mark_mismatch")
+
     return [
         {
             **base,
+            "case_warnings": warnings,
             "pair_index": 1,
             "pair_count": 1,
             "split_mode": "single",
