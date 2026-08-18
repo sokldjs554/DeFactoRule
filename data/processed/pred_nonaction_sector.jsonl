@@ -129,42 +129,42 @@
 {"source": "2024년 비조치의견서 사례집(금융감독원).pdf", "serial": "240055", "page": 87, "pair_index": 1, "predicted": "비조치", "evidence": "원화유동성비율* 준수에대한한시적인 요청", "confidence": "high", "evidence_grounded": true, "input_tokens": 1284, "output_tokens": 48}
 {"source": "2024년 비조치의견서 사례집(금융감독원).pdf", "serial": "240056", "page": 88, "pair_index": 1, "predicted": "비조치", "evidence": "여신성자산대비PF 익스포저비율”) 준수에대한한시적인 요청", "confidence": "high", "evidence_grounded": false, "input_tokens": 1374, "output_tokens": 58}
 {"source": "2024년 비조치의견서 사례집(금융감독원).pdf", "serial": "240058", "page": 90, "pair_index": 1, "predicted": "비조치", "evidence": "익스포져한도** 준수의무의한시적인제외를요청", "confidence": "high", "evidence_grounded": true, "input_tokens": 1369, "output_tokens": 49}
-{"source": "2024년 비조치의견서 사례집(금융감독원).pdf", "serial": "240059", "page": 91, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2024년 비조치의견서 사례집(금융감독원).pdf", "serial": "240098", "page": 93, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2024년 비조치의견서 사례집(금융감독원).pdf", "serial": "240085", "page": 95, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2024년 비조치의견서 사례집(금융감독원).pdf", "serial": "240087", "page": 97, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "25004", "page": 4, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250027", "page": 7, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250032", "page": 8, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250058", "page": 11, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250059", "page": 13, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250007", "page": 16, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250010", "page": 17, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250019", "page": 19, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250039", "page": 20, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250044", "page": 22, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250048", "page": 24, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250053", "page": 26, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250017", "page": 28, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250034", "page": 30, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250011", "page": 32, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250030", "page": 34, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250031", "page": 35, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250062", "page": 38, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250063", "page": 39, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250020", "page": 42, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250028", "page": 43, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250041", "page": 45, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250042", "page": 46, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250055", "page": 48, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250060", "page": 49, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250003", "page": 52, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250033", "page": 53, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250056", "page": 55, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250057", "page": 56, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250015", "page": 60, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250016", "page": 61, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250023", "page": 64, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250024", "page": 65, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250047", "page": 67, "pair_index": 1, "error": "BadRequestError: 400"}
-{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250052", "page": 68, "pair_index": 1, "error": "BadRequestError: 400"}
+{"source": "2024년 비조치의견서 사례집(금융감독원).pdf", "serial": "240059", "page": 91, "pair_index": 1, "predicted": "비조치", "evidence": "자산건전성을\n‘정상’으로\n분류가능토록한시적인 요청", "confidence": "high", "evidence_grounded": true, "input_tokens": 1315, "output_tokens": 57}
+{"source": "2024년 비조치의견서 사례집(금융감독원).pdf", "serial": "240098", "page": 93, "pair_index": 1, "predicted": "비조치", "evidence": "여신성자산대비PF 익스포저비율\") 준수에대한한시적인 요청", "confidence": "high", "evidence_grounded": false, "input_tokens": 1374, "output_tokens": 59}
+{"source": "2024년 비조치의견서 사례집(금융감독원).pdf", "serial": "240085", "page": 95, "pair_index": 1, "predicted": "비조치", "evidence": "긴급한대처또는\n법률상의무준수를위해사전통지가불가능한경우, 입출금차단시통지하는\n것을 요청", "confidence": "medium", "evidence_grounded": true, "input_tokens": 1262, "output_tokens": 107}
+{"source": "2024년 비조치의견서 사례집(금융감독원).pdf", "serial": "240087", "page": 97, "pair_index": 1, "predicted": "비조치", "evidence": "네트워크수수료(gas fee) 용도로특수관계인이\n발행한가상자산을취득하여보유하면서, 네트워크수수료를지급하는행위", "confidence": "medium", "evidence_grounded": true, "input_tokens": 1147, "output_tokens": 208}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "25004", "page": 4, "pair_index": 1, "predicted": "비조치", "evidence": "추가적인계도기간부여가필요", "confidence": "high", "evidence_grounded": true, "input_tokens": 1277, "output_tokens": 40}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250027", "page": 7, "pair_index": 1, "predicted": "비조치", "evidence": "금융회사가사업성이부족한PF 사업장을정리‧재구조화*하거나, 정상화\n가능사업장등에신규자금을공급**하는행위(’25.12.31.까지한시적용)", "confidence": "high", "evidence_grounded": true, "input_tokens": 1356, "output_tokens": 99}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250032", "page": 8, "pair_index": 1, "predicted": "비조치", "evidence": "영업구역내의무여신비율규제를위반하더라도동법\n제24조제1항에따른조치를면제", "confidence": "medium", "evidence_grounded": true, "input_tokens": 1159, "output_tokens": 66}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250058", "page": 11, "pair_index": 1, "predicted": "비조치", "evidence": "동신규자금에대하여동일사업장에대한기존채권과\n구분하여자산건전성을별도분류(최대“정상”까지)하는행위", "confidence": "high", "evidence_grounded": true, "input_tokens": 1764, "output_tokens": 79}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250059", "page": 13, "pair_index": 1, "predicted": "비조치", "evidence": "금융회사가사업성이부족한PF 사업장을정리‧재구조화*하거나, 정상화\n가능사업장등에신규자금을공급**하는행위(’26.6.30.까지한시적용)", "confidence": "high", "evidence_grounded": true, "input_tokens": 1356, "output_tokens": 99}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250007", "page": 16, "pair_index": 1, "predicted": "기타", "evidence": "금융회사가전자금융감독규정\n제14조의2에따른클라우드서비스이용절차등을준수해야하는지\n여부", "confidence": "low", "evidence_grounded": true, "input_tokens": 1151, "output_tokens": 255}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250010", "page": 17, "pair_index": 1, "predicted": "비조치", "evidence": "금융회사가내부통신망과분리‧차단된상태에서인터넷을사용할\n수있도록외부연결되어있는가상PC를통해생성형AI(SaaS)를\n접속‧이용*하는\n것이\n전자금융감독규정\n제15조제1항제3호\n위반에\n따른조치대상인지여부", "confidence": "medium", "evidence_grounded": true, "input_tokens": 1364, "output_tokens": 144}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250019", "page": 19, "pair_index": 1, "predicted": "비조치", "evidence": "상기업무위탁계약의목적달성을위한연결‧\n접속을\n전자금융감독규정시행세칙\n제2조의3제2항에\n따른\n업무상\n불가피한경우로볼수있는지여부", "confidence": "low", "evidence_grounded": true, "input_tokens": 1342, "output_tokens": 364}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250039", "page": 20, "pair_index": 1, "predicted": "비조치", "evidence": "기존내부통신망과분리된별도폐쇄망을구축하여실제\n이용자정보를사용", "confidence": "medium", "evidence_grounded": true, "input_tokens": 1405, "output_tokens": 158}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250044", "page": 22, "pair_index": 1, "predicted": "비조치", "evidence": "전자금융거래법 제51조 제1항 제9호 등에 따른 조치를 면제할 필요", "confidence": "high", "evidence_grounded": true, "input_tokens": 1610, "output_tokens": 63}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250048", "page": 24, "pair_index": 1, "predicted": "비조치", "evidence": "｢전자금융감독규정시행세칙｣제2조의3\n제2항제2호가목에따른망분리적용예외에해당하는지여부", "confidence": "medium", "evidence_grounded": true, "input_tokens": 1360, "output_tokens": 78}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250053", "page": 26, "pair_index": 1, "predicted": "비조치", "evidence": "기존내부통신망과\n분리된별도테스트환경**을구축하여실제이용자정보를사용할경우\n전자금융감독규정제13조제1항제8호에따른조치대상에해당하는지여부", "confidence": "medium", "evidence_grounded": true, "input_tokens": 1388, "output_tokens": 101}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250017", "page": 28, "pair_index": 1, "predicted": "비조치", "evidence": "은행업감독규정시행세칙<별표18> 제5호 자목에도 불구하고담보인정비율을초과한신용대출을주택담보대출", "confidence": "high", "evidence_grounded": true, "input_tokens": 1402, "output_tokens": 79}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250034", "page": 30, "pair_index": 1, "predicted": "비조치", "evidence": "산업은행이보유한\n에이치엠엠주식회사(이하“HMM”) 주식에대하여「은행업감독업무\n시행세칙」(이하“세칙”) <별표3> 38의3. 자. (1) 적용의예외조치를요청", "confidence": "medium", "evidence_grounded": true, "input_tokens": 1230, "output_tokens": 117}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250011", "page": 32, "pair_index": 1, "predicted": "기타", "evidence": "동매매가금융투자업규정(이하‘규정’) 제\n7-36조의2제2항단서의기준가격차이에따른당일(T일) 기준가격변경대상에\n포함되는지여부", "confidence": "low", "evidence_grounded": true, "input_tokens": 1604, "output_tokens": 96}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250030", "page": 34, "pair_index": 1, "predicted": "비조치", "evidence": "순자본비율산정시한시적으로완화된위험값을적용할수있도록요청", "confidence": "medium", "evidence_grounded": true, "input_tokens": 1278, "output_tokens": 57}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250031", "page": 35, "pair_index": 1, "predicted": "비조치", "evidence": "순자본비율산정시한시적으로완화된위험값을적용할수있도록요청", "confidence": "high", "evidence_grounded": true, "input_tokens": 1280, "output_tokens": 56}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250062", "page": 38, "pair_index": 1, "predicted": "비조치", "evidence": "순자본비율산정시한시적으로완화된위험값을적용할수있도록요청", "confidence": "high", "evidence_grounded": true, "input_tokens": 1278, "output_tokens": 56}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250063", "page": 39, "pair_index": 1, "predicted": "비조치", "evidence": "순자본비율산정시한시적으로완화된위험값을적용할수있도록요청", "confidence": "high", "evidence_grounded": true, "input_tokens": 1280, "output_tokens": 56}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250020", "page": 42, "pair_index": 1, "predicted": "비조치", "evidence": "산불사고와같이보험회사의낙관적기초가정사용과\n무관한자연재해로인한지급금을", "confidence": "medium", "evidence_grounded": true, "input_tokens": 1195, "output_tokens": 67}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250028", "page": 43, "pair_index": 1, "predicted": "비조치", "evidence": "지급여력비율산정시한시적으로완화된신용위험계수를적용하고, 부동산집중위험산출대상에서제외할수있도록요청", "confidence": "high", "evidence_grounded": true, "input_tokens": 1328, "output_tokens": 79}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250041", "page": 45, "pair_index": 1, "predicted": "비조치", "evidence": "자산과부채(연금)의특성을모두반영하여산출할수있는지여부", "confidence": "medium", "evidence_grounded": true, "input_tokens": 1247, "output_tokens": 56}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250042", "page": 46, "pair_index": 1, "predicted": "비조치", "evidence": "재무건전성(지급여력비율) 유지및적기시정조치관련법규에대한조치면제를요청", "confidence": "high", "evidence_grounded": true, "input_tokens": 1185, "output_tokens": 64}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250055", "page": 48, "pair_index": 1, "predicted": "비조치", "evidence": "가교보험사인예별손해보험에대해보험업법제120조의2(책임준비금의\n적정성검증) 등에서정하는외부검증(독립계리업자또는보험요율산출\n기관) 의무및검증보고서제출의무면제를요청", "confidence": "medium", "evidence_grounded": true, "input_tokens": 1168, "output_tokens": 116}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250060", "page": 49, "pair_index": 1, "predicted": "비조치", "evidence": "지급여력비율산정시한시적으로완화된신용위험계수를적용하고,부동산집중위험산출대상에서제외할수있도록요청", "confidence": "high", "evidence_grounded": true, "input_tokens": 1331, "output_tokens": 78}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250003", "page": 52, "pair_index": 1, "predicted": "비조치", "evidence": "예대율규제를위반하더라도동법제24조제1항에따른조치를면제", "confidence": "high", "evidence_grounded": true, "input_tokens": 1185, "output_tokens": 55}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250033", "page": 53, "pair_index": 1, "predicted": "비조치", "evidence": "부동산PF 부실채권정리및정상화를위한집합투자기구의수익증권", "confidence": "high", "evidence_grounded": true, "input_tokens": 1265, "output_tokens": 57}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250056", "page": 55, "pair_index": 1, "predicted": "비조치", "evidence": "영업구역내의무여신비율규제를위반하더라도동법\n제24조제1항에따른조치를면제", "confidence": "medium", "evidence_grounded": true, "input_tokens": 1191, "output_tokens": 66}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250057", "page": 56, "pair_index": 1, "predicted": "비조치", "evidence": "동법 제24조 제1항에 따른 조치를 면제", "confidence": "high", "evidence_grounded": true, "input_tokens": 1265, "output_tokens": 48}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250015", "page": 60, "pair_index": 1, "predicted": "비조치", "evidence": "가상자산사업자가이용자자산인특수관계인이발행한가상자산A를보관하는행위", "confidence": "low", "evidence_grounded": true, "input_tokens": 1069, "output_tokens": 241}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250016", "page": 61, "pair_index": 1, "predicted": "비조치", "evidence": "기존\n대비신용정보법에따라신설·강화된규제위반행위에대해서는일정기간제재\n하지않는등계도기간을부여할필요", "confidence": "high", "evidence_grounded": true, "input_tokens": 1369, "output_tokens": 81}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250023", "page": 64, "pair_index": 1, "predicted": "비조치", "evidence": "「디지털자산보호재단」으로완전히이전하는것을조건으로「가상자산이용자보호법」에\n따른이용자자산의보호의무(제8조) 미준수행위를 해줄것을요청", "confidence": "medium", "evidence_grounded": true, "input_tokens": 1146, "output_tokens": 214}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250024", "page": 65, "pair_index": 1, "predicted": "비조치", "evidence": "「디\n지털자산보호재단」으로완전히이전하는것을조건으로", "confidence": "medium", "evidence_grounded": true, "input_tokens": 1157, "output_tokens": 161}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250047", "page": 67, "pair_index": 1, "predicted": "비조치", "evidence": "「디지털자산보호재단」으로완전히이전하는것을조건으로", "confidence": "medium", "evidence_grounded": true, "input_tokens": 1152, "output_tokens": 54}
+{"source": "2025년 비조치의견서 사례집(금융감독원).pdf", "serial": "250052", "page": 68, "pair_index": 1, "predicted": "비조치", "evidence": "불공정거래관련\n당국보고시에는통지의무의면제가필요", "confidence": "medium", "evidence_grounded": true, "input_tokens": 1606, "output_tokens": 54}
