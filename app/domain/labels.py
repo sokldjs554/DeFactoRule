@@ -43,6 +43,9 @@ class NonAction(str, Enum):
 VERDICTS = tuple(v.value for v in Verdict)
 NON_ACTIONS = tuple(v.value for v in NonAction)
 
+# 채점 하네스가 `--labels` 로 고르는 이름. 라벨 집합의 정의처는 여기 하나뿐이다.
+LABEL_SETS = {"verdict": VERDICTS, "nonaction": NON_ACTIONS}
+
 # 라벨 판정 지침. 사람과 LLM 이 같은 기준을 쓰도록 한 곳에 둔다.
 GUIDELINE = """\
 회답의 **결론**만 보고 분류한다. 근거나 배경 설명이 아무리 길어도 판정은 결론절로 한다.

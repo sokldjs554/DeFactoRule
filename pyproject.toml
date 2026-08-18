@@ -11,8 +11,12 @@ target-version = "py39"
 select = ["E", "F", "I", "UP", "B"]
 
 [tool.pytest.ini_options]
+# unit         순수 함수. 파일도 네트워크도 건드리지 않는다.
+# integration  CLI 진입점을 실제로 실행한다.
+# evaluation   지표가 바닥선 아래로 내려가지 않았는지 본다.
+# regression   서식·산출물이 조용히 망가지지 않았는지 본다.
 testpaths = ["tests"]
-pythonpath = ["scripts"]
+pythonpath = ["."]
 
 [tool.ruff.lint.per-file-ignores]
 # 잘못된 인터프리터로 실행했을 때도 메시지를 내야 하므로 Python 2 문법으로 유지한다.
