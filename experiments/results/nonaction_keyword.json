@@ -1,0 +1,31 @@
+{
+  "name": "nonaction-keyword",
+  "gold_size": 170,
+  "matched": 170,
+  "coverage": 1.0,
+  "unknown": 0,
+  "errors": 0,
+  "accuracy_on_scored": 0.7470588235294118,
+  "macro_f1": 0.49424890729238563,
+  "per_label": {
+    "비조치": {
+      "support": 126,
+      "precision": 0.78,
+      "recall": 0.9285714285714286,
+      "f1": 0.8478260869565217
+    },
+    "조치": {
+      "support": 14,
+      "precision": 0.35714285714285715,
+      "recall": 0.35714285714285715,
+      "f1": 0.35714285714285715
+    },
+    "기타": {
+      "support": 30,
+      "precision": 0.8333333333333334,
+      "recall": 0.16666666666666666,
+      "f1": 0.2777777777777778
+    }
+  },
+  "ungrounded_evidence": 0
+}

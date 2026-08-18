@@ -18,7 +18,9 @@ import json
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from labels import VERDICTS
+from labels import NON_ACTIONS, VERDICTS
+
+LABEL_SETS = {"verdict": VERDICTS, "nonaction": NON_ACTIONS}
 
 UNKNOWN = "미분류"
 
@@ -37,10 +39,12 @@ def load(path: Path) -> list[dict]:
     ]
 
 
-def macro_f1(pairs: list[tuple[str, str]]) -> tuple[float, dict[str, dict]]:
+def macro_f1(
+    pairs: list[tuple[str, str]], labels: tuple[str, ...]
+) -> tuple[float, dict[str, dict]]:
     """라벨별 P/R/F1 과 매크로 평균. 클래스 불균형이 심하므로 매크로로 본다."""
     per: dict[str, dict] = {}
-    for label in VERDICTS:
+    for label in labels:
         tp = sum(1 for g, p in pairs if g == label and p == label)
         fp = sum(1 for g, p in pairs if g != label and p == label)
         fn = sum(1 for g, p in pairs if g == label and p != label)
@@ -53,7 +57,7 @@ def macro_f1(pairs: list[tuple[str, str]]) -> tuple[float, dict[str, dict]]:
             "recall": recall,
             "f1": f1,
         }
-    present = [v for v in VERDICTS if per[v]["support"]]
+    present = [v for v in labels if per[v]["support"]]
     macro = sum(per[v]["f1"] for v in present) / len(present) if present else 0.0
     return macro, per
 
@@ -63,6 +67,12 @@ def main() -> None:
     ap.add_argument("--gold", required=True)
     ap.add_argument("--pred", required=True)
     ap.add_argument("--name", default="model")
+    ap.add_argument(
+        "--labels",
+        choices=sorted(LABEL_SETS),
+        default="verdict",
+        help="채점에 쓸 라벨 집합",
+    )
     ap.add_argument("--report", help="결과를 JSON 으로 저장할 경로")
     args = ap.parse_args()
 
@@ -86,7 +96,8 @@ def main() -> None:
 
     pairs = [(gold[k]["label"], pred[k]["predicted"]) for k in scored]
     accuracy = sum(1 for g, p in pairs if g == p) / len(pairs) if pairs else 0.0
-    macro, per = macro_f1(pairs)
+    label_set = LABEL_SETS[args.labels]
+    macro, per = macro_f1(pairs, label_set)
     coverage = len(scored) / len(gold) if gold else 0.0
 
     print(f"=== {args.name} ===")
@@ -95,7 +106,7 @@ def main() -> None:
     print(f"판정한 것 중 정확도 {accuracy:.1%} · 매크로 F1 {macro:.3f}\n")
 
     print(f"{'라벨':>8}  {'지원':>4}  {'정밀도':>7}  {'재현율':>7}  {'F1':>7}")
-    for label in VERDICTS:
+    for label in label_set:
         m = per[label]
         if not m["support"]:
             continue
