@@ -75,6 +75,42 @@ def compare_table(doc: str, tag: str, data: dict) -> list[str]:
     return problems
 
 
+# 코퍼스 규모는 README 안에서 **여러 번** 되풀이된다. 한 곳만 맞아도 통과하는
+# 검사는 나머지가 밀린 것을 놓친다 — 실제로 그렇게 놓쳤다(EV-17).
+CORPUS_UNITS = (
+    ("pairs", re.compile(r"([\d,]+)\s*(?:질의[–—-]?\s*회답\s*)?쌍")),
+    ("cases", re.compile(r"([\d,]+)\s*사례")),
+    ("cases", re.compile(r"([\d,]+)건\s*—\s*W1")),
+)
+
+
+def corpus_restatements(root: Path) -> list[str]:
+    """README 가 코퍼스 규모를 적은 **모든** 자리가 산출물과 맞는가.
+
+    존재 검사(`f"{pairs:,}쌍" in readme`)는 한 자리만 맞으면 통과한다. 그
+    README 는 위쪽 표에 1,122쌍, 아래쪽 데이터 표에 1,124쌍을 동시에 적고
+    있었고 검사는 통과했다. 되풀이된 주장은 **전부** 대조해야 한다.
+    """
+    readme_path = root / "README.md"
+    if not readme_path.exists():
+        return []
+    from app.evaluation.doc_sync import corpus_counts
+
+    cases, pairs = corpus_counts()
+    if not cases:
+        return []
+    truth = {"cases": cases, "pairs": pairs}
+    problems = []
+    for kind, pattern in CORPUS_UNITS:
+        for raw in pattern.findall(readme_path.read_text(encoding="utf-8")):
+            claimed = int(raw.replace(",", ""))
+            if claimed != truth[kind]:
+                problems.append(
+                    f"README 코퍼스 {kind}: 문서 {claimed:,} · 실제 {truth[kind]:,}"
+                )
+    return problems
+
+
 def check_documented_numbers(root: Path | None = None) -> tuple[bool, str]:
     """문서 수치가 산출물과 맞는지. (통과 여부, 설명) 을 돌려준다."""
     root = Path(root or ROOT)
@@ -96,6 +132,9 @@ def check_documented_numbers(root: Path | None = None) -> tuple[bool, str]:
         data = json.loads(path.read_text(encoding="utf-8"))
         checked += len(data["comparisons"])
         problems += compare_table(doc, tag, data)
+
+    problems += corpus_restatements(root)
+    checked += 1
 
     # 레지스트리 건수가 문서와 맞는가
     reg = root / REGISTRY

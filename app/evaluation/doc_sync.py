@@ -104,6 +104,33 @@ def comparison_table(data: dict) -> str:
     return "\n".join(lines)
 
 
+def anchoring_block(trap: dict) -> str:
+    """검색의 사각지대 — 클래스별로 닮은 선례가 있는 비율."""
+    rows = ["| 정답 | test 건수 | dev 에 닮은 선례가 있는 건수 | 비율 |", "|---|---|---|---|"]
+    for label, v in sorted(trap["anchoring_by_class"].items(), key=lambda kv: kv[1]["anchor_rate"]):
+        rows.append(f"| `{label}` | {v['n']} | {v['anchored']} | **{v['anchor_rate']:.1%}** |")
+    return "\n".join(rows)
+
+
+def trap_block(trap: dict) -> str:
+    """순응/함정 구간별 정확도. 표면 유사도를 베끼는 전략은 함정에서 0% 다."""
+    c = trap["counts"]
+    head = (
+        f"순응 {c['agree']}건 · 함정 {c['trap']}건 · 선례 없음 {c['unanchored']}건 "
+        f"(닮음 문턱 {trap['similarity_floor']}, 문자 {trap['ngram']}-gram IDF 코사인)"
+    )
+    rows = [
+        f"| 모델 | 전체 | 순응 {c['agree']}건 | 함정 {c['trap']}건 (TRAP) | 격차 |",
+        "|---|---|---|---|---|",
+    ]
+    for name, v in sorted(trap["models"].items(), key=lambda kv: -kv[1]["trap"]):
+        rows.append(
+            f"| `{name}` | {v['overall']:.3f} | {v['agree']:.3f} | "
+            f"**{v['trap']:.3f}** | {v['gap']:.3f} |"
+        )
+    return head + "\n\n" + "\n".join(rows)
+
+
 def registry_tables() -> tuple[str, str]:
     reg = registry()
     by_layer: dict[str, Counter] = defaultdict(Counter)
@@ -176,6 +203,13 @@ def sync(check_only: bool = False) -> list[str]:
     if f1 and rc:
         text = re.sub(r"F1 \d+/21 · \*\*AURC \d+/21 유의\*\*",
                       f"F1 {significant(f1)}/21 · **AURC {significant(rc)}/21 유의**", text)
+    if f1:
+        text = replace_marked(
+            text, "README_F1", point_table(f1["point"], "매크로 F1 (커버리지 100%)"))
+    trap = load_report("trap.json")
+    if trap:
+        text = replace_marked(text, "README_BLIND", anchoring_block(trap))
+        text = replace_marked(text, "README_TRAP", trap_block(trap))
     if text != original:
         changed.append("README.md")
         if not check_only:

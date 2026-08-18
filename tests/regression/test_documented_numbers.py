@@ -239,3 +239,119 @@ def test_doc_check_and_test_share_one_implementation():
     ok, detail = check_documented_numbers()
     assert ok, detail
     assert PROBES["documented_numbers_still_reproduce"]()[0] is ok
+
+
+# ── README — 명세 §16 의 구조와 그 안의 수치 ──────────────────────
+SPEC_SECTIONS = [
+    "Problem", "Why This Problem", "What Makes It Different", "System Overview",
+    "Demo", "Architecture", "Evaluation", "Failure Cases", "Experiments", "Limitations",
+]
+
+
+def test_readme_follows_spec_section_order():
+    """README 가 명세 §16 의 열 절을 **그 순서대로** 갖는가.
+
+    이 절들은 한때 249줄짜리 README 의 189번째 줄부터 시작했고, 그마저 넷만
+    있었다. 명세는 "첫 화면에서 프로젝트를 이해할 수 있어야 한다" 고 적었는데
+    첫 화면에는 실행 명령이 있었다. 구조는 문장으로 지킬 수 없으므로 검사한다.
+    """
+    heads = re.findall(r"^## (\d+)\. (.+)$", read("README.md"), re.M)
+    assert [n for n, _ in heads] == [str(i) for i in range(1, 11)], (
+        f"README 의 번호 절이 1~10 이 아닙니다: {[n for n, _ in heads]}"
+    )
+    for (_, title), want in zip(heads, SPEC_SECTIONS):
+        assert title.strip() == want, f"README 절 이름: '{title}' — 명세는 '{want}'"
+
+    body = read("README.md")
+    first = body.index("## 1. Problem")
+    assert body[:first].count("\n") < 20, (
+        "Problem 이 첫 화면 밖으로 밀렸습니다. 명세 §16 은 첫 화면에서 "
+        "프로젝트를 이해할 수 있어야 한다고 적었습니다."
+    )
+
+
+def test_readme_does_not_sell_llm_rag():
+    """명세 §16 — 'LLM + RAG' 를 제목이나 핵심 가치로 내세우지 않는다."""
+    head = read("README.md").split("## 1. Problem")[0]
+    for banned in ("LLM + RAG", "LLM+RAG", "RAG 챗봇", "RAG chatbot"):
+        assert banned.lower() not in head.lower(), f"README 머리말에 '{banned}' 가 있습니다"
+
+
+def test_readme_corpus_restatements_all_agree():
+    """코퍼스 규모를 되풀이한 **모든** 자리가 산출물과 맞는가.
+
+    존재 검사는 한 자리만 맞으면 통과한다. 실제로 README 는 위쪽 표에 1,122쌍,
+    아래쪽 데이터 표에 1,124쌍을 동시에 적은 채 검사를 통과하고 있었다(EV-17).
+    """
+    from app.evaluation.doc_check import corpus_restatements
+
+    problems = corpus_restatements(ROOT)
+    assert not problems, " / ".join(problems)
+
+
+def test_readme_f1_table_matches_report():
+    """README 의 매크로 F1 표가 E7 보고서와 같은가."""
+    data = report("e7_all_models.json")["point"]
+    block = section(read("README.md"), "README_F1")
+    found = dict(re.findall(r"^\| `(\w+)` \| (\d\.\d{3}) \|", block, re.M))
+    assert set(found) == set(data), f"README F1 표의 모델 목록이 다릅니다: {sorted(found)}"
+    for model, value in data.items():
+        assert found[model] == f"{value:.3f}", (
+            f"README 의 {model} = {found[model]}, 실제 {value:.3f}"
+        )
+
+
+def test_readme_trap_tables_match_report():
+    """README 의 TRAP·사각지대 표가 trap.json 과 같은가.
+
+    TRAP 은 이 프로젝트가 만든 지표이고, README 는 그것으로 '검색은 가장
+    중요한 곳에서 눈이 먼다' 는 주장을 편다. 그 주장을 받치는 숫자가 밀리면
+    주장이 거짓이 된다.
+    """
+    path = RESULTS / "trap.json"
+    if not path.exists():
+        pytest.skip("trap.json 이 없습니다")
+    trap = json.loads(path.read_text(encoding="utf-8"))
+    readme = read("README.md")
+
+    blind = section(readme, "README_BLIND")
+    for label, v in trap["anchoring_by_class"].items():
+        row = re.search(rf"^\| `{label}` \| (\d+) \| (\d+) \| \*\*([\d.]+)%\*\* \|", blind, re.M)
+        assert row, f"README 사각지대 표에 `{label}` 행이 없습니다"
+        assert int(row.group(1)) == v["n"], f"{label} test 건수: 문서 {row.group(1)}, 실제 {v['n']}"
+        assert int(row.group(2)) == v["anchored"], (
+            f"{label} 선례 있는 건수: 문서 {row.group(2)}, 실제 {v['anchored']}"
+        )
+        assert row.group(3) == f"{v['anchor_rate'] * 100:.1f}", (
+            f"{label} 비율: 문서 {row.group(3)}%, 실제 {v['anchor_rate']:.1%}"
+        )
+
+    body = section(readme, "README_TRAP")
+    counts = trap["counts"]
+    assert f"순응 {counts['agree']}건 · 함정 {counts['trap']}건" in body, (
+        "README TRAP 블록의 구간 건수가 어긋납니다"
+    )
+    for name, v in trap["models"].items():
+        row = re.search(
+            rf"^\| `{name}` \| (\d\.\d{{3}}) \| (\d\.\d{{3}}) \| \*\*(\d\.\d{{3}})\*\* \|",
+            body, re.M,
+        )
+        assert row, f"README TRAP 표에 `{name}` 행이 없습니다"
+        assert row.group(3) == f"{v['trap']:.3f}", (
+            f"{name} TRAP: 문서 {row.group(3)}, 실제 {v['trap']:.3f}"
+        )
+
+
+def test_readme_cited_failure_ids_exist():
+    """README 가 예시로 든 실패 케이스 ID 가 레지스트리에 실제로 있는가.
+
+    처음 쓸 때 기억에 의존해 네 개를 적었고 그중 셋이 다른 케이스의 번호였다.
+    ID 는 그럴듯하게 틀리기 쉬운 종류의 사실이다.
+    """
+    ids = {json.loads(line)["id"]
+           for line in read("data/failures/registry.jsonl").splitlines() if line.strip()}
+    section_text = read("README.md").split("## 8. Failure Cases")[1].split("## 9.")[0]
+    cited = set(re.findall(r"\| (E[XV]-\d\d|LB-\d\d|AG-\d\d|IN-\d\d) \|", section_text))
+    assert cited, "README 8절에 인용된 실패 케이스 ID 가 없습니다"
+    missing = cited - ids
+    assert not missing, f"레지스트리에 없는 ID 를 인용했습니다: {sorted(missing)}"
