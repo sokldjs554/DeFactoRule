@@ -1,18 +1,20 @@
 {
-  "total": 56,
+  "total": 58,
   "min_required": 30,
   "by_layer": {
     "agent": {
       "ungrounded-evidence": 2,
       "schema-violation": 2,
       "prior-overcorrection": 1,
-      "miscalibration": 3
+      "miscalibration": 3,
+      "undiagnosable-discard": 1
     },
     "evaluation": {
       "sample-mismatch": 3,
       "metric-misuse": 6,
       "incomparable-comparison": 1,
-      "misdiagnosis": 5
+      "misdiagnosis": 5,
+      "undiagnosable-discard": 1
     },
     "extraction": {
       "format-unhandled": 4,
@@ -22,7 +24,8 @@
       "boundary-missplit": 5
     },
     "infrastructure": {
-      "error-classification": 2,
+      "error-classification": 1,
+      "undiagnosable-discard": 1,
       "path-resolution": 1,
       "continuous-integration": 2,
       "environment": 2,
@@ -188,6 +191,25 @@
       }
     },
     {
+      "id": "AG-09",
+      "layer": "agent",
+      "category": "undiagnosable-discard",
+      "title": "버린 기준을 화면에만 찍었다",
+      "symptom": "기준 추출이 검증에 걸린 기준을 stdout 에만 출력하고 파일에는 채택된 것만 남겼다. 그래서 consolidate 가 '채택된 기준이 하나도 없습니다' 로 죽었을 때, 모델이 기준을 제안하지 않은 것인지 검증이 전부 걸러낸 것인지 알 방법이 없었다. IN-02(API 오류에서 상태 코드만 남김)와 같은 모양이다.",
+      "detection": "consolidate 가 한 줄로 죽었고 원인을 되짚을 수 없었다.",
+      "fix": "공용 폐기 장치(app/core/audit.py)로 옮겨 버린 기준을 이유와 함께 레코드에 남긴다. 이유 없이는 버릴 수 없다 — Discards.drop 이 빈 이유를 거부한다.",
+      "metric": null,
+      "probe": "every_filter_stage_records_its_discards",
+      "status": "fixed",
+      "pattern": "discard-unrecorded",
+      "guard": "tests/unit/test_audit.py::test_dropping_requires_a_reason",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "6개 단계 전부 기록함"
+      }
+    },
+    {
       "id": "EV-01",
       "layer": "evaluation",
       "category": "sample-mismatch",
@@ -204,6 +226,7 @@
       },
       "probe": "missing_predictions_are_flagged",
       "status": "fixed",
+      "pattern": "mismatched-sample",
       "result": {
         "ran": true,
         "passed": true,
@@ -344,6 +367,7 @@
       },
       "probe": "predictions_are_complete_before_reporting",
       "status": "fixed",
+      "pattern": "mismatched-sample",
       "result": {
         "ran": true,
         "passed": true,
@@ -368,6 +392,7 @@
       "probe": null,
       "status": "fixed",
       "guard": "tests/unit/test_completeness_check.py::test_missing_rows_are_caught",
+      "pattern": "mismatched-sample",
       "result": {
         "ran": false,
         "passed": null,
@@ -487,8 +512,8 @@
       "guard": "tests/regression/test_documented_numbers.py",
       "result": {
         "ran": true,
-        "passed": false,
-        "detail": "1건 어긋남 — README 실패 케이스 수: 문서 55 · 실제 56"
+        "passed": true,
+        "detail": "비교 43건 대조 · 어긋남 없음"
       }
     },
     {
@@ -515,6 +540,32 @@
         "ran": true,
         "passed": true,
         "detail": "고정 어휘 5개 · 조각 규칙 2개 · 어휘 밖 조건 0개"
+      }
+    },
+    {
+      "id": "EV-16",
+      "layer": "evaluation",
+      "category": "undiagnosable-discard",
+      "title": "규칙 학습기가 후보 165개를 버리며 아무 데도 안 남겼다",
+      "symptom": "문턱에 못 미친 조건 결합을 그냥 건너뛰었다. 규칙이 하나도 안 나왔을 때 '후보가 없었나, 문턱이 높았나' 를 가를 수 없다. 실제로 라플라스를 문턱으로 쓰던 시절에는 소수 클래스 규칙이 구조적으로 나올 수 없었는데, 그 사실을 손으로 계산해 보고서야 알았다(EV-11).",
+      "detection": "공용 폐기 장치를 만들며 어느 단계가 기록하지 않는지 훑다가 나왔다.",
+      "fix": "버린 후보를 이유와 함께 Discards 에 담는다. dev 85건에서 165개가 기록된다.",
+      "metric": {
+        "name": "기록된 폐기 후보",
+        "before": 0,
+        "after": 165,
+        "kind": "live",
+        "unit": "개",
+        "note": "dev 85건 · 문턱 0.80 기준."
+      },
+      "probe": "every_filter_stage_records_its_discards",
+      "status": "fixed",
+      "pattern": "discard-unrecorded",
+      "guard": "tests/unit/test_induction.py::test_rejected_candidates_are_recorded_with_reasons",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "6개 단계 전부 기록함"
       }
     },
     {
@@ -758,6 +809,7 @@
       "probe": "answer_only_split_removed",
       "status": "fixed",
       "guard": "tests/regression/test_processed_data.py::test_split_modes_are_conservative",
+      "pattern": "enumeration-as-separator",
       "result": {
         "ran": true,
         "passed": true,
@@ -848,6 +900,7 @@
       "probe": "marks_must_align_before_splitting",
       "status": "fixed",
       "guard": "tests/unit/test_splitting.py::test_mismatched_counts_fall_back_to_single",
+      "pattern": "enumeration-as-separator",
       "result": {
         "ran": true,
         "passed": true,
@@ -882,7 +935,7 @@
     {
       "id": "IN-02",
       "layer": "infrastructure",
-      "category": "error-classification",
+      "category": "undiagnosable-discard",
       "title": "API 오류에서 상태 코드만 남겼다",
       "symptom": "400 이 39건 났는데 무엇 때문인지 알 수 없었다.",
       "detection": "probe 가 메시지·본문·프롬프트 길이를 기록하는지 확인.",
@@ -897,6 +950,7 @@
       },
       "probe": "api_errors_keep_their_message",
       "status": "fixed",
+      "pattern": "discard-unrecorded",
       "result": {
         "ran": true,
         "passed": true,

@@ -63,10 +63,17 @@ def test_probe_names_resolve():
 
 
 def test_every_probe_is_registered():
-    """probe 를 만들어 놓고 레지스트리에 안 넣으면 보고서에서 사라진다."""
-    used = {c["probe"] for c in WITH_PROBE}
+    """probe 를 만들어 놓고 어디에도 안 걸면 보고서에서 사라진다.
+
+    등록 경로는 둘이다 — 개별 사례의 `probe` 필드, 또는 재발 패턴의 가드로서
+    `PATTERN_GUARDS`. 패턴 가드는 특정 사례가 아니라 패턴 전체를 지키므로
+    한 사례에 매달지 않는다.
+    """
+    from app.evaluation.failure_taxonomy import PATTERN_GUARDS
+
+    used = {c["probe"] for c in WITH_PROBE} | set(PATTERN_GUARDS.values())
     orphans = sorted(set(PROBES) - used)
-    assert not orphans, f"레지스트리에 없는 probe: {orphans}"
+    assert not orphans, f"어디에도 등록되지 않은 probe: {orphans}"
 
 
 @pytest.mark.parametrize("case", WITH_PROBE, ids=lambda c: c["id"])
@@ -79,3 +86,58 @@ def test_probe_matches_recorded_status(case):
             f"{case['id']} 는 열린 케이스로 기록돼 있는데 통과했습니다. "
             f"레지스트리를 갱신하세요 — {detail}"
         )
+
+
+# ── 재발 패턴 ────────────────────────────────────────────────────
+def test_every_recurring_pattern_has_a_guard():
+    """2건 이상 붙은 패턴에는 패턴 단위 가드가 있어야 한다.
+
+    레지스트리의 probe 는 **과거의 그 자리**를 지킨다. 같은 실수가 다른
+    자리에서 다시 나오는 것은 막지 못한다. 실제로 "걸러낸 것을 기록하지
+    않는다" 가 네 곳에서 나왔고, 넷 다 따로 고쳤는데도 다섯 번째를 막을
+    장치가 없었다.
+
+    패턴이 두 번째로 나타나는 순간 이 테스트가 가드를 요구한다.
+    """
+    from app.evaluation.failure_taxonomy import PATTERN_GUARDS, patterns_needing_guards
+
+    needing = patterns_needing_guards(REGISTRY)
+    missing = {
+        name: ids for name, ids in needing.items() if name not in PATTERN_GUARDS
+    }
+    assert not missing, (
+        "패턴 가드가 없는 반복 패턴이 있습니다:\n"
+        + "\n".join(f"  {name}: {ids}" for name, ids in missing.items())
+        + "\n  app/evaluation/patterns.py 에 가드를 만들고 PATTERN_GUARDS 에 등록하세요."
+    )
+
+
+def test_pattern_guards_exist_and_pass():
+    from app.evaluation.failure_taxonomy import PATTERN_GUARDS
+
+    for pattern, probe_name in PATTERN_GUARDS.items():
+        assert probe_name in PROBES, f"{pattern} 의 가드 '{probe_name}' 를 찾을 수 없습니다"
+        passed, detail = PROBES[probe_name]()
+        assert passed, f"{pattern} 가드 실패 — {detail}"
+
+
+def test_declared_patterns_are_all_in_use():
+    """쓰지 않는 패턴 이름은 지운다. 목록만 길어지면 아무도 안 본다."""
+    from app.evaluation.failure_taxonomy import PATTERNS
+
+    used = {c["pattern"] for c in REGISTRY if c.get("pattern")}
+    unused = set(PATTERNS) - used
+    assert not unused, f"어느 사례에도 붙지 않은 패턴: {sorted(unused)}"
+
+
+def test_every_filter_stage_is_registered():
+    """걸러내기 단계를 만들고 등록을 잊으면 패턴 가드가 그것을 모른다.
+
+    이 한계는 없앨 수 없지만, 최소한 등록된 단계가 몇 개인지는 눈에 띄게 둔다.
+    새 단계를 만들면 여기 숫자가 걸린다.
+    """
+    from app.evaluation.patterns import FILTER_STAGES
+
+    assert len(FILTER_STAGES) >= 6, (
+        f"등록된 걸러내기 단계 {len(FILTER_STAGES)}개 — 줄었다면 왜 지웠는지 확인하세요"
+    )
