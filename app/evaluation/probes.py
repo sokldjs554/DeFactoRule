@@ -603,6 +603,48 @@ def evidence_must_be_verbatim() -> Result:
     return not wrong, f"{len(cases)}종 중 오판 {len(wrong)}: {wrong}"
 
 
+def quote_matching_survives_typography() -> Result:
+    """조판 잔재 때문에 정상 인용이 버려지지 않는가.
+
+    판단이유 255건 중 252건(98.8%)에 깨진 글머리 기호(U+2244)나 ZWNJ 가 섞여
+    있다. 공백만 무시하는 대조로는 모델이 그 잔재를 빼고 옮겨 적은 정상 인용이
+    전부 실패한다 — 기준이 하나도 채택되지 않고, "모델이 인용을 지어낸다" 는
+    잘못된 결론에 이른다.
+    """
+    from app.agents.criteria import quote_is_grounded
+
+    dirty = "\u2244\n\u200c「전자금융감독규정」 제15조에 따라 \u2244\n내부망과 외부망을 분리"
+    clean = "「전자금융감독규정」 제15조에 따라 내부망과 외부망을 분리"
+    fabricated = "내부망과 외부망을 통합"
+    return (
+        quote_is_grounded(clean, dirty) and not quote_is_grounded(fabricated, dirty)
+    ), (
+        f"잔재를 뺀 정상 인용 통과 {quote_is_grounded(clean, dirty)} · "
+        f"위조 인용 차단 {not quote_is_grounded(fabricated, dirty)}"
+    )
+
+
+def criterion_questions_cannot_be_circular() -> Result:
+    """기준 질문이 결론을 되묻는 것을 코드가 막는가.
+
+    "이 사안은 조치 대상인가?" 는 기준이 아니라 결론이다. 회답에서 기준을
+    꺼내는 단계에서 이것을 사람이 눈으로 거르게 두면, 요청문 누출을 세 번
+    겪은 것과 똑같은 일이 반복된다.
+    """
+    from app.agents.criteria import question_is_circular
+
+    circular = ["이 사안은 조치 대상인가?", "비조치 의견을 받을 수 있는가?",
+                "당국이 어떻게 판단했는가?", "제재 가능성이 있는가?"]
+    factual = ["내부망과 외부망이 물리적으로 분리되어 있는가?",
+               "위탁 대상이 계열회사인가?"]
+    missed = [q for q in circular if not question_is_circular(q)]
+    wrong = [q for q in factual if question_is_circular(q)]
+    return not missed and not wrong, (
+        f"결론형 {len(circular)}개 중 놓침 {len(missed)} · "
+        f"사실형 {len(factual)}개 중 오판 {len(wrong)}"
+    )
+
+
 def label_is_constrained_by_schema() -> Result:
     """자유 서술을 파싱하면 '아마 비조치' 같은 값이 들어온다. enum 으로 막는다."""
     from app.agents.classifier import _schema

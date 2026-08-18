@@ -38,24 +38,16 @@ from pathlib import Path
 from app.core.paths import DEV_BASE_RATES
 from app.domain.base_rates import describe_overall, describe_sector
 from app.domain.labels import GUIDELINE, NON_ACTIONS, VERDICTS
+from app.infrastructure.anthropic_client import (
+    FATAL_MARKERS,
+    MODEL,
+    FatalApiError,
+)
 
 BASE_RATES_PATH = DEV_BASE_RATES
 
-MODEL = "claude-opus-5"
-
-# 계정 수준 오류 — 다음 요청도 똑같이 실패한다. 건별로 잡고 계속 돌면
-# 남은 전부를 헛되이 던지게 된다. 즉시 중단한다.
-FATAL_MARKERS = (
-    "credit balance is too low",
-    "invalid x-api-key",
-    "authentication_error",
-    "permission_error",
-    "Your account has been disabled",
-)
-
-
-class FatalApiError(RuntimeError):
-    """계속 시도해도 소용없는 오류."""
+# API 경계의 정의처는 app/infrastructure/anthropic_client.py 하나다.
+# 여기서 다시 정의하면 fail-fast 처리가 과제마다 갈린다.
 
 # 비조치의견서 과제의 지침. 법령해석과 달리 **결론이 아니라 요청 자체를 보고
 # 당국이 어떻게 답했을지 예측**하는 것이므로 성격이 완전히 다르다.

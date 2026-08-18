@@ -28,6 +28,7 @@ import re
 from collections import Counter
 from pathlib import Path
 
+from app.core.text import INVISIBLE
 from app.domain.labels import NON_ACTIONS
 
 # 결론을 직접 드러내는 표현. 입력에서 가린다.
@@ -52,8 +53,7 @@ LEAK = re.compile(
 # "이 요청문에 그 낱말이 있었다" 는 정보가 그대로 보존된다.
 MASK = " "
 
-# 조판 잔재와 항목명 머리글자
-JUNK = re.compile("[\\x00-\\x08\\x0b-\\x1f\\x7f\\u00ad\\u200b-\\u200f\\u2244\\ufeff]")
+# 조판 잔재의 정의처는 app/core/text.py 하나다.
 LEADING_FIELD = re.compile(r"^\s*행위\s*\n")
 
 # dev 는 규칙을 쓰면서 들여다봐도 되는 몫, test 는 끝까지 건드리지 않는다.
@@ -61,7 +61,7 @@ DEV_EVERY = 3
 
 
 def clean(text: str) -> str:
-    text = JUNK.sub("", text or "")
+    text = INVISIBLE.sub("", text or "")
     text = LEADING_FIELD.sub("", text)
     return re.sub(r"[ \t]+", " ", text).strip()
 
