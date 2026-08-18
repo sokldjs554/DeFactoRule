@@ -362,6 +362,21 @@ def dev_and_test_do_not_overlap() -> Result:
 
 
 # ══ evaluation ═══════════════════════════════════════════════════════
+def documented_numbers_still_reproduce() -> Result:
+    """문서에 적힌 수치가 산출물과 맞는가.
+
+    docs/15 에 손으로 옮겨 적은 수치가 있었고, 규칙 학습기를 고친 뒤 그 문서만
+    갱신을 놓쳤다. 단순한 오타가 아니라 **판정이 뒤집힌 문장**("llm − induced
+    유의")이 저장소에 남았고, AURC 유의 쌍 수도 12쌍으로 잘못 적혀 있었다.
+
+    검사 구현은 `app/evaluation/doc_check.py` 하나뿐이고 회귀 테스트와 이
+    probe 가 그것을 함께 쓴다. 둘이 따로 구현되면 한쪽만 고쳐진다.
+    """
+    from app.evaluation.doc_check import check_documented_numbers
+
+    return check_documented_numbers()
+
+
 def missing_predictions_are_flagged() -> Result:
     """30건 예측을 170건 gold 로 재면서 커버리지 17.6%를 놓쳤다."""
     import json
@@ -634,9 +649,14 @@ def criterion_questions_cannot_be_circular() -> Result:
     from app.agents.criteria import question_is_circular
 
     circular = ["이 사안은 조치 대상인가?", "비조치 의견을 받을 수 있는가?",
-                "당국이 어떻게 판단했는가?", "제재 가능성이 있는가?"]
+                "당국이 어떻게 판단했는가?", "판단 결과는 무엇인가?",
+                "어떤 결론이 내려졌는가?", "조치 대상에 해당하는가?"]
+    # 아래는 되묻기가 아니라 진짜 기준이다. 낱말 단위로 거르면 이것들이 잘린다.
     factual = ["내부망과 외부망이 물리적으로 분리되어 있는가?",
-               "위탁 대상이 계열회사인가?"]
+               "위탁 대상이 계열회사인가?",
+               "요청인이 제재 이력을 보유하고 있는가?",
+               "요청 행위가 소비자에게 불이익을 초래할 수 있는가?",
+               "이미 유사한 결론이 내려진 선례가 있는가?"]
     missed = [q for q in circular if not question_is_circular(q)]
     wrong = [q for q in factual if question_is_circular(q)]
     return not missed and not wrong, (

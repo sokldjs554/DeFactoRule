@@ -1,4 +1,4 @@
-# 실패 케이스 레지스트리 — 50건
+# 실패 케이스 레지스트리 — 54건
 
 명세 §11 은 "최소 30개 이상의 실패 케이스를 의도적으로 구축하고, 각 실패를
 taxonomy 로 분류하고, 개선 전/후를 숫자로 비교한다" 를 요구한다.
@@ -22,47 +22,58 @@ python3 scripts/failure_report.py --layer extraction
 고쳤다는 케이스가 깨졌으면 회귀이고, 열려 있다는 케이스가 통과하면 레지스트리가
 낡은 것이다.
 
-레지스트리는 `data/failures/registry.jsonl` 이고, 50건 중 44건에 probe 가 있다.
+레지스트리는 `data/failures/registry.jsonl` 이고, 54건 중 48건에 probe 가 있다.
 
 ## Taxonomy
 
+<!-- TAXONOMY:시작 -->
 | 계층 | 건수 | 범주 |
 |---|---|---|
 | extraction | 15 | format-unhandled 4 · boundary-missplit 4 · silent-empty 3 · encoding-normalization 3 · unreadable-source 1 |
 | labeling | 8 | answer-leakage 3 · split-discipline 3 · label-conflation 2 |
-| evaluation | 12 | metric-misuse 5 · sample-mismatch 3 · misdiagnosis 3 · incomparable-comparison 1 |
-| agent | 6 | miscalibration 3 · ungrounded-evidence 1 · schema-violation 1 · prior-overcorrection 1 |
+| evaluation | 14 | metric-misuse 6 · misdiagnosis 4 · sample-mismatch 3 · incomparable-comparison 1 |
+| agent | 8 | miscalibration 3 · ungrounded-evidence 2 · schema-violation 2 · prior-overcorrection 1 |
 | infrastructure | 9 | error-classification 2 · continuous-integration 2 · environment 2 · reproducibility 2 · path-resolution 1 |
+<!-- TAXONOMY:끝 -->
 
 계층이 하나라도 비면 테스트가 실패한다. 한 곳에만 실패가 몰려 있다면 나머지를
 들여다보지 않은 것이다.
 
 ## 개선 전 → 후
 
-수치는 두 종류로만 적는다. `measured` 는 실제로 재 본 값이고 출처를 함께
+25건에 수치가 있다. 수치는 두 종류로만 적는다. `measured` 는 실제로 재 본 값이고 출처를 함께
 남긴다. `live` 는 probe 가 실행 시점에 직접 계산한 값이며, 옛 구현을 함께 들고
 있어 before 와 after 를 **같은 입력에서** 잰다. 재 보지 않은 것은 적지 않는다.
 
+<!-- METRICS:시작 -->
 | ID | 지표 | 전 → 후 | 종류 |
 |---|---|---|---|
+| AG-03 | 조치 재현율 | 0.286 → 0.071 | measured |
+| AG-07 | 잔재가 든 판단이유 | 252 → 0건 | live |
+| EV-01 | 커버리지 | 0.176 → 1.000 | measured |
+| EV-02 | 다수 클래스만 예측 (정확도 → 매크로 F1) | 0.741 → 0.284 | live |
+| EV-03 | AURC (keyword − llm) | 0.282 → 0.125 | measured |
+| EV-08 | 결측이 있는 예측 파일 | 3 → 0개 | live |
+| EV-09 | 156/170 파일에서 검출한 결측 | 0 → 14건 | live |
+| EV-10 | 잘못 등록된 probe | 1 → 0개 | live |
+| EV-11 | 학습된 규칙 | 3 → 9개 | measured |
+| EV-13 | 매크로 F1 비교에서 유의 판정 | 9 → 7쌍 | measured |
+| EV-14 | 판정이 뒤집힌 채 남은 비교 | 1 → 0건 | measured |
 | EX-01 | 결론 미검출 | 49 → 2건 | measured |
-| EX-04 | `missing_field:판단이유` | 54 → 2건 | measured |
-| EX-05 | 항목명 잔재 | **406 → 0건** | live |
+| EX-04 | missing_field:판단이유 | 54 → 2건 | measured |
+| EX-05 | 항목명 잔재 | 406 → 0건 | live |
 | EX-06 | 업권 미분류 | 159 → 0건 | measured |
-| EX-09 | 읽을 수 있는 글자 비율 | 0.374 (문턱 0.80) | measured |
+| EX-09 | 읽을 수 있는 글자 비율 | 0.374 (통과 문턱 0.800) | measured |
 | EX-12 | 오분할 쌍 | 81 → 0쌍 | measured |
 | EX-13 | 키 기준 중복 | 153 → 0건 | live |
-| EX-14 | 비조치 띄어쓰기 F1 | 0.786 → 0.816 | measured |
-| LB-01 | 누출 표현이 있는 요청문 | 61 → 0건 | live |
-| LB-03 | 마스크 토큰이 있는 사례 | 60 → 0건 | live |
-| EV-01 | 커버리지 | 0.176 → 1.0 | measured |
-| EV-02 | 다수만 예측: 정확도 → 매크로 F1 | 0.741 → 0.284 | live |
-| EV-03 | AURC (keyword → llm) | 0.282 → 0.125 | measured |
-| AG-03 | 조치 재현율 (기저율 프롬프트) | 0.286 → **0.071** | measured |
+| EX-14 | 비조치 F1 | 0.786 → 0.816 | measured |
 | IN-01 | 실패가 확정된 호출 | 78 → 0회 | measured |
 | IN-02 | 진단 가능한 실패 | 0 → 39건 | measured |
 | IN-08 | 낡은 채로 짝지어질 뻔한 예측 | 14 → 0건 | measured |
 | IN-09 | 테스트 | 25 → 59개 | measured |
+| LB-01 | 누출 표현이 있는 요청문 | 61 → 0건 | live |
+| LB-03 | 마스크 토큰이 있는 사례 | 60 → 0건 | live |
+<!-- METRICS:끝 -->
 
 **AG-03 은 개선이 아니다.** 전체 기저율을 프롬프트에 넣으면 소수 클래스가
 지워진다는 것이 실험 결과였고, 그것을 그대로 남긴다. 정확도는 78.8%에서
