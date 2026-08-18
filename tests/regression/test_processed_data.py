@@ -46,8 +46,8 @@ def pairs() -> list[dict]:
 
 def test_corpus_is_not_shrinking(nonaction, interpretation):
     """확보한 코퍼스가 줄어들면 파서 회귀다. 늘어나는 것은 정상이다."""
-    assert len(nonaction) >= 133, f"비조치의견서 {len(nonaction)}건 (기준 133)"
-    assert len(interpretation) >= 300, f"법령해석 {len(interpretation)}건 (기준 300)"
+    assert len(nonaction) >= 259, f"비조치의견서 {len(nonaction)}건 (기준 259)"
+    assert len(interpretation) >= 682, f"법령해석 {len(interpretation)}건 (기준 682)"
 
 
 def test_decision_labels_are_valid(nonaction):
