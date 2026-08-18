@@ -1,0 +1,22 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+.ipynb_checkpoints/
+.DS_Store
+.idea/
+.vscode/
+
+# 수집 원본 — 용량이 크면 별도 관리
+data/raw/**
+!data/raw/.gitkeep
+data/interim/**
+!data/interim/.gitkeep
+
+# 실험 산출물 중 대용량 아티팩트
+experiments/artifacts/
+*.ckpt
+*.pt
