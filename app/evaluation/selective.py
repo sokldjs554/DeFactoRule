@@ -28,15 +28,14 @@ import random
 from pathlib import Path
 
 from app.core.io import key_of, load_jsonl
+from app.domain.confidence import rank as confidence_rank
 from app.domain.labels import LABEL_SETS
 from app.evaluation.metrics import macro_f1
 
-# 신뢰도 문자열의 순서. 높을수록 먼저 채택된다.
-CONFIDENCE_RANK = {"high": 3, "medium": 2, "low": 1, "?": 0}
-
 
 def rank_of(pred: dict) -> int:
-    return CONFIDENCE_RANK.get(pred.get("confidence", "?"), 0)
+    """신뢰도 순서의 정의처는 app/domain/confidence.py 하나뿐이다."""
+    return confidence_rank(pred.get("confidence"))
 
 
 def operating_points(

@@ -22,3 +22,13 @@ pythonpath = ["."]
 # 잘못된 인터프리터로 실행했을 때도 메시지를 내야 하므로 Python 2 문법으로 유지한다.
 # f-string 도 최신 포맷 지정자도 쓸 수 없다.
 "scripts/check_env.py" = ["UP031", "UP032"]
+
+# Pydantic 은 애노테이션을 **런타임에** 해석한다. `from __future__ import
+# annotations` 가 있어도 모델 필드는 결국 평가되므로, 3.9 에서 `str | None` 은
+# TypeError 가 된다. ruff 는 정적 애노테이션만 보고 이것을 안전하다고 판단한다.
+# 3.9 지원을 유지하는 동안 이 파일에서는 typing.Optional/List 를 쓴다.
+"app/api/schemas.py" = ["UP006", "UP007", "UP035", "UP045"]
+
+# FastAPI 도 같은 이유로 애노테이션을 런타임에 해석한다. 그리고 Query()/Depends()
+# 를 기본값에 두는 것은 이 프레임워크의 표준 관용구다 — B008 은 여기서 오탐이다.
+"app/api/main.py" = ["B008", "UP006", "UP007", "UP035", "UP045"]
