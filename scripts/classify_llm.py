@@ -186,7 +186,16 @@ def classify_one(client, row: dict, task: dict) -> dict:
             messages=[{"role": "user", "content": build_prompt(row, task)}],
         )
     except anthropic.APIStatusError as exc:
-        return {"error": f"{type(exc).__name__}: {exc.status_code}"}
+        # 상태 코드만 남기면 원인을 알 수 없다. 실제로 그래서 400 이 39건 났을 때
+        # 아무것도 진단하지 못했다. 메시지와 본문을 함께 남긴다.
+        detail = getattr(exc, "message", "") or str(exc)
+        body = getattr(exc, "body", None)
+        return {
+            "error": f"{type(exc).__name__}: {exc.status_code}",
+            "error_detail": detail[:600],
+            "error_body": json.dumps(body, ensure_ascii=False)[:600] if body else None,
+            "prompt_chars": len(build_prompt(row, task)),
+        }
     except anthropic.APIConnectionError as exc:
         return {"error": f"connection: {exc}"}
 
@@ -224,6 +233,11 @@ def main() -> None:
     )
     ap.add_argument("--doc-type", default="interpretation")
     ap.add_argument("--limit", type=int, default=0, help="0 이면 전체")
+    ap.add_argument(
+        "--resume",
+        action="store_true",
+        help="출력 파일에 이미 성공으로 남은 건은 건너뛴다. 실패분만 다시 부를 때 쓴다.",
+    )
     args = ap.parse_args()
 
     task = dict(TASKS[args.task])
@@ -276,9 +290,26 @@ def main() -> None:
 
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)
+
+    done: dict[tuple, dict] = {}
+    if args.resume and out.exists():
+        for line in out.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            rec = json.loads(line)
+            if "error" not in rec:
+                done[(rec["source"], rec["page"], rec["serial"], rec["pair_index"])] = rec
+        print(f"  이어하기: 성공 {len(done)}건은 건너뜁니다.")
+
     results = []
     with out.open("w", encoding="utf-8") as fh:
         for i, row in enumerate(targets, 1):
+            key = (row["source"], row["page"], row["serial"], row.get("pair_index", 1))
+            if key in done:
+                fh.write(json.dumps(done[key], ensure_ascii=False) + "\n")
+                fh.flush()
+                results.append(done[key])
+                continue
             result = classify_one(client, row, task)
             record = {
                 "source": row["source"],
@@ -305,8 +336,18 @@ def main() -> None:
         cost_out = sum(r["output_tokens"] for r in ok) / 1e6 * 25.0
         print(f"추정 비용 ${cost_in + cost_out:.3f}")
     if errors:
-        for kind, n in Counter(r["error"].split(":")[0] for r in errors).most_common():
+        for kind, n in Counter(r["error"] for r in errors).most_common():
             print(f"  오류 {kind}: {n}")
+        print("\n  실패 사례 상세 (앞 3건)")
+        for r in errors[:3]:
+            print(f"    [{r['serial']}] {r.get('error_detail', '(상세 없음)')[:200]}")
+        by_sector = Counter(
+            next((t.get("sector") for t in targets
+                  if t["serial"] == r["serial"] and t["page"] == r["page"]), "?")
+            for r in errors
+        )
+        print("\n  실패의 업권 분포: " + ", ".join(f"{k} {v}" for k, v in by_sector.most_common()))
+        print("\n  실패분만 다시 부르려면 같은 명령에 --resume 을 붙이세요.")
     print(f"-> {out}")
 
 
