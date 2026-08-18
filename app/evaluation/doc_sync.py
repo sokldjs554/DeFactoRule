@@ -52,6 +52,20 @@ def load_report(name: str) -> dict | None:
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
 
 
+def corpus_counts() -> tuple[int, int]:
+    """(사례 수, 질의–회답 쌍 수). 산출물이 없으면 (0, 0)."""
+    from app.core.io import load_jsonl
+    from app.core.paths import PROCESSED
+
+    try:
+        cases = len(load_jsonl(PROCESSED / "cases_nonaction.jsonl")) + len(
+            load_jsonl(PROCESSED / "cases_interpretation.jsonl"))
+        pairs = len(load_jsonl(PROCESSED / "qa_pairs.jsonl"))
+    except FileNotFoundError:
+        return 0, 0
+    return cases, pairs
+
+
 def significant(d: dict) -> int:
     return sum(1 for c in d["comparisons"] if c["significant_holm"])
 
@@ -153,6 +167,11 @@ def sync(check_only: bool = False) -> list[str]:
     text = original = path.read_text(encoding="utf-8")
     text = re.sub(r"<!--TESTS-->\d+<!--/TESTS-->",
                   f"<!--TESTS-->{collected_tests()}<!--/TESTS-->", text)
+    cases, pairs = corpus_counts()
+    if cases:
+        text = re.sub(r"\d{1,3}(?:,\d{3})*건 — W1 게이트 통과",
+                      f"{cases:,}건 — W1 게이트 통과", text)
+        text = re.sub(r"\d{1,3}(?:,\d{3})*쌍", f"{pairs:,}쌍", text)
     text = re.sub(r"실패 케이스 \d+건", f"실패 케이스 {n_cases}건", text)
     if f1 and rc:
         text = re.sub(r"F1 \d+/21 · \*\*AURC \d+/21 유의\*\*",

@@ -203,6 +203,34 @@ def answer_only_split_removed() -> Result:
     return not bad, f"분할 모드 {sorted(modes)} · 허용 밖 {sorted(bad)}"
 
 
+def marks_must_align_before_splitting() -> Result:
+    """순번이 정확히 대응할 때만 짝을 지어 자르는가.
+
+    교집합으로 자르면 서로 다른 것을 붙인다. 실제로 질의 ➊~➎ · 회답 󰊱󰊲 인
+    사례에서 {1,2} 로 짝을 지었는데, 질의의 ➊~➎ 는 다섯 개 질문이 아니라
+    한 질문 안의 행위 열거였다. 질의 ➌➍➎ 는 경고도 없이 사라졌다.
+    """
+    from app.extraction.splitting import split_case
+
+    def case(question: str, answer: str) -> dict:
+        return {"source": "t", "doc_type": "interpretation", "serial": "1", "page": 1,
+                "sector": "공통", "warnings": [],
+                "fields": {"질의요지": question, "회답": answer, "이유": ""}}
+
+    aligned = split_case(case("①갑 ②을", "①가능 ②불가"))
+    mismatched = split_case(case("①갑 ②을 ③병", "①가능 ②불가"))
+    ok = (
+        len(aligned) == 2 and aligned[0]["split_mode"] == "paired"
+        and len(mismatched) == 1 and mismatched[0]["split_mode"] == "single"
+        and "mark_mismatch" in mismatched[0]["case_warnings"]
+    )
+    return ok, (
+        f"순번 일치 -> {len(aligned)}쌍({aligned[0]['split_mode']}) · "
+        f"불일치 -> {len(mismatched)}쌍({mismatched[0]['split_mode']}, "
+        f"경고 {mismatched[0]['case_warnings']})"
+    )
+
+
 def record_key_is_unique() -> Result:
     """일련번호만으로 세면 다른 사례집의 같은 번호가 중복으로 잡힌다."""
     from app.core.io import key_of
