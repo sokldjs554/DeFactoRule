@@ -1,0 +1,141 @@
+{
+  "min_n": 8,
+  "sectors": [
+    {
+      "sector": "전자금융",
+      "n": 37,
+      "correct": 23,
+      "majority_correct": 19,
+      "items_vs_majority": 4,
+      "base_label": "비조치",
+      "base_rate": 0.5135135135135135,
+      "accuracy": 0.6216216216216216,
+      "lift": 0.10810810810810811,
+      "normalized_lift": 0.2222222222222222,
+      "macro_f1": 0.44250645994832044,
+      "distribution": {
+        "조치": 6,
+        "기타": 12,
+        "비조치": 19
+      }
+    },
+    {
+      "sector": "은행",
+      "n": 10,
+      "correct": 7,
+      "majority_correct": 8,
+      "items_vs_majority": -1,
+      "base_label": "비조치",
+      "base_rate": 0.8,
+      "accuracy": 0.7,
+      "lift": -0.10000000000000009,
+      "normalized_lift": -0.5000000000000006,
+      "macro_f1": 0.411764705882353,
+      "distribution": {
+        "비조치": 8,
+        "기타": 2
+      }
+    },
+    {
+      "sector": "자본시장",
+      "n": 12,
+      "correct": 10,
+      "majority_correct": 11,
+      "items_vs_majority": -1,
+      "base_label": "비조치",
+      "base_rate": 0.9166666666666666,
+      "accuracy": 0.8333333333333334,
+      "lift": -0.08333333333333326,
+      "normalized_lift": -0.9999999999999987,
+      "macro_f1": 0.45454545454545453,
+      "distribution": {
+        "비조치": 11,
+        "기타": 1
+      }
+    },
+    {
+      "sector": "보험",
+      "n": 16,
+      "correct": 13,
+      "majority_correct": 14,
+      "items_vs_majority": -1,
+      "base_label": "비조치",
+      "base_rate": 0.875,
+      "accuracy": 0.8125,
+      "lift": -0.0625,
+      "normalized_lift": -0.5,
+      "macro_f1": 0.4482758620689655,
+      "distribution": {
+        "비조치": 14,
+        "기타": 2
+      }
+    },
+    {
+      "sector": "상호저축은행업",
+      "n": 14,
+      "correct": 14,
+      "majority_correct": 13,
+      "items_vs_majority": 1,
+      "base_label": "비조치",
+      "base_rate": 0.9285714285714286,
+      "accuracy": 1.0,
+      "lift": 0.0714285714285714,
+      "normalized_lift": 1.0,
+      "macro_f1": 1.0,
+      "distribution": {
+        "비조치": 13,
+        "기타": 1
+      }
+    },
+    {
+      "sector": "여신전문금융업",
+      "n": 11,
+      "correct": 10,
+      "majority_correct": 11,
+      "items_vs_majority": -1,
+      "base_label": "비조치",
+      "base_rate": 1.0,
+      "accuracy": 0.9090909090909091,
+      "lift": -0.09090909090909094,
+      "normalized_lift": 0.0,
+      "macro_f1": 0.9523809523809523,
+      "distribution": {
+        "비조치": 11
+      }
+    },
+    {
+      "sector": "공통",
+      "n": 62,
+      "correct": 49,
+      "majority_correct": 42,
+      "items_vs_majority": 7,
+      "base_label": "비조치",
+      "base_rate": 0.6774193548387096,
+      "accuracy": 0.7903225806451613,
+      "lift": 0.11290322580645162,
+      "normalized_lift": 0.35,
+      "macro_f1": 0.6704218740832012,
+      "distribution": {
+        "비조치": 42,
+        "기타": 12,
+        "조치": 8
+      }
+    },
+    {
+      "sector": "가상자산",
+      "n": 8,
+      "correct": 8,
+      "majority_correct": 8,
+      "items_vs_majority": 0,
+      "base_label": "비조치",
+      "base_rate": 1.0,
+      "accuracy": 1.0,
+      "lift": 0.0,
+      "normalized_lift": 0.0,
+      "macro_f1": 1.0,
+      "distribution": {
+        "비조치": 8
+      }
+    }
+  ]
+}
