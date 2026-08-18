@@ -8,21 +8,28 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.9 를 함께 도는 이유는 실행 문턱 때문이다. macOS 기본 python3 가
+        # 3.9 인 경우가 많아 `StrEnum` 하나로 실행이 막힌 적이 있다.
+        # 3.9 에서 깨지는 문법은 여기서 잡는다.
+        python-version: ["3.9", "3.11"]
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
 
       - name: 의존성 설치
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-collect.txt
-          pip install pytest ruff
+          pip install -r requirements-dev.txt
 
       - name: 린트
-        run: ruff check scripts tests
+        run: ruff check .
 
       # 원본 PDF 는 저장소에 없으므로 서식 회귀 테스트는 자동으로 건너뛰고,
       # 커밋된 파싱 결과에 대한 불변조건 검사만 돌아간다.

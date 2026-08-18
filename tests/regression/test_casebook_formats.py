@@ -15,13 +15,11 @@
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "scripts"))
 
 BASELINE_PATH = ROOT / "tests" / "regression" / "baseline.json"
 CASEBOOK_DIR = ROOT / "data" / "raw" / "casebooks"
@@ -41,7 +39,7 @@ def current() -> dict:
         pytest.skip(
             f"사례집 PDF 가 없습니다: {CASEBOOK_DIR} — data/SOURCES.md 참고"
         )
-    from format_inventory import build
+    from app.extraction.inventory import build
 
     return build(CASEBOOK_DIR)
 
