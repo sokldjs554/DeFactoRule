@@ -119,8 +119,11 @@ def extract_schema() -> dict:
         "type": "object",
         "properties": {
             "criteria": {
+                # 길이 제약(maxItems)은 여기 쓸 수 없다. API 가 구조화 출력
+                # 스키마에서 배열 길이 제약을 거부한다(400). 상한은 프롬프트로
+                # 요청하고 **결정론적 코드가 강제한다** — 명세 §9 대로 계약
+                # 강제는 모델이 아니라 코드의 일이다.
                 "type": "array",
-                "maxItems": MAX_CRITERIA_PER_CASE,
                 "items": {
                     "type": "object",
                     "properties": {
@@ -153,13 +156,16 @@ def extract_schema() -> dict:
 
 
 def apply_schema(n: int) -> dict:
+    """기준 n 개에 대한 답 스키마. n 은 프롬프트에만 반영되고 스키마 길이
+    제약으로는 쓰지 않는다 — 아래 주석 참고."""
+    del n
     return {
         "type": "object",
         "properties": {
             "answers": {
+                # 위와 같은 이유로 길이 제약을 쓰지 않는다. 빠진 id 는 아래에서
+                # unknown 으로 메우므로 개수가 모자라도 정렬이 어긋나지 않는다.
                 "type": "array",
-                "minItems": n,
-                "maxItems": n,
                 "items": {
                     "type": "object",
                     "properties": {
@@ -281,7 +287,7 @@ def cmd_extract(args) -> None:
         print(f"  이어하기: {len(done)}건은 건너뜁니다.")
 
     client = connect()
-    preflight(client)
+    preflight(client, extract_schema())
 
     from app.core.audit import Discards
 
@@ -310,6 +316,10 @@ def cmd_extract(args) -> None:
                     item for item in proposed
                     if case_discards.keep_if(item, validate_criterion(item, reasoning))
                 ]
+                if len(accepted) > MAX_CRITERIA_PER_CASE:
+                    for extra in accepted[MAX_CRITERIA_PER_CASE:]:
+                        case_discards.drop(extra, ["사례당 상한 초과"])
+                    accepted = accepted[:MAX_CRITERIA_PER_CASE]
                 kept += len(accepted)
                 for x in case_discards.records():
                     discards.drop(
@@ -517,11 +527,11 @@ def cmd_apply(args) -> None:
                 for r in existing if "error" not in r}
         print(f"  이어하기: {len(done)}건은 건너뜁니다.")
 
+    schema = apply_schema(len(criteria))
     client = connect()
-    preflight(client)
+    preflight(client, schema)
 
     records = list(existing)
-    schema = apply_schema(len(criteria))
     try:
         for i, (row, prompt) in enumerate(zip(rows, prompts), 1):
             key = (row["source"], row["page"], row["serial"], row.get("pair_index", 1))

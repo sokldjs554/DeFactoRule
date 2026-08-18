@@ -55,17 +55,38 @@ def connect():
         )
 
 
-def preflight(client) -> None:
-    """본 요청을 던지기 전에 계정이 살아 있는지 한 번만 확인한다.
+def preflight(client, schema: dict | None = None) -> None:
+    """본 요청을 던지기 전에 계정과 **요청 계약**이 살아 있는지 확인한다.
 
-    최소 토큰이라 비용은 사실상 0 이고, 크레딧이 없으면 여기서 멈춘다.
+    처음에는 계정만 봤다. 스키마 없이 한 글자를 보내 200 이 오면 통과였다.
+    그래서 구조화 출력 스키마가 거부되는 것을 잡지 못했고, 83건 × 4회 = 332
+    요청이 전부 400 으로 죽은 뒤에야 드러났다(IN-10).
+
+        output_config.format.schema: For 'array' type,
+        property 'maxItems' is not supported
+
+    본 요청과 다른 계약으로 하는 사전 점검은 사전 점검이 아니다. 그래서
+    schema 를 주면 **실제로 쓸 스키마 그대로** 한 번 호출한다. 토큰은 최소이고
+    비용은 사실상 0 이다.
     """
     import anthropic
 
     try:
-        client.messages.create(
-            model=MODEL, max_tokens=1, messages=[{"role": "user", "content": "."}]
-        )
+        if schema is None:
+            client.messages.create(
+                model=MODEL, max_tokens=1, messages=[{"role": "user", "content": "."}]
+            )
+        else:
+            probe = call_structured(client, "간단히 답합니다.", ".", schema, max_tokens=64)
+            if probe.get("status") == 400:
+                sys.exit(
+                    "사전 점검 실패 — 요청 계약이 거부됐습니다. "
+                    "요청을 하나도 보내지 않았습니다.\n"
+                    f"  {probe.get('error_detail') or probe['error']}\n\n"
+                    "  구조화 출력 스키마를 고쳐야 합니다."
+                )
+            if "error" in probe:
+                print(f"  ⚠ 계약 점검에서 예상치 못한 응답: {probe['error']}")
     except anthropic.APIStatusError as exc:
         detail = getattr(exc, "message", "") or str(exc)
         if is_fatal(detail, getattr(exc, "body", None)):
@@ -111,6 +132,7 @@ def call_structured(
             raise FatalApiError(detail.strip()) from exc
         return {
             "error": f"{type(exc).__name__}: {exc.status_code}",
+            "status": exc.status_code,
             "error_detail": detail[:600],
             "error_body": json.dumps(body, ensure_ascii=False)[:600] if body else None,
             "prompt_chars": len(prompt),
