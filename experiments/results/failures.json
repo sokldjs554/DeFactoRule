@@ -1,5 +1,5 @@
 {
-  "total": 54,
+  "total": 55,
   "min_required": 30,
   "by_layer": {
     "agent": {
@@ -12,7 +12,7 @@
       "sample-mismatch": 3,
       "metric-misuse": 6,
       "incomparable-comparison": 1,
-      "misdiagnosis": 4
+      "misdiagnosis": 5
     },
     "extraction": {
       "format-unhandled": 4,
@@ -487,8 +487,34 @@
       "guard": "tests/regression/test_documented_numbers.py",
       "result": {
         "ran": true,
+        "passed": false,
+        "detail": "1건 어긋남 — README 실패 케이스 수: 문서 54 · 실제 55"
+      }
+    },
+    {
+      "id": "EV-15",
+      "layer": "evaluation",
+      "category": "misdiagnosis",
+      "title": "교차검증 선별기가 규칙을 하나도 남기지 못했다",
+      "symptom": "보류 조각에서도 버티는 규칙만 남기는 선별기를 만들었는데 결과가 0개였다. 조건이 7개 통과하는데 하나도 안 걸렸다. 호출자도 테스트도 없이 커밋돼 있어서 0개라는 사실조차 드러나지 않았다.",
+      "detection": "죽은 코드를 정리하다 '지우기 전에 재 보자' 며 돌려 보고 알았다.",
+      "fix": "원인이 두 겹이었다. (1) 최대 확장형이 행 집합에 따라 달라져 같은 개념의 규칙이 조각마다 다른 문자열이 됐다 — 전체 11개와 조각 10개 중 키가 겹치는 것이 2개뿐. 조건 어휘를 전체 dev 에서 한 번만 만들도록 고쳤다(라벨을 쓰지 않으므로 누출 아님). (2) 순차 피복 자체가 불안정해서 어휘를 고정해도 재발견율이 11개 중 5개다. 선별기를 지우고 교차검증은 --cross-validate 진단 도구로만 남겼다.",
+      "metric": {
+        "name": "전체 규칙 중 조각에서 재발견된 것",
+        "before": 2,
+        "after": 5,
+        "kind": "measured",
+        "unit": "개",
+        "source": "docs/14-rule-induction.md",
+        "note": "어휘 고정 전 2개 -> 후 5개. 그래도 11개 중 5개라 선별에는 못 쓴다."
+      },
+      "probe": "rule_vocabulary_is_stable_across_folds",
+      "status": "fixed",
+      "guard": "tests/unit/test_induction.py::test_fixed_vocabulary_makes_fold_keys_comparable",
+      "result": {
+        "ran": true,
         "passed": true,
-        "detail": "비교 43건 대조 · 어긋남 없음"
+        "detail": "고정 어휘 5개 · 조각 규칙 2개 · 어휘 밖 조건 0개"
       }
     },
     {

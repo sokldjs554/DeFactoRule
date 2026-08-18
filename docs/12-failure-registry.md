@@ -1,4 +1,4 @@
-# 실패 케이스 레지스트리 — 54건
+# 실패 케이스 레지스트리 — 55건
 
 명세 §11 은 "최소 30개 이상의 실패 케이스를 의도적으로 구축하고, 각 실패를
 taxonomy 로 분류하고, 개선 전/후를 숫자로 비교한다" 를 요구한다.
@@ -22,7 +22,7 @@ python3 scripts/failure_report.py --layer extraction
 고쳤다는 케이스가 깨졌으면 회귀이고, 열려 있다는 케이스가 통과하면 레지스트리가
 낡은 것이다.
 
-레지스트리는 `data/failures/registry.jsonl` 이고, 54건 중 48건에 probe 가 있다.
+레지스트리는 `data/failures/registry.jsonl` 이고, 55건 중 49건에 probe 가 있다.
 
 ## Taxonomy
 
@@ -31,7 +31,7 @@ python3 scripts/failure_report.py --layer extraction
 |---|---|---|
 | extraction | 15 | format-unhandled 4 · boundary-missplit 4 · silent-empty 3 · encoding-normalization 3 · unreadable-source 1 |
 | labeling | 8 | answer-leakage 3 · split-discipline 3 · label-conflation 2 |
-| evaluation | 14 | metric-misuse 6 · misdiagnosis 4 · sample-mismatch 3 · incomparable-comparison 1 |
+| evaluation | 15 | metric-misuse 6 · misdiagnosis 5 · sample-mismatch 3 · incomparable-comparison 1 |
 | agent | 8 | miscalibration 3 · ungrounded-evidence 2 · schema-violation 2 · prior-overcorrection 1 |
 | infrastructure | 9 | error-classification 2 · continuous-integration 2 · environment 2 · reproducibility 2 · path-resolution 1 |
 <!-- TAXONOMY:끝 -->
@@ -41,7 +41,7 @@ python3 scripts/failure_report.py --layer extraction
 
 ## 개선 전 → 후
 
-25건에 수치가 있다. 수치는 두 종류로만 적는다. `measured` 는 실제로 재 본 값이고 출처를 함께
+26건에 수치가 있다. 수치는 두 종류로만 적는다. `measured` 는 실제로 재 본 값이고 출처를 함께
 남긴다. `live` 는 probe 가 실행 시점에 직접 계산한 값이며, 옛 구현을 함께 들고
 있어 before 와 after 를 **같은 입력에서** 잰다. 재 보지 않은 것은 적지 않는다.
 
@@ -59,6 +59,7 @@ python3 scripts/failure_report.py --layer extraction
 | EV-11 | 학습된 규칙 | 3 → 9개 | measured |
 | EV-13 | 매크로 F1 비교에서 유의 판정 | 9 → 7쌍 | measured |
 | EV-14 | 판정이 뒤집힌 채 남은 비교 | 1 → 0건 | measured |
+| EV-15 | 전체 규칙 중 조각에서 재발견된 것 | 2 → 5개 | measured |
 | EX-01 | 결론 미검출 | 49 → 2건 | measured |
 | EX-04 | missing_field:판단이유 | 54 → 2건 | measured |
 | EX-05 | 항목명 잔재 | 406 → 0건 | live |

@@ -560,6 +560,32 @@ def predictions_are_complete_before_reporting() -> Result:
 
 
 # ══ agent ════════════════════════════════════════════════════════════
+def rule_vocabulary_is_stable_across_folds() -> Result:
+    """조각마다 조건 어휘를 다시 만들면 같은 개념이 다른 문자열이 된다.
+
+    최대 확장형은 행 집합에 따라 달라진다. 그래서 교차검증 선별기가 전체 규칙과
+    조각 규칙의 키를 대조할 수 없었고, 규칙을 하나도 남기지 못했다.
+    조건 채굴은 라벨을 쓰지 않으므로 어휘를 전체에서 한 번만 만들어도 누출이 아니다.
+    """
+    from app.rules.induction import fold_of, induce, prepare_atoms
+
+    rows = (
+        [{"source": "t", "page": i, "serial": str(i), "pair_index": 1, "sector": "공통",
+          "request": f"내부망과 외부망의 망연계 구간 관련 질의 {i}", "label": "조치"}
+         for i in range(1, 9)]
+        + [{"source": "t", "page": 20 + i, "serial": str(20 + i), "pair_index": 1,
+            "sector": "공통", "request": f"겸영업무 신고 대상 여부 질의 {i}",
+            "label": "비조치"} for i in range(1, 13)]
+    )
+    vocab = prepare_atoms(rows)
+    train = [r for i, r in enumerate(rows) if fold_of(i, 3) != 0]
+    rules, _ = induce(train, min_support=3, min_precision=0.8, max_depth=2, atoms=vocab)
+    outside = [a.value for r in rules for a in r.atoms if a not in vocab]
+    return not outside, (
+        f"고정 어휘 {len(vocab)}개 · 조각 규칙 {len(rules)}개 · 어휘 밖 조건 {len(outside)}개"
+    )
+
+
 def minority_rules_are_reachable() -> Result:
     """규칙 학습 문턱이 소수 클래스를 구조적으로 배제하지 않는가.
 

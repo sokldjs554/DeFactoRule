@@ -29,7 +29,7 @@
 | **5b** | 회답 근거 구조화 — 실행 | ⏸ API 필요 (~$5.5, 단계별 중단 가능) |
 | 6~11 | Agent 워크플로 · 배포 | ⬜ 대기 |
 
-**현재 규모** — 실패 케이스 54건 · 테스트 <!--TESTS-->256<!--/TESTS-->개 · 문서 16편.
+**현재 규모** — 실패 케이스 55건 · 테스트 <!--TESTS-->270<!--/TESTS-->개 · 문서 16편.
 이 숫자들은 `tests/regression/test_documented_numbers.py` 가 매번 대조한다.
 
 - [Phase −1 주제 선정 보고서](docs/01-topic-research.md)

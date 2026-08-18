@@ -130,3 +130,88 @@ def test_no_rule_is_learned_from_pure_noise():
 def test_rules_never_exceed_the_depth_limit(depth):
     rules, _ = induce(ROWS, LABELS, min_support=4, min_precision=0.8, max_depth=depth)
     assert all(len(r.atoms) <= depth for r in rules)
+
+
+# ── 고정 어휘와 교차검증 ─────────────────────────────────────────
+def test_prepare_atoms_returns_maximal_deduped_vocabulary():
+    from app.rules.induction import prepare_atoms
+
+    vocab = prepare_atoms(ROWS)
+    values = [a.value for a in vocab if a.kind == "ngram"]
+    assert values, "n-gram 조건이 하나도 없습니다"
+    assert len(values) == len(set(values)), "중복된 표현이 남았습니다"
+    # 최대 확장형이므로 짧은 조각이 그대로 남아 있으면 안 된다
+    assert not any(v == "망연" for v in values), values[:10]
+
+
+def test_fixed_vocabulary_preserves_behaviour():
+    """어휘를 미리 만들어 넘겨도 결과가 같아야 한다.
+
+    이 등식이 깨지면 교차검증이 전체 학습과 다른 것을 재게 된다.
+    """
+    from app.rules.induction import prepare_atoms
+
+    a, da = induce(ROWS, LABELS, min_support=4, min_precision=0.8, max_depth=2)
+    b, db = induce(ROWS, LABELS, min_support=4, min_precision=0.8, max_depth=2,
+                   atoms=prepare_atoms(ROWS))
+    assert da == db
+    assert [r.describe() for r in a] == [r.describe() for r in b]
+
+
+def test_fixed_vocabulary_makes_fold_keys_comparable():
+    """조각마다 어휘를 다시 만들면 같은 개념이 다른 문자열이 된다.
+
+    실측으로 확인했다 — 전체 dev 규칙 11개와 한 조각을 뺀 규칙 10개 중
+    키가 겹치는 것이 2개뿐이었다. 고정 어휘는 최소한 그 원인을 없앤다.
+    """
+    from app.rules.induction import fold_of, prepare_atoms
+
+    vocab = prepare_atoms(ROWS)
+    train = [r for i, r in enumerate(ROWS) if fold_of(i, 3) != 0]
+    fixed, _ = induce(train, LABELS, min_support=3, min_precision=0.8,
+                      max_depth=2, atoms=vocab)
+    for rule in fixed:
+        for atom in rule.atoms:
+            assert atom in vocab, f"어휘 밖의 조건이 나왔습니다: {atom}"
+
+
+def test_cross_validate_is_deterministic_and_reports_out_of_fold():
+    from app.rules.induction import cross_validate
+
+    a = cross_validate(ROWS, LABELS, folds=3, min_support=3, min_precision=0.8, max_depth=2)
+    b = cross_validate(ROWS, LABELS, folds=3, min_support=3, min_precision=0.8, max_depth=2)
+    assert a.keys() == b.keys()
+    for key, stats in a.items():
+        assert stats["oof_support"] == b[key]["oof_support"]
+        assert stats["folds"] >= 1
+        if stats["oof_support"]:
+            assert 0.0 <= stats["oof_precision"] <= 1.0
+
+
+def test_folds_partition_the_rows():
+    from app.rules.induction import fold_of
+
+    assigned = [fold_of(i, 5) for i in range(len(ROWS))]
+    assert set(assigned) <= set(range(5))
+    for f in range(5):
+        train = [r for i, r in enumerate(ROWS) if fold_of(i, 5) != f]
+        held = [r for i, r in enumerate(ROWS) if fold_of(i, 5) == f]
+        assert len(train) + len(held) == len(ROWS)
+        assert not ({id(r) for r in train} & {id(r) for r in held})
+
+
+# ── 버린 후보 기록 ───────────────────────────────────────────────
+def test_rejected_candidates_are_recorded_with_reasons():
+    """규칙이 안 나왔을 때 '후보가 없었나, 문턱이 높았나' 를 가를 수 있어야 한다."""
+    from app.rules.induction import induce_with_audit
+
+    rules, _, discards = induce_with_audit(
+        ROWS, LABELS, min_support=4, min_precision=0.99, max_depth=2
+    )
+    assert len(discards) > 0, "문턱을 0.99 로 올렸는데 버린 후보가 없습니다"
+    for item in discards.records():
+        assert item["rejected_for"], item
+        assert "정밀도" in item["rejected_for"][0]
+    summary = discards.summary()
+    assert summary["stage"] == "rule-induction"
+    assert summary["dropped"] == len(discards)
