@@ -22,7 +22,8 @@
 | **3b** | 실패 케이스 레지스트리 | ✅ **46건** · probe 42개 · 테스트 **154개** |
 | **3c** | API 계층 (FastAPI · Pydantic) | ✅ 기권을 계약에 포함 · 테스트 **166개** |
 | **3d** | 시각화 UI (채팅창 아님) | ✅ 위험-커버리지 · 기권 · 기저율 · 실패 레지스트리 |
-| 4~11 | Agent 워크플로 · 검색 · 배포 | ⬜ 대기 |
+| **2h** | E5 — 검색 기준선 · 표면선례 함정 지표 | ✅ 검색 F1 0.538 · **조치 앵커링 7.1%** |
+| 4~11 | 규칙 역추출 · Agent 워크플로 · 배포 | ⬜ 대기 |
 
 - [Phase −1 주제 선정 보고서](docs/01-topic-research.md)
 - [W1 게이트 실측 결과](docs/02-w1-gate.md)
@@ -35,7 +36,8 @@
 - [E3 — 업권별 분석](docs/09-e3-sector-analysis.md)
 - [E4 — 기저율 프롬프트 변형](docs/10-e4-prompt-variants.md)
 - [아키텍처 재편 — 왜 스크립트 모음을 걷어냈는가](docs/11-architecture.md)
-- [실패 케이스 레지스트리 — 46건](docs/12-failure-registry.md)
+- [실패 케이스 레지스트리](docs/12-failure-registry.md)
+- [E5 — 검색 기준선과 표면선례 함정 지표](docs/13-retrieval-baseline.md)
 
 ---
 
@@ -95,9 +97,12 @@ python3 scripts/split_queries.py --input data/processed --output data/processed
 # 4. 평가셋 (비조치 트랙 — 정답이 문서 체크박스)
 python3 scripts/make_nonaction_gold.py --input data/processed/cases_nonaction.jsonl --output data/eval
 
-# 5. baseline
+# 5. baseline — 규칙과 검색
 python3 scripts/baseline_nonaction.py --gold data/eval/nonaction_test.jsonl \
     --output data/processed/pred_nonaction_majority.jsonl --strategy majority
+python3 scripts/baseline_neighbor.py --dev data/eval/nonaction_dev.jsonl \
+    --gold data/eval/nonaction_test.jsonl \
+    --output data/processed/pred_nonaction_neighbor.jsonl
 python3 scripts/evaluate.py --gold data/eval/nonaction_test.jsonl \
     --pred data/processed/pred_nonaction_majority.jsonl --labels nonaction --name majority
 ```
