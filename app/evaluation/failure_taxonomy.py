@@ -43,6 +43,7 @@ TAXONOMY: dict[str, dict[str, str]] = {
         "metric-misuse": "질문에 답하지 못하는 지표를 대표로 쓴다",
         "incomparable-comparison": "비교 조건이 달라 비교가 성립하지 않는다",
         "misdiagnosis": "숫자는 맞는데 해석이 틀렸다",
+        "partial-guard": "가드가 대상의 일부만 보고 통과시킨다",
         "distribution-mismatch": "쓰이지 않을 분포에서 성능을 잰다",
     },
     "agent": {
@@ -58,6 +59,7 @@ TAXONOMY: dict[str, dict[str, str]] = {
         "path-resolution": "파일 위치를 코드가 잘못 계산한다",
         "reproducibility": "같은 입력이 같은 결과를 내지 않는다",
         "environment": "실행 환경 차이로 코드가 돌지 않는다",
+        "contract-violation": "요청이 외부 API 의 계약을 어겨 거부된다",
         "continuous-integration": "자동 검사가 실제로는 돌지 않는다",
     },
 }
@@ -79,6 +81,7 @@ PATTERNS: dict[str, str] = {
     "discard-unrecorded": "걸러내는 코드가 걸러낸 것을 기록하지 않는다",
     "enumeration-as-separator": "열거 순번을 질의 구분으로 오인한다",
     "mismatched-sample": "표본이 다른 것을 나란히 놓고 비교한다",
+    "guard-narrower-than-claim": "가드가 자기가 지킨다고 말한 것보다 좁게 검사한다",
 }
 
 # 패턴 이름 → 그것을 지키는 probe 이름. 2건 이상인 패턴은 여기 있어야 한다.
@@ -86,6 +89,7 @@ PATTERN_GUARDS: dict[str, str] = {
     "discard-unrecorded": "every_filter_stage_records_its_discards",
     "enumeration-as-separator": "marks_must_align_before_splitting",
     "mismatched-sample": "comparisons_align_their_samples",
+    "guard-narrower-than-claim": "every_guard_is_proven_by_a_counterexample",
 }
 
 MIN_CASES_FOR_PATTERN_GUARD = 2

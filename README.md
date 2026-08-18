@@ -153,7 +153,7 @@ tests/             unit · integration · evaluation · regression
 의존 방향은 위에서 아래로만 흐른다. 자세한 근거와 재편 과정은
 [docs/11-architecture.md](docs/11-architecture.md).
 
-테스트 <!--TESTS-->341<!--/TESTS-->개가 네 갈래로 나뉘어 있다. `regression` 은
+테스트 <!--TESTS-->348<!--/TESTS-->개가 네 갈래로 나뉘어 있다. `regression` 은
 고친 실패가 다시 열리는 것을, `evaluation` 은 문서 수치가 산출물과 어긋나는 것을
 막는다.
 
@@ -224,7 +224,7 @@ python3 scripts/sync_docs.py           # 산출물에서 다시 써 넣는다
 
 ## 8. Failure Cases
 
-실패 케이스 58건을 계층·범주로 분류하고, **각 건마다 재현 검사(probe)를 코드로**
+실패 케이스 60건을 계층·범주로 분류하고, **각 건마다 재현 검사(probe)를 코드로**
 남겼다. 고쳤다고 기록된 케이스가 실패하면 그 수정이 풀린 것이고, 열려 있다고
 기록된 케이스가 통과하면 레지스트리가 낡은 것이다. 둘 다 테스트가 잡는다.
 
@@ -314,7 +314,7 @@ python3 scripts/failure_report.py --layer extraction
 | **5b** | 회답 근거 구조화 — 실행 | ⏸ API 필요 (~$5.5, 단계별 중단 가능) |
 | 6~11 | Agent 워크플로 · 배포 | ⬜ 대기 |
 
-**현재 규모** — 실패 케이스 58건 · 테스트 331개 · 문서 16편.
+**현재 규모** — 실패 케이스 60건 · 테스트 331개 · 문서 16편.
 이 숫자들은 `tests/regression/test_documented_numbers.py` 가 매번 대조한다.
 
 ## 부록 — 재현
