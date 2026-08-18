@@ -18,8 +18,9 @@
 | **2e** | E2 — 위험-커버리지 곡선 | ✅ AURC 0.125 vs 0.282 (**유의**) |
 | **2f** | E3 — 업권별 분석 | ✅ E1 진단 정정 · 전자금융은 어려운 구간 |
 | **2g** | E4 — 기저율 프롬프트 변형 | 🔄 prior 완료(가설 실패) · sector 진행 |
-| **3a** | 아키텍처 재편 · 테스트 4분할 | ✅ app/ 9계층 · 테스트 **59개** |
-| 3b~11 | API · UI · 실패 taxonomy | ⬜ 대기 |
+| **3a** | 아키텍처 재편 · 테스트 4분할 | ✅ app/ 9계층 |
+| **3b** | 실패 케이스 레지스트리 | ✅ **46건** · probe 42개 · 테스트 **154개** |
+| 3c~11 | API · UI · Agent 워크플로 | ⬜ 대기 |
 
 - [Phase −1 주제 선정 보고서](docs/01-topic-research.md)
 - [W1 게이트 실측 결과](docs/02-w1-gate.md)
@@ -32,6 +33,7 @@
 - [E3 — 업권별 분석](docs/09-e3-sector-analysis.md)
 - [E4 — 기저율 프롬프트 변형](docs/10-e4-prompt-variants.md)
 - [아키텍처 재편 — 왜 스크립트 모음을 걷어냈는가](docs/11-architecture.md)
+- [실패 케이스 레지스트리 — 46건](docs/12-failure-registry.md)
 
 ---
 
@@ -108,6 +110,16 @@ python3 scripts/classify_llm.py --task nonaction \
 ```
 
 `--limit` 로 먼저 소량 실행하면 추정 비용이 출력됩니다.
+
+### 실패 케이스 레지스트리
+
+```bash
+python3 scripts/failure_report.py              # 46건 전부 재현 검사
+python3 scripts/failure_report.py --layer extraction
+```
+
+고쳤다고 기록된 케이스가 실패하면 그 수정이 풀린 것이고, 열려 있다고 기록된
+케이스가 통과하면 레지스트리가 낡은 것이다. 둘 다 테스트가 잡는다.
 
 ### 테스트
 
