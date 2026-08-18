@@ -48,14 +48,26 @@ RULES: list[tuple[str, re.Pattern]] = [
 ]
 
 
-def classify(request: str, strategy: str) -> tuple[str, str]:
+def classify(request: str, strategy: str) -> tuple[str, str, str]:
+    """(라벨, 규칙 이름, 신뢰도) 를 돌려준다.
+
+    신뢰도를 함께 내는 이유는 **공정한 비교** 때문이다. LLM 은 confidence 를 내고
+    낮은 것을 판단유보로 돌릴 수 있는데, 규칙 baseline 에 그 장치가 없으면
+    "커버리지 73%에서 F1 0.819" 와 "커버리지 100%에서 F1 0.494" 를 나란히 놓게
+    된다. 그건 사과와 오렌지다.
+
+    규칙의 신뢰도는 자연스럽게 정의된다 — 규칙이 실제로 걸렸으면 high,
+    아무것도 안 걸려 다수 클래스로 떨어뜨렸으면 low.
+    majority 전략은 신호가 아예 없으므로 전부 low 다. 곡선이 평평하게 나오는 것
+    자체가 "이 모델은 자기가 틀릴 때를 모른다" 는 사실을 보여준다.
+    """
     if strategy == "majority":
-        return MAJORITY, "majority"
+        return MAJORITY, "majority", "low"
     text = " ".join(request.split())
     for label, pattern in RULES:
         if pattern.search(text):
-            return label, f"rule:{label}"
-    return MAJORITY, "fallback:majority"
+            return label, f"rule:{label}", "high"
+    return MAJORITY, "fallback:majority", "low"
 
 
 def main() -> None:
@@ -73,7 +85,7 @@ def main() -> None:
 
     preds = []
     for r in rows:
-        label, rule = classify(r["request"], args.strategy)
+        label, rule, confidence = classify(r["request"], args.strategy)
         preds.append(
             {
                 "source": r["source"],
@@ -82,6 +94,7 @@ def main() -> None:
                 "pair_index": r["pair_index"],
                 "predicted": label,
                 "rule": rule,
+                "confidence": confidence,
             }
         )
 
@@ -94,6 +107,8 @@ def main() -> None:
     print(f"{args.strategy}: {len(preds)}건 -> {out}")
     for label, n in Counter(p["predicted"] for p in preds).most_common():
         print(f"  {label}: {n} ({n / len(preds):.1%})")
+    conf = Counter(p["confidence"] for p in preds)
+    print("  신뢰도: " + ", ".join(f"{k} {v}" for k, v in conf.most_common()))
 
 
 if __name__ == "__main__":

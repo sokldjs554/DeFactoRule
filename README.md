@@ -14,7 +14,8 @@
 | **2a** | 라벨 체계 · 규칙 baseline · 평가 하네스 | ✅ 커버리지 41.1% |
 | **2b** | LLM 분류기 | ⏸ API 키 필요 |
 | **2c** | 비조치 트랙 baseline (순환 없는 평가) | ✅ 매크로 F1 0.494 |
-| **2d** | E1 — LLM vs baseline | ✅ 0.587 (판정 보류) · 신뢰도 보정 확인 |
+| **2d** | E1 — LLM vs baseline | ✅ 매크로 F1 0.587 (규칙과 판정 보류) |
+| **2e** | E2 — 위험-커버리지 곡선 | ✅ AURC 0.125 vs 0.282 (**유의**) |
 | 3~11 | 구현 | ⬜ 대기 |
 
 - [Phase −1 주제 선정 보고서](docs/01-topic-research.md)
@@ -24,6 +25,7 @@
 - [Phase 2 — 결론 판정 baseline](docs/05-phase2-baseline.md)
 - [비조치 트랙 baseline — 순환 없는 평가](docs/06-nonaction-baseline.md)
 - [E1 — LLM vs 규칙 baseline](docs/07-e1-llm-vs-baseline.md)
+- [E2 — 위험-커버리지 곡선](docs/08-e2-risk-coverage.md)
 
 ---
 
