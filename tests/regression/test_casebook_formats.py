@@ -111,6 +111,25 @@ def test_known_sources_unchanged(baseline, current):
     )
 
 
+def test_unreadable_sources_are_declared(baseline, current):
+    """텍스트 레이어가 깨진 자료가 새로 생기면 알린다.
+
+    사례 0건은 파싱 성공처럼 보이므로 반드시 소리를 내야 한다.
+    """
+    known = set(baseline.get("unreadable", {}))
+    new = set(current.get("unreadable", {})) - known
+    assert not new, (
+        "텍스트 레이어가 깨진 자료입니다. OCR 이 필요하며, 확인 후 기준선을 "
+        "갱신하세요:\n  " + "\n  ".join(sorted(new))
+    )
+
+
+def test_every_readable_source_yields_cases(current):
+    """읽히는데 사례가 0건이면 서식이 바뀐 것이다."""
+    empty = [n for n, e in current["sources"].items() if e["case_count"] == 0]
+    assert not empty, "사례를 하나도 찾지 못한 자료:\n  " + "\n  ".join(empty)
+
+
 def test_new_sources_are_declared(baseline, current):
     """기준선에 없는 자료가 들어오면 알린다 — 실패가 아니라 갱신 요구다."""
     new = set(current["sources"]) - set(baseline["sources"])

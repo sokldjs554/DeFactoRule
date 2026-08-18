@@ -20,3 +20,6 @@ data/interim/**
 experiments/artifacts/
 *.ckpt
 *.pt
+
+# 학습 산출물 — scripts/restore_spacing.py train 으로 재생성
+models/
