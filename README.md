@@ -25,6 +25,65 @@
 
 ---
 
+## 실행하기
+
+**Python 3.9 이상이 필요합니다.** macOS 에서 `python` 은 시스템에 남아 있는 2.7 을
+가리키는 경우가 많습니다. 반드시 `python3` 를 쓰세요.
+
+```bash
+git clone https://github.com/sokldjs554/DeFactoRule
+cd DeFactoRule                      # 모든 명령은 저장소 루트에서
+
+pip3 install -r requirements.txt
+python3 scripts/check_env.py        # 환경 점검 — 무엇이 빠졌는지 알려줍니다
+```
+
+`check_env.py` 는 Python 2 로 실행해도 문법 오류 없이 돌아가며, 인터프리터가
+잘못됐다는 사실을 알려줍니다.
+
+### 파이프라인
+
+```bash
+# 1. 사례집 PDF 를 data/raw/casebooks/ 에 넣는다 (data/SOURCES.md 참고)
+python3 scripts/parse_casebook.py --input data/raw/casebooks --output data/processed
+
+# 2. 띄어쓰기 복원
+python3 scripts/restore_spacing.py train --input data/processed --model models/spacing.json
+python3 scripts/restore_spacing.py apply --input data/processed --model models/spacing.json --threshold -0.25
+
+# 3. 질의-회답 쌍으로 분할
+python3 scripts/split_queries.py --input data/processed --output data/processed
+
+# 4. 평가셋 (비조치 트랙 — 정답이 문서 체크박스)
+python3 scripts/make_nonaction_gold.py --input data/processed/cases_nonaction.jsonl --output data/eval
+
+# 5. baseline
+python3 scripts/baseline_nonaction.py --gold data/eval/nonaction_test.jsonl \
+    --output data/processed/pred_nonaction_majority.jsonl --strategy majority
+python3 scripts/evaluate.py --gold data/eval/nonaction_test.jsonl \
+    --pred data/processed/pred_nonaction_majority.jsonl --labels nonaction --name majority
+```
+
+### LLM 분류기
+
+```bash
+export ANTHROPIC_API_KEY=...        # 또는 `ant auth login`
+python3 scripts/classify_llm.py --task nonaction \
+    --input data/eval/nonaction_test.jsonl \
+    --output data/processed/pred_nonaction_llm.jsonl --limit 30
+```
+
+`--limit` 로 먼저 소량 실행하면 추정 비용이 출력됩니다.
+
+### 테스트
+
+```bash
+pip3 install -r requirements-dev.txt
+python3 -m pytest tests -q
+```
+
+---
+
 ## 1. Problem
 
 어떤 조직이든 규정에는 **원칙**만 적혀 있고, 실제 판단은 **예외 승인 이력에 축적된 암묵 기준**을 따른다.

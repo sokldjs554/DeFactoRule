@@ -1,5 +1,8 @@
 """회답 결론 라벨 정의.
 
+`StrEnum` 대신 `str, Enum` 을 쓴다. `StrEnum` 은 Python 3.11+ 인데,
+macOS 가 기본 제공하는 python3 는 3.9 인 경우가 많다. 실행 문턱을 낮춘다.
+
 이 프로젝트가 최종적으로 찾으려는 것은 규제당국이 공표한 적 없는 판단 기준이다.
 그 첫 단계는 "이 회답이 어떤 결론인가"를 라벨로 만드는 것이다.
 
@@ -17,10 +20,10 @@
 
 from __future__ import annotations
 
-from enum import StrEnum
+from enum import Enum
 
 
-class Verdict(StrEnum):
+class Verdict(str, Enum):
     """법령해석 회답의 결론."""
 
     AFFIRM = "긍정"  # 질의한 행위·해석이 가능하다 / 해당한다
@@ -29,7 +32,7 @@ class Verdict(StrEnum):
     ABSTAIN = "판단유보"  # 개별 사실관계에 따라 다르다 / 답할 수 없다
 
 
-class NonAction(StrEnum):
+class NonAction(str, Enum):
     """비조치의견서의 결론. 문서의 체크박스에서 그대로 읽는다."""
 
     NO_ACTION = "비조치"

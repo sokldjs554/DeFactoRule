@@ -17,6 +17,7 @@ import argparse
 import json
 from collections import Counter, defaultdict
 from pathlib import Path
+from typing import Optional
 
 from labels import NON_ACTIONS, VERDICTS
 
@@ -24,7 +25,9 @@ LABEL_SETS = {"verdict": VERDICTS, "nonaction": NON_ACTIONS}
 
 UNKNOWN = "미분류"
 
-Key = tuple[str, int, str | None, int]
+# 모듈 수준 별칭은 런타임에 평가되므로 `X | None` 을 쓰면 3.10 미만에서 깨진다.
+# 함수 시그니처 안의 같은 표기는 `from __future__ import annotations` 덕에 안전하다.
+Key = tuple[str, int, Optional[str], int]  # noqa: UP007
 
 
 def key_of(row: dict) -> Key:
