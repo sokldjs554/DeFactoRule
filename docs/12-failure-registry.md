@@ -1,4 +1,4 @@
-# 실패 케이스 레지스트리 — 56건
+# 실패 케이스 레지스트리 — 58건
 
 명세 §11 은 "최소 30개 이상의 실패 케이스를 의도적으로 구축하고, 각 실패를
 taxonomy 로 분류하고, 개선 전/후를 숫자로 비교한다" 를 요구한다.
@@ -22,7 +22,7 @@ python3 scripts/failure_report.py --layer extraction
 고쳤다는 케이스가 깨졌으면 회귀이고, 열려 있다는 케이스가 통과하면 레지스트리가
 낡은 것이다.
 
-레지스트리는 `data/failures/registry.jsonl` 이고, 56건 중 50건에 probe 가 있다.
+레지스트리는 `data/failures/registry.jsonl` 이고, 58건 중 52건에 probe 가 있다.
 
 ## Taxonomy
 
@@ -31,17 +31,58 @@ python3 scripts/failure_report.py --layer extraction
 |---|---|---|
 | extraction | 16 | boundary-missplit 5 · format-unhandled 4 · silent-empty 3 · encoding-normalization 3 · unreadable-source 1 |
 | labeling | 8 | answer-leakage 3 · split-discipline 3 · label-conflation 2 |
-| evaluation | 15 | metric-misuse 6 · misdiagnosis 5 · sample-mismatch 3 · incomparable-comparison 1 |
-| agent | 8 | miscalibration 3 · ungrounded-evidence 2 · schema-violation 2 · prior-overcorrection 1 |
-| infrastructure | 9 | error-classification 2 · continuous-integration 2 · environment 2 · reproducibility 2 · path-resolution 1 |
+| evaluation | 16 | metric-misuse 6 · misdiagnosis 5 · sample-mismatch 3 · incomparable-comparison 1 · undiagnosable-discard 1 |
+| agent | 9 | miscalibration 3 · ungrounded-evidence 2 · schema-violation 2 · prior-overcorrection 1 · undiagnosable-discard 1 |
+| infrastructure | 9 | continuous-integration 2 · environment 2 · reproducibility 2 · error-classification 1 · undiagnosable-discard 1 · path-resolution 1 |
 <!-- TAXONOMY:끝 -->
 
 계층이 하나라도 비면 테스트가 실패한다. 한 곳에만 실패가 몰려 있다면 나머지를
 들여다보지 않은 것이다.
 
+## 재발 패턴 — 개별 사례가 아니라 패턴을 지킨다
+
+레지스트리의 probe 는 **과거의 그 자리**를 지킨다. 같은 실수가 **다른 자리에서**
+다시 나오는 것은 막지 못한다. 실제로 이런 일이 있었다.
+
+| 자리 | 무엇을 버렸나 | 결과 |
+|---|---|---|
+| API 오류 (IN-02) | 메시지와 본문 | 39건이 왜 죽었는지 모름 |
+| 결측 검사 (EV-09) | 파일에 없는 행 | 156/170 이 "결측 0" 으로 통과 |
+| 기준 검증 (AG-09) | 걸러낸 기준 | 0개인 이유를 되짚을 수 없음 |
+| 규칙 학습 (EV-16) | 문턱 미달 후보 165개 | 후보가 없었나 문턱이 높았나 모름 |
+
+**넷 다 따로 고쳤고 넷 다 probe 를 붙였는데, 다섯 번째를 막을 장치가 없었다.**
+
+범주(category)는 재발 단위가 아니다. 21개 범주 중 17개가 이미 2건 이상인데
+그것을 전부 "반복" 이라고 부르면 아무 뜻도 없다. 진짜 반복은 **범주를
+가로지른다** — 위 넷은 infrastructure · evaluation · agent 세 계층에 흩어져 있다.
+
+그래서 `pattern` 필드를 따로 두고, **2건 이상 붙은 패턴에는 패턴 단위 가드를
+의무화**한다.
+
+| 패턴 | 사례 | 가드 |
+|---|---|---|
+| `discard-unrecorded` | AG-09 · EV-16 · IN-02 | `every_filter_stage_records_its_discards` |
+| `mismatched-sample` | EV-01 · EV-08 · EV-09 | `comparisons_align_their_samples` |
+| `enumeration-as-separator` | EX-12 · EX-16 | `marks_must_align_before_splitting` |
+
+`discard-unrecorded` 가드는 파이프라인의 걸러내기 단계 여섯 개를 등록해 두고,
+각 단계에 **거부당할 입력을 실제로 넣어** 결과물에 이유가 들어 있는지 본다.
+"기록하는 코드가 있다" 가 아니라 "기록이 실제로 나온다" 를 보는 것이다.
+
+한계도 적어 둔다. **새 단계를 만들면서 등록을 잊으면 이 가드는 그것을 모른다.**
+없앨 수 없는 구멍이고, 대신 등록 개수를 테스트가 감시해 줄어들면 걸린다.
+
+두 가지를 실제로 확인했다.
+
+- 규칙 학습기의 폐기 기록을 지우자 `AG-09 수정이 풀렸습니다 — 기록하지 않는
+  단계 ['rule-induction']` 으로 걸렸다.
+- 가드 없는 새 패턴을 두 사례에 붙이자 `패턴 가드가 없는 반복 패턴이 있습니다`
+  로 걸렸다.
+
 ## 개선 전 → 후
 
-27건에 수치가 있다. 수치는 두 종류로만 적는다. `measured` 는 실제로 재 본 값이고 출처를 함께
+28건에 수치가 있다. 수치는 두 종류로만 적는다. `measured` 는 실제로 재 본 값이고 출처를 함께
 남긴다. `live` 는 probe 가 실행 시점에 직접 계산한 값이며, 옛 구현을 함께 들고
 있어 before 와 after 를 **같은 입력에서** 잰다. 재 보지 않은 것은 적지 않는다.
 
@@ -60,6 +101,7 @@ python3 scripts/failure_report.py --layer extraction
 | EV-13 | 매크로 F1 비교에서 유의 판정 | 9 → 7쌍 | measured |
 | EV-14 | 판정이 뒤집힌 채 남은 비교 | 1 → 0건 | measured |
 | EV-15 | 전체 규칙 중 조각에서 재발견된 것 | 2 → 5개 | measured |
+| EV-16 | 기록된 폐기 후보 | 0 → 165개 | live |
 | EX-01 | 결론 미검출 | 49 → 2건 | measured |
 | EX-04 | missing_field:판단이유 | 54 → 2건 | measured |
 | EX-05 | 항목명 잔재 | 406 → 0건 | live |

@@ -38,6 +38,7 @@ TAXONOMY: dict[str, dict[str, str]] = {
         "split-discipline": "dev/test 경계나 라벨링 절차가 무너진다",
     },
     "evaluation": {
+        "undiagnosable-discard": "버린 것을 기록하지 않아 원인을 되짚을 수 없다",
         "sample-mismatch": "서로 다른 표본의 숫자를 나란히 놓는다",
         "metric-misuse": "질문에 답하지 못하는 지표를 대표로 쓴다",
         "incomparable-comparison": "비교 조건이 달라 비교가 성립하지 않는다",
@@ -45,12 +46,14 @@ TAXONOMY: dict[str, dict[str, str]] = {
         "distribution-mismatch": "쓰이지 않을 분포에서 성능을 잰다",
     },
     "agent": {
+        "undiagnosable-discard": "버린 것을 기록하지 않아 원인을 되짚을 수 없다",
         "schema-violation": "형식 계약을 벗어난 출력",
         "ungrounded-evidence": "원문에 없는 것을 근거로 든다",
         "miscalibration": "확신의 정도가 정확도와 맞지 않는다",
         "prior-overcorrection": "사전 정보가 소수 클래스를 지운다",
     },
     "infrastructure": {
+        "undiagnosable-discard": "버린 것을 기록하지 않아 원인을 되짚을 수 없다",
         "error-classification": "회복 가능한 오류와 아닌 오류를 구분하지 못한다",
         "path-resolution": "파일 위치를 코드가 잘못 계산한다",
         "reproducibility": "같은 입력이 같은 결과를 내지 않는다",
@@ -58,6 +61,35 @@ TAXONOMY: dict[str, dict[str, str]] = {
         "continuous-integration": "자동 검사가 실제로는 돌지 않는다",
     },
 }
+
+# ══ 재발 패턴 ═══════════════════════════════════════════════════════
+#
+# 범주(category)는 taxonomy 이지 재발 단위가 아니다. 21개 범주 중 17개가 이미
+# 2건 이상인데, 그것을 전부 "반복" 이라고 부르면 아무 뜻도 없다.
+#
+# 진짜 반복은 **범주를 가로지른다.** "걸러낸 것을 기록하지 않는다" 는 API 오류
+# (infrastructure), 결측 검사(evaluation), 기준 검증(agent), 규칙 학습(rules)
+# 네 곳에서 같은 모양으로 나왔다. 레지스트리는 각각을 따로 잡았지만 **다음
+# 사례를 막지는 못했다.**
+#
+# 그래서 패턴을 별도 필드로 두고, 2건 이상 붙은 패턴에는 **패턴 단위 가드**를
+# 의무화한다. 개별 사례의 probe 가 과거를 지킨다면, 패턴 가드는 현재 코드
+# 전체를 훑는다.
+PATTERNS: dict[str, str] = {
+    "discard-unrecorded": "걸러내는 코드가 걸러낸 것을 기록하지 않는다",
+    "enumeration-as-separator": "열거 순번을 질의 구분으로 오인한다",
+    "mismatched-sample": "표본이 다른 것을 나란히 놓고 비교한다",
+}
+
+# 패턴 이름 → 그것을 지키는 probe 이름. 2건 이상인 패턴은 여기 있어야 한다.
+PATTERN_GUARDS: dict[str, str] = {
+    "discard-unrecorded": "every_filter_stage_records_its_discards",
+    "enumeration-as-separator": "marks_must_align_before_splitting",
+    "mismatched-sample": "comparisons_align_their_samples",
+}
+
+MIN_CASES_FOR_PATTERN_GUARD = 2
+
 
 REQUIRED_KEYS = {
     "id",
@@ -97,7 +129,26 @@ def validate(case: dict) -> list[str]:
             problems.append("measured 수치는 출처를 적어야 한다")
         if metric.get("kind") not in (None, "measured", "live"):
             problems.append(f"알 수 없는 metric.kind: {metric.get('kind')}")
+
+    pattern = case.get("pattern")
+    if pattern is not None and pattern not in PATTERNS:
+        problems.append(f"알 수 없는 재발 패턴: {pattern}")
     return problems
+
+
+def patterns_needing_guards(cases: list[dict]) -> dict[str, list[str]]:
+    """2건 이상 붙은 패턴과 그 사례 ID. 이들에는 패턴 가드가 있어야 한다."""
+    from collections import defaultdict
+
+    grouped: dict[str, list[str]] = defaultdict(list)
+    for case in cases:
+        if case.get("pattern"):
+            grouped[case["pattern"]].append(case["id"])
+    return {
+        name: sorted(ids)
+        for name, ids in grouped.items()
+        if len(ids) >= MIN_CASES_FOR_PATTERN_GUARD
+    }
 
 
 def load_registry(path=None) -> list[dict]:

@@ -855,6 +855,32 @@ def env_check_runs_on_python2() -> Result:
     return not bad, f"Python 2 파서가 걸릴 문법: {bad or '없음'}"
 
 
+# ══ 재발 패턴 가드 ═══════════════════════════════════════════════
+#
+# 개별 사례의 probe 는 과거의 그 자리를 지킨다. 패턴 가드는 현재 코드 전체를
+# 훑는다. 구현은 app/evaluation/patterns.py 에 있고 여기서는 이름만 잇는다.
+def every_filter_stage_records_its_discards() -> Result:
+    """등록된 모든 걸러내기 단계가 버린 것을 이유와 함께 남기는가.
+
+    "걸러낸 것을 기록하지 않는다" 는 네 곳에서 같은 모양으로 나왔다 —
+    API 오류·결측 검사·기준 검증·규칙 학습. 각각 고치고 각각 probe 를 붙였지만
+    다섯 번째를 막을 장치가 없었다.
+    """
+    from app.evaluation.patterns import every_filter_stage_records_its_discards as check
+
+    return check()
+
+
+def comparisons_align_their_samples() -> Result:
+    """모델 비교가 스스로 공통 표본을 맞추는가.
+
+    표본이 다른 것을 나란히 놓는 실수는 세 번 나왔다(EV-01 · EV-08 · EV-09).
+    """
+    from app.evaluation.patterns import comparisons_align_their_samples as check
+
+    return check()
+
+
 def _is_probe(name: str, fn: object) -> bool:
     """probe 는 **인자 없이** 부를 수 있어야 한다.
 
