@@ -184,3 +184,48 @@ def comparisons_align_their_samples() -> Result:
     if len(truth) != len(keys):
         return False, "정답 길이가 표본과 다르다"
     return True, f"gold 10건 · 한쪽만 6건 -> 공통 표본 {len(keys)}건으로 정렬"
+
+
+def every_guard_is_proven_by_a_counterexample() -> Result:
+    """가드가 **자기가 지킨다고 말한 것**을 실제로 잡는지 확인된 적이 있는가.
+
+    두 번 같은 모양으로 당했다.
+
+        EV-17  README 코퍼스 수치 검사가 "그 숫자가 어딘가 있는가" 만 물었다.
+               위에 1,122쌍, 아래에 1,124쌍이 동시에 있어도 통과했다.
+        IN-10  사전 점검이 스키마 없이 한 글자를 보냈다. 계정은 살아 있었고
+               요청 계약은 죽어 있었다. 332 요청이 전부 400.
+
+    둘 다 "가드가 있다" 는 사실이 "가드가 잡는다" 를 뜻하지 않는 경우다. 가드를
+    통과시키는 것은 쉽고, **가드를 깨뜨려 보는 것**만이 그것이 살아 있음을
+    보인다. 그래서 이 패턴에 속한 사례는 반례 테스트를 반드시 지명해야 한다.
+
+    이 검사의 한계는 분명히 해 둔다 — 지명된 테스트가 **정말 반례인지**는
+    사람이 읽어야 한다. 여기서 보는 것은 그 테스트가 존재하고 수집되며 지금
+    통과하는가까지다. 이름만 적고 테스트를 안 쓰는 것은 막는다.
+    """
+    import json
+    import subprocess
+    import sys
+
+    from app.core.paths import ROOT
+
+    path = ROOT / "data/failures/registry.jsonl"
+    cases = [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
+    tagged = [c for c in cases if c.get("pattern") == "guard-narrower-than-claim"]
+    if not tagged:
+        return True, "이 패턴에 속한 사례가 없다"
+
+    missing = [c["id"] for c in tagged if "::" not in (c.get("counterexample") or "")]
+    if missing:
+        return False, f"반례 테스트를 지명하지 않은 사례 {missing}"
+
+    nodes = [c["counterexample"] for c in tagged]
+    out = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q", *nodes],
+        cwd=ROOT, capture_output=True, text=True,
+    )
+    if out.returncode != 0:
+        tail = (out.stdout or out.stderr).strip().splitlines()[-3:]
+        return False, "반례 테스트가 통과하지 않는다 — " + " / ".join(tail)
+    return True, f"사례 {len(tagged)}건 · 반례 테스트 {len(nodes)}개 통과"

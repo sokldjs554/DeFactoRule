@@ -881,6 +881,39 @@ def comparisons_align_their_samples() -> Result:
     return check()
 
 
+def readme_restates_corpus_size_consistently() -> Result:
+    """README 가 코퍼스 규모를 적은 모든 자리가 산출물과 맞는가 (EV-17)."""
+    from app.evaluation.doc_check import corpus_restatements
+
+    problems = corpus_restatements(ROOT)
+    if problems:
+        return False, " / ".join(problems)
+    return True, "코퍼스 수치를 되풀이한 모든 자리가 일치한다"
+
+
+def output_schemas_match_api_contract() -> Result:
+    """구조화 출력 스키마에 API 가 거부하는 키워드가 없는가 (IN-10).
+
+    호출 없이 도는 검사다. API 를 쓸 수 없는 환경에서도 이것만은 돌아간다.
+    """
+    from app.agents.criteria import apply_schema, extract_schema
+    from app.infrastructure.schema_rules import check_output_schema
+
+    problems = []
+    for name, schema in (("extract", extract_schema()), ("apply", apply_schema(5))):
+        problems += [f"{name}: {x}" for x in check_output_schema(schema)]
+    if problems:
+        return False, " / ".join(problems)
+    return True, "스키마 2종에 금지 키워드 없음"
+
+
+def every_guard_is_proven_by_a_counterexample() -> Result:
+    """가드를 반례로 확인했는가 — 패턴 가드 (guard-narrower-than-claim)."""
+    from app.evaluation import patterns
+
+    return patterns.every_guard_is_proven_by_a_counterexample()
+
+
 def _is_probe(name: str, fn: object) -> bool:
     """probe 는 **인자 없이** 부를 수 있어야 한다.
 
