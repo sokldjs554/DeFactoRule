@@ -34,7 +34,10 @@ import re
 import sys
 from pathlib import Path
 
+from base_rates import describe_overall, describe_sector
 from labels import GUIDELINE, NON_ACTIONS, VERDICTS
+
+BASE_RATES_PATH = Path(__file__).resolve().parents[1] / "data" / "eval" / "dev_base_rates.json"
 
 MODEL = "claude-opus-5"
 
@@ -111,30 +114,34 @@ TASKS = {
         "input_fields": ("request",),
         "titles": ("요청대상행위",),
         "source_field": "request",
+        "context": None,
+    },
+    # ── E4 프롬프트 변형 ────────────────────────────────────────
+    # E3 에서 모델이 소수 클래스를 과잉 예측한다는 것을 확인했다. 기저율을 알려주면
+    # 줄어드는가? 기저율은 dev 에서만 뽑는다 — test 에서 뽑으면 정답 누출이다.
+    #
+    # 두 변형을 따로 둔 이유는 교란을 가르기 위해서다. sector 변형은 업권을
+    # 알려주는 것과 그 업권의 기저율을 알려주는 것이 섞여 있다. prior 변형은
+    # 업권을 밝히지 않고 전체 분포만 주므로 기저율 효과만 잰다.
+    "nonaction_prior": {
+        "system": NONACTION_SYSTEM,
+        "labels": NON_ACTIONS,
+        "evidence_hint": "판단 단서가 된 요청문 구절 (그대로 인용)",
+        "input_fields": ("request",),
+        "titles": ("요청대상행위",),
+        "source_field": "request",
+        "context": "overall",
+    },
+    "nonaction_sector": {
+        "system": NONACTION_SYSTEM,
+        "labels": NON_ACTIONS,
+        "evidence_hint": "판단 단서가 된 요청문 구절 (그대로 인용)",
+        "input_fields": ("request",),
+        "titles": ("요청대상행위",),
+        "source_field": "request",
+        "context": "sector",
     },
 }
-
-_LEGACY_SCHEMA = {
-    "type": "json_schema",
-    "schema": {
-        "type": "object",
-        "properties": {
-            "verdict": {"type": "string", "enum": list(VERDICTS)},
-            "evidence": {
-                "type": "string",
-                "description": "판정 근거가 된 회답 원문 구절 (그대로 인용)",
-            },
-            "confidence": {
-                "type": "string",
-                "enum": ["high", "medium", "low"],
-                "description": "결론절이 얼마나 명확한가",
-            },
-        },
-        "required": ["verdict", "evidence", "confidence"],
-        "additionalProperties": False,
-    },
-}
-
 
 def normalize(text: str) -> str:
     """대조용 정규화. 공백과 조판 잔재만 걷어낸다 — 글자는 건드리지 않는다."""
@@ -152,6 +159,14 @@ def build_prompt(row: dict, task: dict) -> str:
     parts = []
     for field, title in zip(task["input_fields"], task["titles"]):
         parts.append(f"[{title}]\n{(row.get(field) or '').strip()}")
+    # 기저율은 사용자 메시지에 붙인다. 사안마다 달라지므로 시스템 프롬프트에
+    # 넣으면 캐시되는 앞부분이 매번 깨진다.
+    table = task.get("base_rates")
+    mode = task.get("context")
+    if table and mode == "overall":
+        parts.append(describe_overall(table))
+    elif table and mode == "sector":
+        parts.append(describe_sector(table, row.get("sector")))
     return "\n\n".join(parts)
 
 
@@ -214,6 +229,16 @@ def main() -> None:
     task = dict(TASKS[args.task])
     if task["system"] is None:
         task["system"] = SYSTEM
+    if task.get("context"):
+        if not BASE_RATES_PATH.exists():
+            sys.exit(
+                f"기저율 파일이 없습니다: {BASE_RATES_PATH}\n"
+                "python3 scripts/base_rates.py --dev data/eval/nonaction_dev.jsonl "
+                "--output data/eval/dev_base_rates.json"
+            )
+        task["base_rates"] = json.loads(BASE_RATES_PATH.read_text(encoding="utf-8"))
+        if task["base_rates"].get("source") != "dev":
+            sys.exit("기저율이 dev 에서 나온 것이 아닙니다. 정답 누출 위험.")
 
     try:
         import anthropic
@@ -235,6 +260,10 @@ def main() -> None:
     ]
     source_field = task["source_field"]
     targets = [r for r in rows if (r.get(source_field) or "").strip()]
+    if args.task.startswith("nonaction") and task.get("context") == "sector":
+        missing = sum(1 for r in targets if not r.get("sector"))
+        if missing:
+            print(f"  ⚠ 업권 정보가 없는 {missing}건은 전체 기저율로 대체됩니다.")
     if args.task == "verdict":
         # 법령해석 쌍 파일에는 두 문서 종류가 섞여 있다
         targets = [r for r in targets if r.get("doc_type") == args.doc_type]
