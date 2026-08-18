@@ -5,6 +5,14 @@
 검정력을 크게 잃는다. 같은 부트스트랩 표본에서 두 모델을 동시에 채점하고
 **차이의 분포**를 본다.
 
+모델이 늘면 비교 쌍이 제곱으로 는다. 7개면 21쌍이고, 유의수준 5%에서
+21번 검정하면 **아무 차이가 없어도** 하나쯤은 유의하게 나온다(1-0.95^21 ≈ 66%).
+그래서 Holm-Bonferroni 보정을 함께 낸다. Holm 은 Bonferroni 보다 검정력을
+덜 잃으면서 family-wise 오류율을 같게 지킨다.
+
+보정 전 p값도 나란히 남긴다 — 숨기면 나중에 "왜 이 결과만 사라졌지" 를
+되짚을 수 없다.
+
     python scripts/compare_models.py --gold data/eval/nonaction_test.jsonl \\
         --labels nonaction \\
         --pred keyword=data/processed/pred_nonaction_keyword.jsonl \\
@@ -24,6 +32,24 @@ from app.evaluation.metrics import macro_f1
 
 ROUNDS = 5000
 SEED = 0
+
+
+def holm(pvalues: list[float], alpha: float = 0.05) -> list[tuple[float, bool]]:
+    """Holm-Bonferroni. (보정된 p, 기각 여부) 를 원래 순서로 돌려준다.
+
+    p 를 오름차순으로 놓고 i 번째에 (m - i) 를 곱한다. 앞선 것보다 작아지지
+    않도록 누적 최대를 취하고(단조성), 처음 alpha 를 넘는 지점부터 전부
+    기각하지 않는다.
+    """
+    m = len(pvalues)
+    order = sorted(range(m), key=lambda i: pvalues[i])
+    adjusted = [0.0] * m
+    running = 0.0
+    for rank, idx in enumerate(order):
+        value = min(1.0, (m - rank) * pvalues[idx])
+        running = max(running, value)
+        adjusted[idx] = running
+    return [(adjusted[i], adjusted[i] < alpha) for i in range(m)]
 
 
 def aligned_pairs(
@@ -100,11 +126,6 @@ def main() -> None:
             # 부호가 뒤집히는 비율 — 양측 p값의 부트스트랩 근사
             worse = sum(1 for d in diffs if d <= 0) / ROUNDS
             p = 2 * min(worse, 1 - worse)
-            verdict = "유의" if lo > 0 or hi < 0 else "판정 보류"
-            print(
-                f"  {a} - {b}: {observed:+.3f}  "
-                f"[95% CI {lo:+.3f}–{hi:+.3f}]  p≈{p:.3f}  {verdict}"
-            )
             results.append(
                 {
                     "a": a,
@@ -112,9 +133,40 @@ def main() -> None:
                     "diff": observed,
                     "ci95": [lo, hi],
                     "p_approx": p,
-                    "significant": bool(lo > 0 or hi < 0),
+                    "significant_raw": bool(lo > 0 or hi < 0),
                 }
             )
+
+    # ── 다중비교 보정 ────────────────────────────────────────────
+    adjusted = holm([r["p_approx"] for r in results])
+    for r, (p_adj, keep) in zip(results, adjusted):
+        r["p_holm"] = p_adj
+        r["significant_holm"] = bool(keep)
+
+    width = max(len(f"{r['a']} - {r['b']}") for r in results)
+    print(f"  {'비교':<{width}}  {'차이':>7}  {'95% CI':>18}  {'p':>7}  {'p(Holm)':>8}  판정")
+    for r in sorted(results, key=lambda x: x["p_approx"]):
+        lo, hi = r["ci95"]
+        if r["significant_holm"]:
+            verdict = "유의"
+        elif r["significant_raw"]:
+            verdict = "보정 후 탈락"
+        else:
+            verdict = "판정 보류"
+        print(
+            f"  {r['a'] + ' - ' + r['b']:<{width}}  {r['diff']:>+7.3f}  "
+            f"[{lo:>+7.3f}, {hi:>+7.3f}]  {r['p_approx']:>7.3f}  "
+            f"{r['p_holm']:>8.3f}  {verdict}"
+        )
+
+    survived = sum(1 for r in results if r["significant_holm"])
+    dropped = sum(1 for r in results if r["significant_raw"] and not r["significant_holm"])
+    print(f"\n  {len(results)}쌍 중 보정 후 유의 {survived}쌍" +
+          (f" · 보정에서 탈락 {dropped}쌍" if dropped else ""))
+    if len(results) >= 10:
+        naive = 1 - 0.95 ** len(results)
+        print(f"  보정 없이 {len(results)}번 검정하면 아무 차이가 없어도 "
+              f"{naive:.0%} 확률로 하나쯤 유의하게 나온다.")
 
     print(
         "\n주변 신뢰구간이 겹쳐도 대응표본 차이는 유의할 수 있습니다. "
@@ -126,7 +178,14 @@ def main() -> None:
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(
             json.dumps(
-                {"n": n, "point": point, "comparisons": results},
+                {
+                    "n": n,
+                    "rounds": ROUNDS,
+                    "correction": "holm-bonferroni",
+                    "alpha": 0.05,
+                    "point": point,
+                    "comparisons": results,
+                },
                 ensure_ascii=False,
                 indent=2,
             ),

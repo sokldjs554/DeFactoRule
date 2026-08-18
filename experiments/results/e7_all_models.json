@@ -1,0 +1,290 @@
+{
+  "n": 170,
+  "rounds": 5000,
+  "correction": "holm-bonferroni",
+  "alpha": 0.05,
+  "point": {
+    "sector": 0.6361483556800747,
+    "llm": 0.5870602432005941,
+    "neighbor": 0.5383306281048645,
+    "prior": 0.5037878787878788,
+    "keyword": 0.49424890729238563,
+    "induced": 0.436214933468938,
+    "majority": 0.2837837837837838
+  },
+  "comparisons": [
+    {
+      "a": "sector",
+      "b": "llm",
+      "diff": 0.04908811247948053,
+      "ci95": [
+        -0.06310969204606143,
+        0.16034580182597535
+      ],
+      "p_approx": 0.388,
+      "significant_raw": false,
+      "p_holm": 1.0,
+      "significant_holm": false
+    },
+    {
+      "a": "sector",
+      "b": "neighbor",
+      "diff": 0.09781772757521012,
+      "ci95": [
+        -0.031737927249269826,
+        0.22268027844257032
+      ],
+      "p_approx": 0.1336,
+      "significant_raw": false,
+      "p_holm": 1.0,
+      "significant_holm": false
+    },
+    {
+      "a": "sector",
+      "b": "prior",
+      "diff": 0.13236047689219588,
+      "ci95": [
+        0.011852205548656014,
+        0.24401522814765808
+      ],
+      "p_approx": 0.03,
+      "significant_raw": true,
+      "p_holm": 0.42,
+      "significant_holm": false
+    },
+    {
+      "a": "sector",
+      "b": "keyword",
+      "diff": 0.14189944838768903,
+      "ci95": [
+        -0.033240379348044025,
+        0.317140645431962
+      ],
+      "p_approx": 0.1144,
+      "significant_raw": false,
+      "p_holm": 1.0,
+      "significant_holm": false
+    },
+    {
+      "a": "sector",
+      "b": "induced",
+      "diff": 0.19993342221113664,
+      "ci95": [
+        0.06993441680172185,
+        0.3223256443557215
+      ],
+      "p_approx": 0.0012,
+      "significant_raw": true,
+      "p_holm": 0.018,
+      "significant_holm": true
+    },
+    {
+      "a": "sector",
+      "b": "majority",
+      "diff": 0.35236457189629083,
+      "ci95": [
+        0.22388475864146168,
+        0.4599547342697664
+      ],
+      "p_approx": 0.0,
+      "significant_raw": true,
+      "p_holm": 0.0,
+      "significant_holm": true
+    },
+    {
+      "a": "llm",
+      "b": "neighbor",
+      "diff": 0.048729615095729595,
+      "ci95": [
+        -0.07105973826628365,
+        0.16392851729846658
+      ],
+      "p_approx": 0.4316,
+      "significant_raw": false,
+      "p_holm": 1.0,
+      "significant_holm": false
+    },
+    {
+      "a": "llm",
+      "b": "prior",
+      "diff": 0.08327236441271535,
+      "ci95": [
+        -0.02153402153402162,
+        0.18900995715869195
+      ],
+      "p_approx": 0.122,
+      "significant_raw": false,
+      "p_holm": 1.0,
+      "significant_holm": false
+    },
+    {
+      "a": "llm",
+      "b": "keyword",
+      "diff": 0.0928113359082085,
+      "ci95": [
+        -0.061043771115775525,
+        0.24703616889356644
+      ],
+      "p_approx": 0.2412,
+      "significant_raw": false,
+      "p_holm": 1.0,
+      "significant_holm": false
+    },
+    {
+      "a": "llm",
+      "b": "induced",
+      "diff": 0.1508453097316561,
+      "ci95": [
+        0.003439768529282572,
+        0.28443546340225295
+      ],
+      "p_approx": 0.0456,
+      "significant_raw": true,
+      "p_holm": 0.5928,
+      "significant_holm": false
+    },
+    {
+      "a": "llm",
+      "b": "majority",
+      "diff": 0.3032764594168103,
+      "ci95": [
+        0.182472904669701,
+        0.4119558694624273
+      ],
+      "p_approx": 0.0,
+      "significant_raw": true,
+      "p_holm": 0.0,
+      "significant_holm": true
+    },
+    {
+      "a": "neighbor",
+      "b": "prior",
+      "diff": 0.034542749316985755,
+      "ci95": [
+        -0.09472391234615063,
+        0.1539462303116722
+      ],
+      "p_approx": 0.5828,
+      "significant_raw": false,
+      "p_holm": 1.0,
+      "significant_holm": false
+    },
+    {
+      "a": "neighbor",
+      "b": "keyword",
+      "diff": 0.04408172081247891,
+      "ci95": [
+        -0.08414422045823916,
+        0.1775381937577885
+      ],
+      "p_approx": 0.5092,
+      "significant_raw": false,
+      "p_holm": 1.0,
+      "significant_holm": false
+    },
+    {
+      "a": "neighbor",
+      "b": "induced",
+      "diff": 0.10211569463592651,
+      "ci95": [
+        -0.021632740412083185,
+        0.22508486830187086
+      ],
+      "p_approx": 0.1068,
+      "significant_raw": false,
+      "p_holm": 1.0,
+      "significant_holm": false
+    },
+    {
+      "a": "neighbor",
+      "b": "majority",
+      "diff": 0.2545468443210807,
+      "ci95": [
+        0.15196614979223677,
+        0.3490577510013418
+      ],
+      "p_approx": 0.0,
+      "significant_raw": true,
+      "p_holm": 0.0,
+      "significant_holm": true
+    },
+    {
+      "a": "prior",
+      "b": "keyword",
+      "diff": 0.009538971495493154,
+      "ci95": [
+        -0.1296925473410705,
+        0.1664037609378221
+      ],
+      "p_approx": 0.9148,
+      "significant_raw": false,
+      "p_holm": 1.0,
+      "significant_holm": false
+    },
+    {
+      "a": "prior",
+      "b": "induced",
+      "diff": 0.06757294531894076,
+      "ci95": [
+        -0.05826533514528287,
+        0.1964541893108257
+      ],
+      "p_approx": 0.2972,
+      "significant_raw": false,
+      "p_holm": 1.0,
+      "significant_holm": false
+    },
+    {
+      "a": "prior",
+      "b": "majority",
+      "diff": 0.22000409500409496,
+      "ci95": [
+        0.13011407147781912,
+        0.3198880601103233
+      ],
+      "p_approx": 0.0,
+      "significant_raw": true,
+      "p_holm": 0.0,
+      "significant_holm": true
+    },
+    {
+      "a": "keyword",
+      "b": "induced",
+      "diff": 0.058033973823447604,
+      "ci95": [
+        -0.09001688192902824,
+        0.18948253446763869
+      ],
+      "p_approx": 0.3972,
+      "significant_raw": false,
+      "p_holm": 1.0,
+      "significant_holm": false
+    },
+    {
+      "a": "keyword",
+      "b": "majority",
+      "diff": 0.2104651235086018,
+      "ci95": [
+        0.0963810060924794,
+        0.31163713964673206
+      ],
+      "p_approx": 0.0,
+      "significant_raw": true,
+      "p_holm": 0.0,
+      "significant_holm": true
+    },
+    {
+      "a": "induced",
+      "b": "majority",
+      "diff": 0.1524311496851542,
+      "ci95": [
+        0.06259840830989427,
+        0.2487434733811546
+      ],
+      "p_approx": 0.0,
+      "significant_raw": true,
+      "p_holm": 0.0,
+      "significant_holm": true
+    }
+  ]
+}

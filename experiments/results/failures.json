@@ -1,5 +1,5 @@
 {
-  "total": 50,
+  "total": 51,
   "min_required": 30,
   "by_layer": {
     "agent": {
@@ -10,7 +10,7 @@
     },
     "evaluation": {
       "sample-mismatch": 3,
-      "metric-misuse": 5,
+      "metric-misuse": 6,
       "incomparable-comparison": 1,
       "misdiagnosis": 3
     },
@@ -293,14 +293,21 @@
       "title": "편향된 부분집합으로 3-way 비교를 하려 했다",
       "symptom": "sector 예측이 131/170 만 성공했는데, 빠진 39건은 무작위가 아니라 2025년 35건 + 2024년 4건이고 라벨도 비조치 37 / 기타 1 / 조치 1 로 쏠려 있다. 살아남은 131건은 소수 클래스 비율이 32%로 전체 26%보다 높다.",
       "detection": "probe 가 모든 예측 파일에 대해 실패 행과 누락 행을 따로 센다. gold 키를 전부 덮지 못하면 실패한다.",
-      "fix": "결측이 있으면 비교를 보고하지 않는다. 이 케이스는 아직 열려 있다.",
-      "metric": null,
+      "fix": "결측이 있으면 비교를 보고하지 않는다. sector 39건은 크레딧 충전 후, llm·prior 14건은 파서 수정으로 본문이 바뀐 뒤 다시 불러 채웠다. 이제 7개 예측 전부 170/170 이고, 그제서야 전체 비교를 보고했다.",
+      "metric": {
+        "name": "결측이 있는 예측 파일",
+        "before": 3,
+        "after": 0,
+        "kind": "live",
+        "unit": "개",
+        "note": "sector 39건 · llm 14건 · prior 14건. 어느 쪽도 무작위 결측이 아니었다."
+      },
       "probe": "predictions_are_complete_before_reporting",
-      "status": "open",
+      "status": "fixed",
       "result": {
         "ran": true,
-        "passed": false,
-        "detail": "pred_nonaction_induced.jsonl 170/170 실패 0 누락 0 · pred_nonaction_keyword.jsonl 170/170 실패 0 누락 0 · pred_nonaction_llm.jsonl 156/170 실패 0 누락 14 · pred_nonaction_majority.jsonl 170/170 실패 0 누락 0 · pred_nonaction_neighbor.jsonl 170/170 실패 0 누락 0 · pred_nonaction_prior.jsonl 156/170 실패 0 누락 14 · pred_nonaction_sector.jsonl 170/170 실패 0 누락 0"
+        "passed": true,
+        "detail": "pred_nonaction_induced.jsonl 170/170 실패 0 누락 0 · pred_nonaction_keyword.jsonl 170/170 실패 0 누락 0 · pred_nonaction_llm.jsonl 170/170 실패 0 누락 0 · pred_nonaction_majority.jsonl 170/170 실패 0 누락 0 · pred_nonaction_neighbor.jsonl 170/170 실패 0 누락 0 · pred_nonaction_prior.jsonl 170/170 실패 0 누락 0 · pred_nonaction_sector.jsonl 170/170 실패 0 누락 0"
       }
     },
     {
@@ -391,6 +398,31 @@
         "ran": true,
         "passed": true,
         "detail": "같은 집합을 덮는 조건 3개 -> 대표 1개 (['망연'])"
+      }
+    },
+    {
+      "id": "EV-13",
+      "layer": "evaluation",
+      "category": "metric-misuse",
+      "title": "21쌍을 보정 없이 검정했다",
+      "symptom": "모델이 7개가 되자 비교 쌍이 21개다. 유의수준 5%에서 21번 검정하면 아무 차이가 없어도 66% 확률로 하나쯤 유의하게 나온다. 보정 없이 '유의' 라고 적으면 그중 무엇이 진짜인지 말할 수 없다.",
+      "detection": "모델 7개를 한 표에 놓는 순간 쌍 수를 세어 보고 알았다.",
+      "fix": "매크로 F1 과 AURC 양쪽 검정에 Holm-Bonferroni 보정을 붙였다. 보정 전 p값도 나란히 남긴다 — 숨기면 나중에 왜 이 결과가 사라졌는지 되짚을 수 없다.",
+      "metric": {
+        "name": "매크로 F1 비교에서 유의 판정",
+        "before": 9,
+        "after": 7,
+        "kind": "measured",
+        "unit": "쌍",
+        "source": "docs/15-full-comparison.md",
+        "note": "sector−prior(p=0.030)와 llm−induced(p=0.046)가 보정에서 탈락했다."
+      },
+      "probe": "multiple_comparisons_are_corrected",
+      "status": "fixed",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "균일 경계 20개 전부 탈락 · 강한 신호 1개 생존 · 단조성 True"
       }
     },
     {
