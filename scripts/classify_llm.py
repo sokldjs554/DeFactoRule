@@ -41,6 +41,20 @@ BASE_RATES_PATH = Path(__file__).resolve().parents[1] / "data" / "eval" / "dev_b
 
 MODEL = "claude-opus-5"
 
+# 계정 수준 오류 — 다음 요청도 똑같이 실패한다. 건별로 잡고 계속 돌면
+# 남은 전부를 헛되이 던지게 된다. 즉시 중단한다.
+FATAL_MARKERS = (
+    "credit balance is too low",
+    "invalid x-api-key",
+    "authentication_error",
+    "permission_error",
+    "Your account has been disabled",
+)
+
+
+class FatalApiError(RuntimeError):
+    """계속 시도해도 소용없는 오류."""
+
 # 비조치의견서 과제의 지침. 법령해석과 달리 **결론이 아니라 요청 자체를 보고
 # 당국이 어떻게 답했을지 예측**하는 것이므로 성격이 완전히 다르다.
 NONACTION_GUIDELINE = """\
@@ -190,6 +204,9 @@ def classify_one(client, row: dict, task: dict) -> dict:
         # 아무것도 진단하지 못했다. 메시지와 본문을 함께 남긴다.
         detail = getattr(exc, "message", "") or str(exc)
         body = getattr(exc, "body", None)
+        blob = f"{detail} {body}"
+        if any(m.lower() in blob.lower() for m in FATAL_MARKERS):
+            raise FatalApiError(detail.strip()) from exc
         return {
             "error": f"{type(exc).__name__}: {exc.status_code}",
             "error_detail": detail[:600],
@@ -267,6 +284,25 @@ def main() -> None:
             "ANTHROPIC_API_KEY 를 설정하거나 `ant auth login` 을 실행하세요."
         )
 
+    # 170건을 던지기 전에 계정이 살아 있는지 한 번만 확인한다.
+    # 최소 토큰이라 비용은 사실상 0 이고, 크레딧이 없으면 여기서 바로 멈춘다.
+    try:
+        client.messages.create(
+            model=MODEL,
+            max_tokens=1,
+            messages=[{"role": "user", "content": "."}],
+        )
+    except anthropic.APIStatusError as exc:
+        detail = getattr(exc, "message", "") or str(exc)
+        blob = f"{detail} {getattr(exc, 'body', None)}"
+        if any(m.lower() in blob.lower() for m in FATAL_MARKERS):
+            sys.exit(
+                f"사전 점검 실패 — 요청을 하나도 보내지 않았습니다.\n  {detail.strip()}\n\n"
+                "  Anthropic Console 의 Plans & Billing 에서 크레딧을 확인하세요.\n"
+                "  충전 직후에는 반영에 몇 분 걸릴 수 있습니다."
+            )
+        print(f"  ⚠ 사전 점검에서 예상치 못한 오류: {type(exc).__name__} {exc.status_code}")
+
     rows = [
         json.loads(line)
         for line in Path(args.input).read_text(encoding="utf-8").splitlines()
@@ -302,6 +338,7 @@ def main() -> None:
         print(f"  이어하기: 성공 {len(done)}건은 건너뜁니다.")
 
     results = []
+    fatal = False
     with out.open("w", encoding="utf-8") as fh:
         for i, row in enumerate(targets, 1):
             key = (row["source"], row["page"], row["serial"], row.get("pair_index", 1))
@@ -310,7 +347,17 @@ def main() -> None:
                 fh.flush()
                 results.append(done[key])
                 continue
-            result = classify_one(client, row, task)
+            try:
+                result = classify_one(client, row, task)
+            except FatalApiError as exc:
+                # 남은 요청을 던지지 않고 지금까지의 결과를 지킨 채 멈춘다.
+                remaining = len(targets) - i + 1
+                print(f"\n중단 — 계정 수준 오류입니다. 남은 {remaining}건은 보내지 않았습니다.")
+                print(f"  {exc}")
+                print(f"\n  여기까지 {len(results)}건이 {out} 에 저장됐습니다.")
+                print("  문제를 해결한 뒤 같은 명령에 --resume 을 붙이면 이어서 진행합니다.")
+                fatal = True
+                break
             record = {
                 "source": row["source"],
                 "serial": row["serial"],
@@ -323,6 +370,18 @@ def main() -> None:
             results.append(record)
             if i % 25 == 0:
                 print(f"  {i}/{len(targets)}")
+
+    if fatal:
+        written = {
+            (r["source"], r["page"], r["serial"], r["pair_index"]) for r in results
+        }
+        leftover = [rec for k, rec in done.items() if k not in written]
+        if leftover:
+            with out.open("a", encoding="utf-8") as fh:
+                for rec in leftover:
+                    fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+            results.extend(leftover)
+            print(f"  이전 성공 {len(leftover)}건도 함께 보존했습니다.")
 
     errors = [r for r in results if "error" in r]
     ok = [r for r in results if "error" not in r]
