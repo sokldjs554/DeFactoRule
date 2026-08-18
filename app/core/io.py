@@ -32,6 +32,18 @@ def key_of(row: dict) -> Key:
 
 
 def load_jsonl(path: Path) -> list[dict]:
+    """JSONL 을 읽는다. 파일이 없으면 **경로를 말해 주고** 죽는다.
+
+    파이프라인 단계가 늘면서 "앞 단계를 안 돌렸다" 가 흔한 실수가 됐는데,
+    기본 FileNotFoundError 는 어느 단계가 빠졌는지 알려주지 않는다.
+    """
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(
+            f"파일이 없습니다: {path}\n"
+            "  앞 단계를 먼저 실행했는지 확인하세요 "
+            "(`python3 scripts/criteria.py status` 로 진행 상황을 볼 수 있습니다)."
+        )
     return [
         json.loads(line)
         for line in path.read_text(encoding="utf-8").splitlines()
