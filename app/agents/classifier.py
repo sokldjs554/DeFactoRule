@@ -29,15 +29,17 @@ LLM 이 맡을 자리다. 결론절의 표현이 사례마다 달라 열거로�
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
 from pathlib import Path
 
+from app.core.paths import DEV_BASE_RATES
 from app.domain.base_rates import describe_overall, describe_sector
 from app.domain.labels import GUIDELINE, NON_ACTIONS, VERDICTS
 
-BASE_RATES_PATH = Path(__file__).resolve().parents[1] / "data" / "eval" / "dev_base_rates.json"
+BASE_RATES_PATH = DEV_BASE_RATES
 
 MODEL = "claude-opus-5"
 
@@ -182,6 +184,18 @@ def build_prompt(row: dict, task: dict) -> str:
     elif table and mode == "sector":
         parts.append(describe_sector(table, row.get("sector")))
     return "\n\n".join(parts)
+
+
+def input_fingerprint(row: dict, task: dict) -> str:
+    """이 예측이 어떤 입력으로 만들어졌는지를 기록하기 위한 지문.
+
+    파서를 고치면 gold 의 본문이 바뀔 수 있다. 키(출처·쪽·번호)는 그대로이므로
+    낡은 예측이 새 gold 와 조용히 짝지어진다 — 아무 경고도 나지 않는다.
+    실제로 항목명 잔재를 걷어냈을 때 test 170건 중 14건의 본문이 바뀌었다.
+
+    지문을 함께 남겨 두면 `--resume` 이 그 차이를 보고 다시 부를 수 있다.
+    """
+    return hashlib.sha256(build_prompt(row, task).encode("utf-8")).hexdigest()[:16]
 
 
 def classify_one(client, row: dict, task: dict) -> dict:
@@ -335,17 +349,27 @@ def main() -> None:
             rec = json.loads(line)
             if "error" not in rec:
                 done[(rec["source"], rec["page"], rec["serial"], rec["pair_index"])] = rec
-        print(f"  이어하기: 성공 {len(done)}건은 건너뜁니다.")
+        print(f"  이어하기: 성공 {len(done)}건을 확인합니다 (본문 지문 대조).")
 
     results = []
     fatal = False
+    stale = 0            # 본문이 바뀌어 다시 부르는 건수
+    ungrounded_cache = 0  # 지문이 없어 판단할 수 없는 옛 기록
     with out.open("w", encoding="utf-8") as fh:
         for i, row in enumerate(targets, 1):
             key = (row["source"], row["page"], row["serial"], row.get("pair_index", 1))
-            if key in done:
-                fh.write(json.dumps(done[key], ensure_ascii=False) + "\n")
+            cached = done.get(key)
+            if cached is not None:
+                stored = cached.get("input_sha")
+                if stored is None:
+                    ungrounded_cache += 1
+                elif stored != input_fingerprint(row, task):
+                    stale += 1
+                    cached = None
+            if cached is not None:
+                fh.write(json.dumps(cached, ensure_ascii=False) + "\n")
                 fh.flush()
-                results.append(done[key])
+                results.append(cached)
                 continue
             try:
                 result = classify_one(client, row, task)
@@ -363,6 +387,7 @@ def main() -> None:
                 "serial": row["serial"],
                 "page": row["page"],
                 "pair_index": row.get("pair_index", 1),
+                "input_sha": input_fingerprint(row, task),
                 **result,
             }
             fh.write(json.dumps(record, ensure_ascii=False) + "\n")
@@ -386,6 +411,13 @@ def main() -> None:
     errors = [r for r in results if "error" in r]
     ok = [r for r in results if "error" not in r]
     print(f"\n{len(results)}건 처리 · 성공 {len(ok)} · 실패 {len(errors)}")
+    if stale:
+        print(f"  본문이 바뀌어 다시 부른 건수: {stale}")
+    if ungrounded_cache:
+        print(
+            f"  ⚠ 지문 없는 옛 기록 {ungrounded_cache}건은 그대로 두었습니다. "
+            "본문이 바뀌었는지 확인할 수 없습니다."
+        )
     if ok:
         for label, n in Counter(r["predicted"] for r in ok).most_common():
             print(f"  {label}: {n} ({n / len(ok):.1%})")

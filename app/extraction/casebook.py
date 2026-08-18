@@ -186,7 +186,8 @@ def split_fields(body: str, names: list[str]) -> tuple[dict[str, str], list[str]
     공백을 제거한 뒤 비교한다.
     """
     lines = body.split("\n")
-    marks: list[tuple[int, str]] = []
+    # (시작 줄, 항목명, 항목명이 차지한 줄 수)
+    marks: list[tuple[int, str, int]] = []
     # "판단" 과 "판단이유" 가 함께 있을 때 짧은 쪽이 먼저 걸리면 긴 쪽을 영영 못 잡는다.
     # 줄 span 은 넓은 것부터, 이름은 긴 것부터 본다.
     ordered = sorted(names, key=len, reverse=True)
@@ -197,17 +198,18 @@ def split_fields(body: str, names: list[str]) -> tuple[dict[str, str], list[str]
             joined = re.sub(r"\s+", "", "".join(lines[i : i + span]))
             hit = next((n for n in ordered if joined == n), None)
             if hit:
-                marks.append((i, hit))
+                marks.append((i, hit, span))
                 matched = span
                 break
         i += matched if matched else 1
 
     result: dict[str, str] = {}
     warnings: list[str] = []
-    for idx, (line_no, name) in enumerate(marks):
+    for idx, (line_no, name, span) in enumerate(marks):
         end = marks[idx + 1][0] if idx + 1 < len(marks) else len(lines)
-        # 항목명 줄 자체는 건너뛴다
-        start = line_no + 1
+        # 항목명이 차지한 줄을 **전부** 건너뛴다. 한 줄만 건너뛰면 줄바꿈으로
+        # 쪼개진 이름의 뒷조각("판단\n이유" 의 "이유")이 값 앞에 남는다.
+        start = line_no + span
         while start < end and not re.sub(r"\s+", "", lines[start]):
             start += 1
         value = squeeze("\n".join(lines[start:end]))
