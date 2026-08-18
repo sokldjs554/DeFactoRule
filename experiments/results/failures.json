@@ -1,5 +1,5 @@
 {
-  "total": 53,
+  "total": 54,
   "min_required": 30,
   "by_layer": {
     "agent": {
@@ -12,7 +12,7 @@
       "sample-mismatch": 3,
       "metric-misuse": 6,
       "incomparable-comparison": 1,
-      "misdiagnosis": 3
+      "misdiagnosis": 4
     },
     "extraction": {
       "format-unhandled": 4,
@@ -82,7 +82,6 @@
         "before": 0.286,
         "after": 0.071,
         "kind": "measured",
-        "unit": "재현율",
         "source": "docs/10-e4-prompt-variants.md",
         "note": "매크로 F1 도 0.587 → 0.504 로 내려갔다. 개선이 아니라 기각된 가설이다."
       },
@@ -185,7 +184,7 @@
       "result": {
         "ran": true,
         "passed": true,
-        "detail": "결론형 4개 중 놓침 0 · 사실형 2개 중 오판 0"
+        "detail": "결론형 6개 중 놓침 0 · 사실형 5개 중 오판 0"
       }
     },
     {
@@ -201,7 +200,6 @@
         "before": 0.176,
         "after": 1.0,
         "kind": "measured",
-        "unit": "비율",
         "source": "docs/11-architecture.md"
       },
       "probe": "missing_predictions_are_flagged",
@@ -249,7 +247,6 @@
         "before": 0.282,
         "after": 0.125,
         "kind": "measured",
-        "unit": "AURC",
         "source": "docs/08-e2-risk-coverage.md",
         "note": "차이 +0.157 [95% CI +0.081–+0.233], 유의."
       },
@@ -469,6 +466,32 @@
       }
     },
     {
+      "id": "EV-14",
+      "layer": "evaluation",
+      "category": "misdiagnosis",
+      "title": "문서 수치가 산출물과 어긋난 채 남았다",
+      "symptom": "docs/15 의 수치를 손으로 옮겨 적었다. 그 뒤 규칙 학습기를 고쳐 induced 의 예측이 바뀌었고 docs/14 는 갱신했지만 docs/15 는 놓쳤다. 오타 수준이 아니었다 — AURC 보정 후 유의 쌍이 문서 12쌍 대 실제 10쌍이었고, llm − induced 의 판정이 '유의' 로 적힌 채 남아 있었는데 실제로는 보정 후 탈락이다. 개수 주장도 밀렸다: README 은 레지스트리 46건·테스트 154개, 실제는 53건·252개.",
+      "detection": "전수 검토에서 7개 모델 매크로 F1 을 산출물로 재계산해 대조하다 발견했다. 6개는 정확히 일치했고 induced 만 어긋났다.",
+      "fix": "문서의 표를 보고서 JSON 에서 생성하도록 바꾸고, 표마다 구획 표시를 넣어 회귀 테스트가 대조한다. 차이·p(Holm)·판정을 모두 비교하므로 판정이 뒤집히면 그 자리에서 실패한다. 일부러 판정 하나를 뒤집어 잡히는 것을 확인했다.",
+      "metric": {
+        "name": "판정이 뒤집힌 채 남은 비교",
+        "before": 1,
+        "after": 0,
+        "kind": "measured",
+        "unit": "건",
+        "source": "docs/15-full-comparison.md",
+        "note": "그 밖에 induced 관련 표 셀 다수와 개수 주장 4건이 함께 밀려 있었다."
+      },
+      "probe": "documented_numbers_still_reproduce",
+      "status": "fixed",
+      "guard": "tests/regression/test_documented_numbers.py",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "비교 43건 대조 · 어긋남 없음"
+      }
+    },
+    {
       "id": "EX-01",
       "layer": "extraction",
       "category": "format-unhandled",
@@ -645,7 +668,6 @@
         "before": 0.374,
         "after": 0.8,
         "kind": "measured",
-        "unit": "비율(문턱)",
         "source": "docs/04-spacing-restoration.md",
         "note": "복구가 아니라 탐지다. after 는 통과 문턱이며 이 자료는 OCR 없이는 살릴 수 없다."
       },
@@ -753,7 +775,6 @@
         "before": 0.786,
         "after": 0.816,
         "kind": "measured",
-        "unit": "F1",
         "source": "docs/04-spacing-restoration.md"
       },
       "probe": "boundary_labels_not_shifted",

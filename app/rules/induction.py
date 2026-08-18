@@ -44,6 +44,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from app.core.audit import Discards
 from app.core.io import load_jsonl, write_json, write_jsonl
 from app.domain.labels import NON_ACTIONS
 
@@ -233,6 +234,7 @@ def best_rule(
     min_support: int,
     min_precision: float,
     max_depth: int,
+    discards: Discards | None = None,
 ) -> Rule | None:
     """빔 탐색으로 조건 결합 하나를 찾는다. 동점은 사전순으로 갈라 재현된다."""
     label_masks = {}
@@ -270,7 +272,19 @@ def best_rule(
             break
         scored.sort(key=lambda x: (-x[0], -x[1], x[2]))
         for score, covered, _, combo, _cmask, label, correct in scored[:BEAM]:
-            if correct / covered >= min_precision and score > best_score:
+            precision = correct / covered
+            if precision < min_precision:
+                # 문턱에서 떨어진 후보도 남긴다. 규칙이 하나도 안 나왔을 때
+                # "후보가 없었나, 문턱이 높았나" 를 가를 수 있어야 한다.
+                if discards is not None:
+                    discards.drop(
+                        {"rule": " AND ".join(a.describe() for a in combo),
+                         "label": label, "support": covered,
+                         "precision": round(precision, 3)},
+                        [f"정밀도 {precision:.0%} < 문턱 {min_precision:.0%}"],
+                    )
+                continue
+            if score > best_score:
                 best, best_score = (
                     Rule(atoms=combo, label=label,
                          dev_support=covered, dev_correct=correct),
@@ -280,21 +294,28 @@ def best_rule(
     return best
 
 
-def induce(
+def induce_with_audit(
     rows: list[dict],
     labels: tuple = NON_ACTIONS,
     min_support: int = MIN_SUPPORT,
     min_precision: float = MIN_PRECISION,
     max_depth: int = MAX_DEPTH,
-) -> tuple[list[Rule], str]:
-    """순차 피복. 규칙 목록과 기본 라벨을 돌려준다."""
+) -> tuple[list[Rule], str, Discards]:
+    """순차 피복. 규칙·기본 라벨과 함께 **버린 후보**를 돌려준다.
+
+    규칙이 하나도 안 나왔을 때 "후보가 없었나, 문턱이 높았나" 를 가를 수
+    있어야 한다. 실제로 라플라스를 문턱으로 쓰던 시절에는 소수 클래스 규칙이
+    구조적으로 나올 수 없었는데, 버린 후보를 안 남겨서 그 사실을 손으로
+    계산해 보고서야 알았다.
+    """
+    discards = Discards("rule-induction")
     masks = coverage_masks(rows, mine_atoms(rows))
     live = (1 << len(rows)) - 1
     rules: list[Rule] = []
 
     while live:
         rule = best_rule(rows, masks, live, labels,
-                         min_support, min_precision, max_depth)
+                         min_support, min_precision, max_depth, discards)
         if rule is None:
             break
         rule.order = len(rules) + 1
@@ -306,6 +327,20 @@ def induce(
 
     leftover = [r for i, r in enumerate(rows) if live >> i & 1]
     default = Counter(r["label"] for r in (leftover or rows)).most_common(1)[0][0]
+    return rules, default, discards
+
+
+def induce(
+    rows: list[dict],
+    labels: tuple = NON_ACTIONS,
+    min_support: int = MIN_SUPPORT,
+    min_precision: float = MIN_PRECISION,
+    max_depth: int = MAX_DEPTH,
+) -> tuple[list[Rule], str]:
+    """버린 후보가 필요 없을 때 쓰는 얇은 껍데기."""
+    rules, default, _ = induce_with_audit(
+        rows, labels, min_support, min_precision, max_depth
+    )
     return rules, default
 
 

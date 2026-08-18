@@ -3,6 +3,12 @@
 앞선 실험은 두세 모델씩 짝지어 비교했다. 이제 예측이 전부 170/170 로 채워졌으므로
 한 표에 놓는다. 그러자 곧바로 방법론 문제가 생긴다.
 
+> **이 문서의 모든 표는 `experiments/results/e7_*.json` 에서 생성했다.**
+> 처음 판에서는 손으로 옮겨 적었고, 그 뒤 규칙 학습기를 고쳐 `induced` 의
+> 예측이 바뀌었는데 이 문서만 갱신을 놓쳐 **AURC 유의 쌍 수와 한 건의 판정이
+> 실제와 어긋난 채 남아 있었다.** 옮겨 적는 대신 뽑아 쓰도록 바꿨고,
+> `tests/regression/test_documented_numbers.py` 가 매번 대조한다.
+
 ## 21쌍을 보정 없이 검정하면 안 된다
 
 모델 7개는 비교 쌍 21개다. 유의수준 5%에서 21번 검정하면 **아무 차이가 없어도**
@@ -27,87 +33,128 @@ p값도 나란히 남긴다 — 숨기면 나중에 왜 이 결과가 사라졌�
 
 ## 매크로 F1 — 거의 아무것도 말할 수 없다
 
+<!-- POINT_F1:시작 -->
 | 모델 | 매크로 F1 |
 |---|---|
-| sector | 0.636 |
-| llm | 0.587 |
-| neighbor | 0.538 |
-| prior | 0.504 |
-| keyword | 0.494 |
-| induced | 0.436 |
-| majority | 0.284 |
+| `sector` | 0.636 |
+| `llm` | 0.587 |
+| `neighbor` | 0.538 |
+| `prior` | 0.504 |
+| `keyword` | 0.494 |
+| `induced` | 0.434 |
+| `majority` | 0.284 |
+<!-- POINT_F1:끝 -->
 
 대응표본 부트스트랩 5,000회. **21쌍 중 보정 후 유의는 7쌍뿐이고, 그중 6쌍이
 `vs majority` 다.**
 
-| 비교 | 차이 | p | p(Holm) | 판정 |
-|---|---|---|---|---|
-| sector − majority | +0.352 | 0.000 | 0.000 | 유의 |
-| llm − majority | +0.303 | 0.000 | 0.000 | 유의 |
-| neighbor − majority | +0.255 | 0.000 | 0.000 | 유의 |
-| prior − majority | +0.220 | 0.000 | 0.000 | 유의 |
-| keyword − majority | +0.210 | 0.000 | 0.000 | 유의 |
-| induced − majority | +0.152 | 0.000 | 0.000 | 유의 |
-| sector − induced | +0.200 | 0.001 | 0.018 | 유의 |
-| sector − prior | +0.132 | 0.030 | 0.420 | **보정 후 탈락** |
-| llm − induced | +0.151 | 0.046 | 0.593 | **보정 후 탈락** |
-| sector − neighbor | +0.098 | 0.134 | 1.000 | 판정 보류 |
-| sector − llm | +0.049 | 0.388 | 1.000 | 판정 보류 |
-| … 나머지 10쌍 | | | 1.000 | 판정 보류 |
+<!-- CMP_F1:시작 -->
+| 비교 | 차이 | 95% CI | p | p(Holm) | 판정 |
+|---|---|---|---|---|---|
+| sector − majority | +0.352 | +0.224 – +0.460 | 0.000 | 0.000 | **유의** |
+| llm − majority | +0.303 | +0.182 – +0.412 | 0.000 | 0.000 | **유의** |
+| neighbor − majority | +0.255 | +0.152 – +0.349 | 0.000 | 0.000 | **유의** |
+| prior − majority | +0.220 | +0.130 – +0.320 | 0.000 | 0.000 | **유의** |
+| keyword − majority | +0.210 | +0.096 – +0.312 | 0.000 | 0.000 | **유의** |
+| induced − majority | +0.151 | +0.060 – +0.244 | 0.001 | 0.013 | **유의** |
+| sector − induced | +0.202 | +0.077 – +0.323 | 0.001 | 0.018 | **유의** |
+| sector − prior | +0.132 | +0.012 – +0.244 | 0.030 | 0.420 | 보정 후 탈락 |
+| llm − induced | +0.153 | +0.001 – +0.303 | 0.048 | 0.619 | 보정 후 탈락 |
+| neighbor − induced | +0.104 | -0.014 – +0.223 | 0.083 | 0.998 | 판정 보류 |
+| sector − keyword | +0.142 | -0.033 – +0.317 | 0.114 | 1.000 | 판정 보류 |
+| llm − prior | +0.083 | -0.022 – +0.189 | 0.122 | 1.000 | 판정 보류 |
+| sector − neighbor | +0.098 | -0.032 – +0.223 | 0.134 | 1.000 | 판정 보류 |
+| llm − keyword | +0.093 | -0.061 – +0.247 | 0.241 | 1.000 | 판정 보류 |
+| prior − induced | +0.069 | -0.055 – +0.205 | 0.291 | 1.000 | 판정 보류 |
+| sector − llm | +0.049 | -0.063 – +0.160 | 0.388 | 1.000 | 판정 보류 |
+| keyword − induced | +0.060 | -0.089 – +0.193 | 0.412 | 1.000 | 판정 보류 |
+| llm − neighbor | +0.049 | -0.071 – +0.164 | 0.432 | 1.000 | 판정 보류 |
+| neighbor − keyword | +0.044 | -0.084 – +0.178 | 0.509 | 1.000 | 판정 보류 |
+| neighbor − prior | +0.035 | -0.095 – +0.154 | 0.583 | 1.000 | 판정 보류 |
+| prior − keyword | +0.010 | -0.130 – +0.166 | 0.915 | 1.000 | 판정 보류 |
+<!-- CMP_F1:끝 -->
 
-보정을 안 했다면 9쌍을 "유의" 라고 적었을 것이다. 두 쌍이 탈락했다.
+보정을 안 했다면 9쌍을 "유의" 라고 적었을 것이다. 두 쌍이 탈락했다 —
+`sector − prior`(p=0.030 → 0.420)와 `llm − induced`(p=0.048 → 0.619).
 
 **매크로 F1 만 보면 이 프로젝트의 결론은 "다수 기준선보다는 낫다" 하나뿐이다.**
-$5 를 쓴 LLM 이 공짜 검색보다 낫다고 말할 수 없다(p=0.134).
+$5 를 쓴 LLM 이 공짜 검색보다 낫다고 말할 수 없다(`sector − neighbor` p=0.134).
 
 ## AURC — 여기서 갈린다
 
 기권을 허용하면 이야기가 달라진다. 대응표본 부트스트랩 2,000회.
 
+<!-- AURC:시작 -->
 | 모델 | AURC | 최저 커버리지에서의 위험 | 운영점 |
 |---|---|---|---|
-| prior | **0.123** | 24.7% 에서 4.8% | 3 |
-| sector | 0.124 | 33.5% 에서 7.0% | 3 |
-| llm | 0.125 | 14.1% 에서 4.2% | 3 |
-| induced | 0.202 | 62.9% 에서 16.8% | 2 |
-| neighbor | 0.207 | 30.0% 에서 11.8% | 3 |
-| majority | 0.259 | — (한 점) | 1 |
-| keyword | 0.282 | 11.8% 에서 50.0% | 2 |
+| `prior` | 0.123 | 24.7% 에서 4.8% | 3 |
+| `sector` | 0.124 | 33.5% 에서 7.0% | 3 |
+| `llm` | 0.125 | 14.1% 에서 4.2% | 3 |
+| `neighbor` | 0.207 | 30.0% 에서 11.8% | 3 |
+| `induced` | 0.211 | 61.8% 에서 18.1% | 3 |
+| `majority` | 0.259 | — (한 점) | 1 |
+| `keyword` | 0.282 | 11.8% 에서 50.0% | 2 |
+<!-- AURC:끝 -->
 
-**21쌍 중 보정 후 유의 12쌍.** 매크로 F1 의 7쌍과 대비된다.
+**21쌍 중 보정 후 유의 10쌍.** 매크로 F1 의 7쌍과 대비된다.
 
-| 비교 | 차이 | p(Holm) | 판정 |
-|---|---|---|---|
-| sector − keyword | −0.158 | 0.000 | 유의 |
-| llm − keyword | −0.157 | 0.000 | 유의 |
-| prior − keyword | −0.159 | 0.000 | 유의 |
-| sector − majority | −0.135 | 0.000 | 유의 |
-| llm − majority | −0.134 | 0.000 | 유의 |
-| prior − majority | −0.136 | 0.000 | 유의 |
-| **sector − neighbor** | **−0.083** | **0.028** | **유의** |
-| **llm − neighbor** | **−0.082** | **0.050** | **유의** |
-| **neighbor − prior** | **+0.084** | **0.044** | **유의** |
-| sector − induced | −0.078 | 0.015 | 유의 |
-| llm − induced | −0.077 | 0.028 | 유의 |
-| prior − induced | −0.079 | 0.028 | 유의 |
-| keyword − induced | +0.080 | 0.225 | 보정 후 탈락 |
-| neighbor − keyword | −0.075 | 0.264 | 보정 후 탈락 |
-| **sector − llm** | −0.001 | 1.000 | 판정 보류 |
-| **sector − prior** | +0.001 | 1.000 | 판정 보류 |
-| **llm − prior** | +0.002 | 1.000 | 판정 보류 |
+<!-- CMP_AURC:시작 -->
+| 비교 | 차이 | 95% CI | p | p(Holm) | 판정 |
+|---|---|---|---|---|---|
+| sector − keyword | -0.158 | -0.230 – -0.087 | 0.000 | 0.000 | **유의** |
+| sector − majority | -0.135 | -0.189 – -0.083 | 0.000 | 0.000 | **유의** |
+| llm − keyword | -0.157 | -0.234 – -0.082 | 0.000 | 0.000 | **유의** |
+| llm − majority | -0.134 | -0.189 – -0.081 | 0.000 | 0.000 | **유의** |
+| prior − keyword | -0.159 | -0.235 – -0.086 | 0.000 | 0.000 | **유의** |
+| prior − majority | -0.136 | -0.187 – -0.090 | 0.000 | 0.000 | **유의** |
+| sector − induced | -0.087 | -0.147 – -0.034 | 0.001 | 0.015 | **유의** |
+| sector − neighbor | -0.083 | -0.139 – -0.029 | 0.002 | 0.028 | **유의** |
+| prior − induced | -0.088 | -0.149 – -0.033 | 0.002 | 0.028 | **유의** |
+| neighbor − prior | +0.084 | +0.031 – +0.141 | 0.004 | 0.048 | **유의** |
+| llm − neighbor | -0.082 | -0.137 – -0.026 | 0.005 | 0.055 | 보정 후 탈락 |
+| llm − induced | -0.086 | -0.152 – -0.026 | 0.006 | 0.060 | 보정 후 탈락 |
+| neighbor − keyword | -0.075 | -0.146 – -0.005 | 0.033 | 0.297 | 보정 후 탈락 |
+| keyword − induced | +0.071 | -0.005 – +0.142 | 0.066 | 0.528 | 판정 보류 |
+| neighbor − majority | -0.052 | -0.122 – +0.017 | 0.129 | 0.903 | 판정 보류 |
+| induced − majority | -0.048 | -0.118 – +0.020 | 0.166 | 0.996 | 판정 보류 |
+| keyword − majority | +0.023 | -0.052 – +0.099 | 0.557 | 1.000 | 판정 보류 |
+| llm − prior | +0.002 | -0.025 – +0.029 | 0.888 | 1.000 | 판정 보류 |
+| neighbor − induced | -0.004 | -0.071 – +0.061 | 0.904 | 1.000 | 판정 보류 |
+| sector − llm | -0.001 | -0.028 – +0.026 | 0.919 | 1.000 | 판정 보류 |
+| sector − prior | +0.001 | -0.025 – +0.029 | 0.978 | 1.000 | 판정 보류 |
+<!-- CMP_AURC:끝 -->
 
 ## 세 문장으로 요약하면
 
 **1. 매크로 F1 으로는 LLM 이 공짜 기준선보다 낫다고 말할 수 없다.**
-sector − neighbor = +0.098, p=0.134. 보정하면 p=1.000.
+`sector − neighbor` = +0.098, p=0.134. 보정하면 p=1.000.
 
-**2. 기권을 허용하면 LLM 계열 셋이 검색·규칙·다수 기준선을 전부 유의하게 이긴다.**
-sector−neighbor, llm−neighbor, sector−induced, llm−induced 모두 보정 후에도 살아남는다.
-LLM 이 사는 곳은 정확도가 아니라 **자기가 틀릴 때를 아는 능력**이다.
+**2. 기권을 허용하면 LLM 계열이 검색·규칙 기준선을 이긴다. 다만 세 변형 중
+둘만 보정을 통과한다.**
+
+| 비교 | p(Holm) | |
+|---|---|---|
+| `sector − neighbor` | 0.028 | 유의 |
+| `neighbor − prior` | 0.048 | 유의 (prior 가 낫다) |
+| `llm − neighbor` | **0.055** | 아슬아슬하게 탈락 |
+
+기저율 문맥을 준 두 변형(`sector`, `prior`)은 검색을 유의하게 이기고, 문맥 없는
+`llm` 은 0.055 로 문턱을 못 넘는다. **이것을 "llm 은 검색보다 낫지 않다" 로
+읽으면 안 된다** — 0.050 과 0.055 는 표본 170건에서 한두 건 차이다. 정직한
+서술은 "보정을 통과하지 못했다" 이지 "차이가 없다" 가 아니다.
+
+규칙 기준선(`induced`)에 대해서도 `sector`(0.015)와 `prior`(0.028)만 통과하고
+`llm`(0.060)은 탈락한다. 같은 무늬다.
 
 **3. 기저율을 프롬프트에 넣는 것은 AURC 를 전혀 바꾸지 못한다.**
-sector−llm = −0.001 (p=0.919), llm−prior = +0.002 (p=0.888), sector−prior = +0.001 (p=0.978).
-세 변형의 AURC 는 0.123 / 0.124 / 0.125 로 사실상 같은 값이다.
+`sector − llm` = −0.001 (p=0.919), `llm − prior` = +0.002 (p=0.888),
+`sector − prior` = +0.001 (p=0.978). AURC 는 0.123 / 0.124 / 0.125 로 사실상
+같은 값이다.
+
+2번과 3번이 함께 성립하는 것이 이상해 보이지만 모순이 아니다. 세 변형의 AURC 는
+서로 구분되지 않으면서, 그중 둘만 검색 기준선과의 비교에서 문턱을 넘었다.
+경계 근처에 셋이 몰려 있다는 뜻이고, 그래서 2번을 "sector 가 llm 보다 낫다" 로
+읽어서도 안 된다.
 
 3번은 E4 에서 세운 가설이 **전수 데이터에서 최종 기각**됐다는 뜻이다. E4 당시
 `prior` 는 매크로 F1 을 0.587 → 0.504 로 떨어뜨리면서(조치 재현율 0.286 → 0.071)
@@ -116,22 +163,26 @@ AURC 는 건드리지 않았는데, 그 관찰이 170건 전수에서 그대로 
 
 ## 이 표가 남기는 숙제
 
-`induced` 는 AURC 0.202 로 `neighbor` 0.207 과 구분되지 않으면서(p=0.853)
-매크로 F1 은 0.436 대 0.538 로 뒤진다. 규칙 학습기의 신뢰도 신호(dev 정밀도
+`induced` 는 AURC 0.211 로 `neighbor` 0.207 과 구분되지 않으면서(p=0.904)
+매크로 F1 은 0.434 대 0.538 로 뒤진다. 규칙 학습기의 신뢰도 신호(dev 정밀도
 ≥0.9면 high)가 우연히 쓸 만했을 뿐, 규칙 자체가 좋아서가 아니다 — E6 에서
 소수 클래스 규칙이 test 에서 20% 로 무너지는 것을 이미 봤다.
 
 그리고 무엇을 해도 `조치` 는 잡히지 않는다. 요청문 표면에는 그 신호가 없다.
-다음 실험은 요청문이 아니라 **회답 본문의 판단 근거**를 봐야 한다.
+다음 실험은 요청문이 아니라 **회답 본문의 판단 근거**를 봐야 한다(Phase 5).
 
 ## 재현
 
 ```bash
-python3 scripts/compare_models.py --gold data/eval/nonaction_test.jsonl --labels nonaction \
-    --pred sector=... --pred llm=... --pred neighbor=... --pred prior=... \
-    --pred keyword=... --pred induced=... --pred majority=... \
+P=data/processed
+A="--pred sector=$P/pred_nonaction_sector.jsonl --pred llm=$P/pred_nonaction_llm.jsonl \
+   --pred neighbor=$P/pred_nonaction_neighbor.jsonl --pred prior=$P/pred_nonaction_prior.jsonl \
+   --pred keyword=$P/pred_nonaction_keyword.jsonl --pred induced=$P/pred_nonaction_induced.jsonl \
+   --pred majority=$P/pred_nonaction_majority.jsonl"
+
+python3 scripts/compare_models.py --gold data/eval/nonaction_test.jsonl --labels nonaction $A \
     --report experiments/results/e7_all_models.json
 
-python3 scripts/risk_coverage.py --gold data/eval/nonaction_test.jsonl --labels nonaction \
-    --pred ... --report experiments/results/e7_risk_coverage.json
+python3 scripts/risk_coverage.py --gold data/eval/nonaction_test.jsonl --labels nonaction $A \
+    --report experiments/results/e7_risk_coverage.json
 ```

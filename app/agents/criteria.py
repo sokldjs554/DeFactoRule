@@ -45,10 +45,26 @@ import re
 from app.core.text import clean_for_prompt, normalize_for_match
 from app.domain.labels import NON_ACTIONS
 
-# 기준 질문에 이런 표현이 있으면 결론을 되묻는 것이다. 기준이 아니다.
+# 기준 질문이 **이 사안의 결론**을 되묻고 있으면 기준이 아니다.
+#
+# 처음에는 '제재'·'결론'·'불이익'·'판단 결과' 를 낱말 단위로 걸렀는데, 정당한
+# 사실 질문 아홉 개 중 넷을 잘라 냈다. "요청 행위가 소비자에게 불이익을
+# 초래하는가" 는 되묻기가 아니라 **진짜 규제 판단 기준**이고, "요청인이 제재
+# 이력을 보유하고 있는가" 는 요청인에 관한 사실이다.
+#
+# 걸러야 할 것은 낱말이 아니라 **묻는 대상**이다. 이 사안의 처분이 무엇이냐를
+# 물으면 순환이고, 사안의 성질을 물으면 기준이다.
 CONCLUSION_WORDS = re.compile(
-    r"(비조치|조치\s*(?:대상|가능|필요|여부)|제재|불이익|의견서를?\s*(?:받|발급)|"
-    r"당국이?\s*(?:어떻게|무엇)|결론|판단\s*결과)"
+    r"("
+    r"비조치"                                              # 결론 라벨 그 자체
+    r"|(?:이|본|해당|동)\s*(?:사안|건|요청|행위)[^?]{0,24}조치\s*(?:대상|여부|가능)"
+    r"|조치\s*(?:대상|가능|필요)\s*(?:인가|인지|일까|에\s*해당)"
+    r"|의견서를?\s*(?:받|발급|표명)"
+    r"|당국이?\s*(?:어떻게|무엇을?|어떤)\s*(?:판단|결정|회신|조치)"
+    r"|(?:결론|처분|회신\s*내용)(?:은|이|을|를)?\s*(?:무엇|어떻|어떤)"
+    r"|어떤\s*(?:결론|처분)"
+    r"|판단\s*결과(?:는|가)\s*(?:무엇|어떻)"
+    r")"
 )
 
 MAX_CRITERIA_PER_CASE = 4
@@ -267,9 +283,11 @@ def cmd_extract(args) -> None:
     client = connect()
     preflight(client)
 
+    from app.core.audit import Discards
+
     records = list(existing)
-    kept = dropped = 0
-    reasons: dict[str, int] = {}
+    kept = 0
+    discards = Discards("criteria-extract")
     try:
         for i, (case, prompt) in enumerate(zip(cases, prompts), 1):
             if (case["source"], case["page"], case["serial"]) in done:
@@ -283,19 +301,26 @@ def cmd_extract(args) -> None:
                 record.update(result)
             else:
                 reasoning = case["fields"].get("판단이유") or ""
-                accepted = []
-                for item in result["data"].get("criteria", []):
-                    problems = validate_criterion(item, reasoning)
-                    if problems:
-                        dropped += 1
-                        for p in problems:
-                            reasons[p] = reasons.get(p, 0) + 1
-                        continue
-                    accepted.append(item)
-                    kept += 1
+                proposed = result["data"].get("criteria", [])
+                # 버린 것은 공용 장치가 이유와 함께 붙든다. 화면에만 찍으면
+                # 나중에 왜 하나도 안 남았는지 알 방법이 없다 — API 오류에서
+                # 상태 코드만 남겼던 것과 같은 실수다 (app/core/audit.py).
+                case_discards = Discards("criteria-extract")
+                accepted = [
+                    item for item in proposed
+                    if case_discards.keep_if(item, validate_criterion(item, reasoning))
+                ]
+                kept += len(accepted)
+                for x in case_discards.records():
+                    discards.drop(
+                        {k: v for k, v in x.items() if k != "rejected_for"},
+                        x["rejected_for"],
+                    )
                 record.update({
                     "criteria": accepted,
-                    "proposed": len(result["data"].get("criteria", [])),
+                    "rejected": case_discards.records(),
+                    "discards": case_discards.summary(),
+                    "proposed": len(proposed),
                     "input_tokens": result["input_tokens"],
                     "output_tokens": result["output_tokens"],
                 })
@@ -309,9 +334,11 @@ def cmd_extract(args) -> None:
 
     errors = [r for r in records if "error" in r]
     print(f"\n{len(records)}건 처리 · 실패 {len(errors)}")
-    print(f"  기준 채택 {kept} · 버림 {dropped}")
-    for reason, n in sorted(reasons.items(), key=lambda kv: -kv[1]):
-        print(f"    {reason}: {n}")
+    print(f"  기준 채택 {kept}")
+    print(discards.report(prefix="  "))
+    if kept == 0:
+        print("\n  ⚠ 채택된 기준이 하나도 없습니다. 위의 '버린 이유' 를 보세요.")
+        print("     버려진 기준 자체는 각 레코드의 rejected 에 남아 있습니다.")
     print(f"  실제 비용 ${estimate_cost(records):.3f}")
     print(f"-> {out}")
 
@@ -364,14 +391,47 @@ def cmd_consolidate(args) -> None:
     from app.core.io import load_jsonl, write_jsonl
     from app.evaluation.confusable import cosine, idf_table, weighted_vector
 
-    raw = [r for r in load_jsonl(Path(args.input)) if "error" not in r]
+    all_records = load_jsonl(Path(args.input))
+    raw = [r for r in all_records if "error" not in r]
     items = []
     for record in raw:
         for c in record.get("criteria", []):
             items.append({**c, "source": record["source"], "serial": record["serial"],
                           "decision": record["decision"], "sector": record.get("sector")})
+
     if not items:
-        raise SystemExit("채택된 기준이 하나도 없습니다.")
+        errors = [r for r in all_records if "error" in r]
+        proposed = sum(r.get("proposed", 0) for r in raw)
+        rejected = [x for r in raw for x in r.get("rejected", [])]
+        print(f"채택된 기준이 하나도 없습니다.\n\n진단 — {args.input}")
+        print(f"  레코드 {len(all_records)}건 · API 실패 {len(errors)}건")
+        print(f"  모델이 제안한 기준 {proposed}개 · 검증 통과 0개")
+
+        if errors:
+            kinds = Counter(r["error"] for r in errors)
+            print("\n  API 실패 종류: " + ", ".join(f"{k} {v}" for k, v in kinds.most_common(3)))
+            first = errors[0]
+            print(f"    상세: {(first.get('error_detail') or '(없음)')[:200]}")
+            print("\n  --resume 을 붙여 실패분만 다시 부르세요.")
+        elif proposed == 0:
+            print("\n  모델이 기준을 하나도 제안하지 않았습니다. 프롬프트가 너무 엄격하거나,")
+            print("  판단이유가 기준이라 할 만한 것을 담고 있지 않을 수 있습니다.")
+        elif rejected:
+            why = Counter(w for x in rejected for w in x["rejected_for"])
+            print("\n  버린 이유:")
+            for reason, n in why.most_common():
+                print(f"    {reason}: {n}")
+            print("\n  버려진 기준 예시 (앞 3개):")
+            for x in rejected[:3]:
+                print(f"    이유 {x['rejected_for']}")
+                print(f"      질문: {x.get('question', '')[:70]}")
+                print(f"      인용: {x.get('quote', '')[:70]}")
+        else:
+            print("\n  이 파일은 버린 기준을 기록하지 않은 옛 형식입니다.")
+            print("  `extract` 를 다시 돌리면(--resume 없이) 이유가 함께 남습니다.")
+            print("  이미 성공한 호출을 아끼려면 --resume 을 쓰되, 그러면 이유는")
+            print("  새로 부른 건에 대해서만 남습니다.")
+        raise SystemExit(1)
 
     idf = idf_table([c["question"] for c in items])
     vecs = [weighted_vector(c["question"], idf) for c in items]
