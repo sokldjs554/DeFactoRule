@@ -25,6 +25,7 @@ import pymupdf
 from parse_casebook import (  # noqa: E402
     INTERP_FIELDS,
     NONACTION_FIELDS,
+    UnreadablePdfError,
     parse_pdf,
 )
 
@@ -64,11 +65,18 @@ def checkbox_patterns(path: Path) -> Counter:
 def build(input_dir: Path) -> dict:
     pdfs = [p for p in sorted(input_dir.rglob("*.pdf")) if "__MACOSX" not in str(p)]
     sources: dict[str, dict] = {}
+    unreadable: dict[str, float] = {}
     all_patterns: Counter = Counter()
 
     for path in pdfs:
         name = ud.normalize("NFC", path.name)
-        cases = parse_pdf(path)
+        try:
+            cases = parse_pdf(path)
+        except UnreadablePdfError as exc:
+            # 텍스트 레이어가 깨진 자료. 지문에 남겨 두어 "왜 빠졌는지"가
+            # 기준선에 기록되게 한다.
+            unreadable[name] = round(exc.health, 4)
+            continue
         doc_type = cases[0].doc_type if cases else "unknown"
         fields = NONACTION_FIELDS if doc_type == "nonaction" else INTERP_FIELDS
 
@@ -95,6 +103,7 @@ def build(input_dir: Path) -> dict:
 
     return {
         "sources": sources,
+        "unreadable": unreadable,
         "known_checkbox_patterns": sorted(all_patterns),
         "known_check_glyphs": sorted(
             {ch for pat in all_patterns for ch in pat if ch in CHECK_GLYPHS}
@@ -125,6 +134,10 @@ def main() -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(inv, ensure_ascii=False, indent=2), encoding="utf-8")
 
+    if inv["unreadable"]:
+        print(f"제외 {len(inv['unreadable'])}건 (텍스트 레이어 손상)")
+        for name, health in inv["unreadable"].items():
+            print(f"  {health:.1%}  {name}")
     print(f"자료 {len(inv['sources'])}건")
     for name, e in inv["sources"].items():
         extra = (

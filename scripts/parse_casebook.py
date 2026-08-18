@@ -94,6 +94,31 @@ class Case:
     warnings: list[str] = field(default_factory=list)
 
 
+def text_health(text: str, sample: int = 20000) -> float:
+    """추출된 글자 중 읽을 수 있는 것의 비율.
+
+    ToUnicode CMap 이 없는 Identity-H CID 폰트로 조판된 PDF 는 글리프가 엉뚱한
+    코드포인트로 뽑힌다. 예외가 나지 않고 그럴듯한 길이의 쓰레기 문자열이
+    반환되므로, 사례 0건이라는 결과로만 드러난다. 그 전에 잡는다.
+    """
+    head = text[:sample]
+    if not head:
+        return 0.0
+    good = sum(
+        1
+        for c in head
+        if "\uac00" <= c <= "\ud7a3"  # 한글 음절
+        or c.isascii()
+        or "\u3130" <= c <= "\u318f"  # 한글 자모
+        or "\u4e00" <= c <= "\u9fff"  # 한자
+        or c in "「」『』·※○□■◦、。？！（）"
+    )
+    return good / len(head)
+
+
+MIN_TEXT_HEALTH = 0.80
+
+
 def squeeze(s: str) -> str:
     """제어문자를 걷어내고 공백을 정리한다. 글자 자체는 건드리지 않는다."""
     s = "".join(ch for ch in s if ch == "\n" or ord(ch) >= 32)
@@ -282,9 +307,26 @@ def parse_interpretation(doc: pymupdf.Document, source: str) -> list[Case]:
     return cases
 
 
+class UnreadablePdfError(RuntimeError):
+    """텍스트 레이어가 깨져 파싱할 수 없는 PDF."""
+
+    def __init__(self, name: str, health: float):
+        self.name = name
+        self.health = health
+        super().__init__(
+            f"{name}: 읽을 수 있는 글자 비율 {health:.1%} < {MIN_TEXT_HEALTH:.0%} — "
+            "ToUnicode 매핑이 없는 폰트로 조판된 PDF 로 보입니다. "
+            "텍스트 추출로는 복구할 수 없으며 OCR 이 필요합니다."
+        )
+
+
 def parse_pdf(path: Path) -> list[Case]:
     name = ud.normalize("NFC", path.name)
     doc = pymupdf.open(path)
+    full = "".join(p.get_text() for p in doc)
+    health = text_health(full)
+    if health < MIN_TEXT_HEALTH:
+        raise UnreadablePdfError(name, health)
     if "비조치" in name:
         return parse_nonaction(doc, name)
     return parse_interpretation(doc, name)
@@ -346,9 +388,18 @@ def main() -> None:
         raise SystemExit(f"PDF 를 찾지 못했습니다: {in_dir}")
 
     all_cases: list[Case] = []
+    skipped: list[str] = []
     for p in pdfs:
-        cases = parse_pdf(p)
-        print(f"[{len(cases):4d}] {ud.normalize('NFC', p.name)}")
+        try:
+            cases = parse_pdf(p)
+        except UnreadablePdfError as exc:
+            print(f"[SKIP] {exc}")
+            skipped.append(exc.name)
+            continue
+        if not cases:
+            print(f"[  0!] {ud.normalize('NFC', p.name)} — 사례를 하나도 찾지 못했습니다")
+        else:
+            print(f"[{len(cases):4d}] {ud.normalize('NFC', p.name)}")
         all_cases.extend(cases)
 
     for doc_type in ("nonaction", "interpretation"):
@@ -362,6 +413,10 @@ def main() -> None:
         print(f"  -> {path} ({len(subset)}건)")
 
     report(all_cases)
+    if skipped:
+        print(f"\n제외된 자료 {len(skipped)}건 (텍스트 레이어 손상)")
+        for name in skipped:
+            print(f"  {name}")
 
 
 if __name__ == "__main__":

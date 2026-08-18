@@ -107,6 +107,17 @@
         "□비조치□조치☑기타": 1
       }
     },
+    "[2021] 법령해석 회신문 사례집-M3.pdf": {
+      "doc_type": "interpretation",
+      "case_count": 154,
+      "serial_rate": 1.0,
+      "sector_rate": 1.0,
+      "field_rates": {
+        "질의요지": 0.987,
+        "회답": 0.987,
+        "이유": 0.9351
+      }
+    },
     "[2022] 법령해석 회신문 사례집-M2 (2).pdf": {
       "doc_type": "interpretation",
       "case_count": 190,
@@ -118,6 +129,9 @@
         "이유": 0.9421
       }
     }
+  },
+  "unreadable": {
+    "2021년 비조치의견서 사례집 - 전체.pdf": 0.3738
   },
   "known_checkbox_patterns": [
     "(헤더에 체크박스 없음)",
