@@ -11,10 +11,12 @@ before 수치를 같은 입력에서 재기 위해서만 존재한다. 그래야
 
 from __future__ import annotations
 
+import inspect
 import re
 import subprocess
 import sys
 import unicodedata as ud
+from pathlib import Path
 
 from app.core.paths import DEV_BASE_RATES, PROCESSED, ROOT, check_root
 
@@ -468,22 +470,49 @@ def absent_labels_do_not_dilute_macro() -> Result:
     return macro == 1.0 and per["조건부"]["support"] == 0, f"매크로 {macro:.3f}"
 
 
+def check_completeness(gold_path, pred_dir) -> Result:
+    """예측 파일이 gold 를 전부 덮는지. probe 가 테스트 가능하도록 분리했다."""
+    from app.core.io import key_of, load_jsonl
+
+    if not Path(gold_path).exists():
+        return True, "평가셋 없음 — 건너뜀"
+    gold = {key_of(r) for r in load_jsonl(Path(gold_path)) if r.get("label")}
+
+    report = []
+    incomplete = []
+    for path in sorted(Path(pred_dir).glob("pred_nonaction_*.jsonl")):
+        rows = load_jsonl(path)
+        failed = sum(1 for r in rows if r.get("predicted") is None or "error" in r)
+        absent = len(gold - {key_of(r) for r in rows})
+        report.append(
+            f"{path.name} {len(rows)}/{len(gold)} 실패 {failed} 누락 {absent}"
+        )
+        if failed or absent:
+            incomplete.append(path.name)
+    if not report:
+        return False, "예측 파일이 하나도 없다"
+    return not incomplete, " · ".join(report)
+
+
 def predictions_are_complete_before_reporting() -> Result:
-    """편향된 부분집합으로 비교하면 결론이 뒤집힌다. 결측이 있으면 보고 금지."""
-    from app.core.io import load_jsonl
+    """편향된 부분집합으로 비교하면 결론이 뒤집힌다. 결측이 있으면 보고 금지.
+
+    결측은 두 가지다. **둘 다 세야 한다.**
+
+      실패한 행   파일에는 있는데 predicted 가 없거나 error 가 붙은 것
+      없는 행     gold 에는 있는데 파일에 아예 없는 것
+
+    처음 구현은 앞의 것만 셌다. 그래서 156/170 짜리 파일이 "결측 0" 으로
+    보고되고 통과했다 — EV-01(30건 예측을 170건 gold 로 채점)과 똑같은
+    맹점이, 하필 그것을 막으려고 만든 검사 안에 들어 있었다.
+
+    빠진 행은 무작위가 아닐 때가 많다. 실제로 sector 의 결측 39건은
+    2025년 35건 + 2024년 4건이었고, llm·prior 의 14건은 파서 수정으로
+    본문이 바뀐 사례였다. 어느 쪽도 무작위가 아니다.
+    """
     from app.core.paths import EVAL
 
-    test = EVAL / "nonaction_test.jsonl"
-    if not test.exists():
-        return True, "평가셋 없음 — 건너뜀"
-    n = len(load_jsonl(test))
-    report = []
-    for path in sorted(PROCESSED.glob("pred_nonaction_*.jsonl")):
-        rows = load_jsonl(path)
-        bad = sum(1 for r in rows if r.get("predicted") is None or "error" in r)
-        report.append(f"{path.name} {len(rows)}/{n} 결측 {bad}")
-    incomplete = [r for r in report if "결측 0" not in r]
-    return not incomplete, " · ".join(report) or "예측 파일 없음"
+    return check_completeness(EVAL / "nonaction_test.jsonl", PROCESSED)
 
 
 # ══ agent ════════════════════════════════════════════════════════════
@@ -638,9 +667,21 @@ def env_check_runs_on_python2() -> Result:
     return not bad, f"Python 2 파서가 걸릴 문법: {bad or '없음'}"
 
 
-PROBES = {
-    name: fn
-    for name, fn in sorted(globals().items())
-    if callable(fn) and not name.startswith("_") and fn.__module__ == __name__
-    and name not in {"Result"}
-}
+def _is_probe(name: str, fn: object) -> bool:
+    """probe 는 **인자 없이** 부를 수 있어야 한다.
+
+    처음에는 모듈 안의 모든 호출 가능한 것을 그러모았고, 인자를 받는 보조
+    함수까지 목록에 섞였다. 회귀 테스트가 그것을 인자 없이 부르면 TypeError 가
+    나고, 그 실패는 "수정이 풀렸다" 로 읽힌다 — 거짓 경보가 진짜 경보를 덮는다.
+    """
+    if name.startswith("_") or not callable(fn):
+        return False
+    if getattr(fn, "__module__", None) != __name__:
+        return False
+    try:
+        return not inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return False
+
+
+PROBES = {name: fn for name, fn in sorted(globals().items()) if _is_probe(name, fn)}
