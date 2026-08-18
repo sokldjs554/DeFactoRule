@@ -128,3 +128,30 @@ def test_failure_registry_is_served_with_live_probe_results():
 def test_failures_can_skip_probes():
     body = client.get("/failures", params={"run_probes": False}).json()
     assert all(c["probe_passed"] is None for c in body["cases"])
+
+
+def test_ui_is_served_and_self_contained():
+    """화면은 한 파일로 서빙되고 외부 자산을 부르지 않는다.
+
+    CDN 을 걸면 네트워크가 없는 환경에서 화면이 조용히 깨진다. 심사자가
+    처음 여는 순간이 그런 환경일 수 있다.
+    """
+    resp = client.get("/")
+    assert resp.status_code == 200
+    assert "text/html" in resp.headers["content-type"]
+    html = resp.text
+    assert "http://" not in html.replace("http://www.w3.org/2000/svg", "")
+    assert "https://" not in html
+    assert "cdn" not in html.lower()
+
+
+def test_ui_only_calls_endpoints_that_exist():
+    """화면이 부르는 경로가 실제 라우트에 있는지 본다."""
+    import re
+
+    from app.api.main import app as fastapi_app
+
+    routes = {r.path for r in fastapi_app.routes if hasattr(r, "path")}
+    called = set(re.findall(r"fetch\('([^']+)'", client.get("/").text))
+    missing = {c.split("?")[0] for c in called} - routes
+    assert not missing, f"화면이 없는 경로를 부릅니다: {sorted(missing)}"

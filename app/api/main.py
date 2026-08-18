@@ -14,9 +14,11 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import FileResponse
 
 from app.api.schemas import (
     BaseRatesResponse,
@@ -49,6 +51,18 @@ app = FastAPI(
 )
 
 GOLD = EVAL / "nonaction_test.jsonl"
+STATIC = Path(__file__).resolve().parent / "static"
+
+
+@app.get("/", include_in_schema=False)
+def index() -> FileResponse:
+    """문제를 시각화하는 화면.
+
+    대화창이 아니다(명세 §15). 보여주는 것은 위험-커버리지 곡선, 같은 문턱을
+    직접 움직여 보는 판정, 업권별 기저율, 그리고 실패 레지스트리의 **지금**
+    상태다. 빌드 단계도 외부 자산도 없다 — 한 파일이 API 를 그대로 읽는다.
+    """
+    return FileResponse(STATIC / "index.html")
 
 
 @app.get("/health", summary="살아 있는가, 그리고 무엇을 할 수 있는가")
