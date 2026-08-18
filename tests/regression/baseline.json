@@ -1,0 +1,97 @@
+{
+  "sources": {
+    "2024년 법령해석회신문 사례집(금융위원회).pdf": {
+      "doc_type": "interpretation",
+      "case_count": 141,
+      "serial_rate": 1.0,
+      "sector_rate": 1.0,
+      "field_rates": {
+        "질의요지": 0.9929,
+        "회답": 0.9858,
+        "이유": 0.9504
+      }
+    },
+    "2024년 비조치의견서 사례집(금융감독원).pdf": {
+      "doc_type": "nonaction",
+      "case_count": 79,
+      "serial_rate": 1.0,
+      "sector_rate": 1.0,
+      "field_rates": {
+        "요청대상행위": 1.0,
+        "판단": 1.0,
+        "판단이유": 1.0
+      },
+      "decision_rate": 1.0,
+      "checkbox_patterns": {
+        "☑비조치□조치□기타": 29,
+        "þ비조치□조치□기타": 22,
+        "□비조치□조치√□기타": 11,
+        "√□비조치□조치□기타": 9,
+        "□비조치√□조치□기타": 5,
+        "□비조치□조치☑기타": 3
+      }
+    },
+    "2025년 법령해석 회신문 사례집(금융위원회).pdf": {
+      "doc_type": "interpretation",
+      "case_count": 159,
+      "serial_rate": 1.0,
+      "sector_rate": 1.0,
+      "field_rates": {
+        "질의요지": 0.9748,
+        "회답": 0.9686,
+        "이유": 0.9497
+      }
+    },
+    "2025년 비조치의견서 사례집(금융감독원).pdf": {
+      "doc_type": "nonaction",
+      "case_count": 54,
+      "serial_rate": 0.9815,
+      "sector_rate": 1.0,
+      "field_rates": {
+        "요청대상행위": 0.963,
+        "판단": 0.963,
+        "판단이유": 0.963
+      },
+      "decision_rate": 0.963,
+      "checkbox_patterns": {
+        "☑비조치□조치□기타": 49,
+        "□비조치☑조치□기타": 2,
+        "(헤더에 체크박스 없음)": 2,
+        "□비조치□조치☑기타": 1
+      }
+    }
+  },
+  "known_checkbox_patterns": [
+    "(헤더에 체크박스 없음)",
+    "þ비조치□조치□기타",
+    "√□비조치□조치□기타",
+    "□비조치√□조치□기타",
+    "□비조치□조치√□기타",
+    "□비조치□조치☑기타",
+    "□비조치☑조치□기타",
+    "☑비조치□조치□기타"
+  ],
+  "known_check_glyphs": [
+    "þ",
+    "√",
+    "☑"
+  ],
+  "field_names": {
+    "nonaction": [
+      "요청대상행위",
+      "판단",
+      "판단이유"
+    ],
+    "interpretation": [
+      "질의요지",
+      "회답",
+      "이유"
+    ]
+  },
+  "thresholds": {
+    "decision_rate_min": 0.9,
+    "serial_rate_min": 0.95,
+    "sector_rate_min": 0.95,
+    "field_rate_min": 0.8
+  }
+}
