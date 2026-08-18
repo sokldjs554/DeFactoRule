@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Optional
@@ -65,6 +66,34 @@ def macro_f1(
     return macro, per
 
 
+def bootstrap_macro_f1(
+    pairs: list[tuple[str, str]],
+    labels: tuple[str, ...],
+    rounds: int = 2000,
+    seed: int = 0,
+) -> tuple[float, float]:
+    """매크로 F1 의 95% 부트스트랩 구간.
+
+    표본이 작으면 점추정 하나만 보고 순위를 매기게 된다. 소수 클래스가 3건인
+    상태에서 재현율은 0, 1/3, 2/3, 1 네 값밖에 못 가지므로, 한 건이 뒤집히면
+    F1 이 0.1 이상 움직인다. 구간을 함께 적어 그 불확실성을 드러낸다.
+
+    난수는 고정 시드로 재현한다.
+    """
+    if len(pairs) < 2:
+        return (0.0, 0.0)
+    rng = random.Random(seed)
+    n = len(pairs)
+    scores = []
+    for _ in range(rounds):
+        sample = [pairs[rng.randrange(n)] for _ in range(n)]
+        scores.append(macro_f1(sample, labels)[0])
+    scores.sort()
+    lo = scores[int(0.025 * rounds)]
+    hi = scores[int(0.975 * rounds) - 1]
+    return lo, hi
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--gold", required=True)
@@ -76,6 +105,15 @@ def main() -> None:
         default="verdict",
         help="채점에 쓸 라벨 집합",
     )
+    ap.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help=(
+            "gold 의 앞 N 건만 채점한다. 예측이 일부만 있을 때 "
+            "다른 모델과 **같은 표본**으로 비교하기 위한 것이다."
+        ),
+    )
     ap.add_argument("--report", help="결과를 JSON 으로 저장할 경로")
     args = ap.parse_args()
 
@@ -85,6 +123,8 @@ def main() -> None:
             f"{args.gold} 에 라벨이 없습니다. data/eval/LABELING.md 를 보고 "
             "`label` 을 채운 뒤 다시 실행하세요."
         )
+    if args.limit:
+        gold_rows = gold_rows[: args.limit]
     gold = {key_of(r): r for r in gold_rows}
     pred = {key_of(r): r for r in load(Path(args.pred))}
 
@@ -105,8 +145,22 @@ def main() -> None:
 
     print(f"=== {args.name} ===")
     print(f"gold {len(gold)}건 · 예측 매칭 {len(matched)} · 미매칭 {len(missing)}")
+    if missing:
+        print(
+            f"  ⚠ 예측이 없는 {len(missing)}건은 채점에서 빠졌습니다. "
+            "다른 모델과 비교하려면 --limit 로 표본을 맞추세요."
+        )
     print(f"커버리지 {coverage:.1%}  (미분류 {len(unknown)} · 오류 {len(errored)})")
-    print(f"판정한 것 중 정확도 {accuracy:.1%} · 매크로 F1 {macro:.3f}\n")
+    lo, hi = bootstrap_macro_f1(pairs, label_set)
+    print(
+        f"판정한 것 중 정확도 {accuracy:.1%} · "
+        f"매크로 F1 {macro:.3f}  [95% CI {lo:.3f}–{hi:.3f}]\n"
+    )
+    if len(pairs) < 60:
+        print(
+            f"  ⚠ 표본 {len(pairs)}건입니다. 구간이 넓으니 점추정만으로 "
+            "모델 순위를 정하지 마세요.\n"
+        )
 
     print(f"{'라벨':>8}  {'지원':>4}  {'정밀도':>7}  {'재현율':>7}  {'F1':>7}")
     for label in label_set:
@@ -149,6 +203,8 @@ def main() -> None:
                     "errors": len(errored),
                     "accuracy_on_scored": accuracy,
                     "macro_f1": macro,
+                    "macro_f1_ci95": [lo, hi],
+                    "n_scored": len(pairs),
                     "per_label": per,
                     "ungrounded_evidence": len(ungrounded),
                 },
