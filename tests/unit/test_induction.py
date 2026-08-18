@@ -10,10 +10,12 @@ import pytest
 
 from app.rules.induction import (
     Atom,
+    apply_rules,
     coverage_masks,
     induce,
     laplace,
     length_bucket,
+    maximal_form,
     popcount,
     squeeze,
 )
@@ -27,9 +29,12 @@ def row(i: int, text: str, label: str, sector: str = "공통") -> dict:
 
 
 # 앞 6건은 '망연계' 를 공유하고 전부 조치, 나머지는 비조치
+SECTORS = ("공통", "전자금융", "보험", "은행")
 ROWS = (
-    [row(i, f"내부망과 외부망의 망연계 구간 관련 질의 {i}", "조치") for i in range(1, 7)]
-    + [row(10 + i, f"겸영업무 신고 대상 여부에 관한 질의 {i}", "비조치") for i in range(1, 9)]
+    [row(i, f"내부망과 외부망의 망연계 구간 관련 질의 {i}", "조치", SECTORS[i % 4])
+     for i in range(1, 7)]
+    + [row(10 + i, f"겸영업무 신고 대상 여부에 관한 질의 {i}", "비조치", SECTORS[i % 4])
+       for i in range(1, 9)]
 )
 
 
@@ -62,21 +67,23 @@ def test_laplace_is_not_used_as_a_threshold():
     )
 
 
-def test_learner_finds_a_perfect_discriminator():
-    """어떤 n-gram 을 골랐는지가 아니라, 고른 조건이 실제로 두 무리를 가르는지를 본다.
+def test_learner_separates_the_planted_classes():
+    """규칙 목록을 **순서대로** 적용했을 때 두 무리가 갈리는지를 본다.
 
-    덮는 집합이 같은 n-gram 여럿 중 대표 하나만 남기므로('망연계' 와 '간관련' 은
-    이 자료에서 완전히 같은 집합을 덮는다), 표면형을 못박으면 테스트가 구현
-    세부에 묶인다.
+    규칙 하나를 떼어 전체 행에 적용하면 안 된다. 순차 피복에서 뒤쪽 규칙은
+    앞 규칙이 걸러낸 나머지에만 적용되므로, 홀로 보면 과하게 걸리는 것이
+    정상이다. 실제 사용 방식과 같은 방식으로 재야 한다.
+
+    어떤 n-gram 을 골랐는지도 못박지 않는다. 덮는 집합이 같은 표현은 대표
+    하나로 합쳐지고 그 대표는 최대 확장형이라, 표면형을 고정하면 테스트가
+    구현 세부에 묶인다.
     """
     rules, default = induce(ROWS, LABELS, min_support=4, min_precision=0.9, max_depth=2)
-    action = [r for r in rules if r.label == "조치"]
-    assert action, "심어 둔 규칙을 못 찾았습니다"
+    assert rules, "심어 둔 규칙을 못 찾았습니다"
 
-    rule = action[0]
-    assert rule.dev_precision == 1.0
-    assert all(rule.fires(r) for r in ROWS if r["label"] == "조치"), rule.describe()
-    assert not any(rule.fires(r) for r in ROWS if r["label"] != "조치"), rule.describe()
+    predicted = [apply_rules(rules, default, r)[0] for r in ROWS]
+    truth = [r["label"] for r in ROWS]
+    assert predicted == truth, list(zip(truth, predicted))
     assert default == "비조치"
 
 
@@ -94,7 +101,23 @@ def test_duplicate_coverage_atoms_are_collapsed():
     atoms = [Atom("ngram", "망연계"), Atom("ngram", "망연"), Atom("ngram", "연계")]
     masks = coverage_masks(ROWS, atoms)
     assert len(masks) == 1, f"덮는 집합이 같은데 {len(masks)}개가 남았습니다"
-    assert next(iter(masks)).value == "망연"  # 가장 짧은 표현이 남는다
+
+
+def test_representative_atom_is_the_maximal_form():
+    """대표는 최대 확장형이어야 한다 — 그래야 파편이 파편으로 보인다.
+
+    '것이전' 은 규칙처럼 보이지만 '…하는것이전자금융감독규정제1…' 의 조각이다.
+    지지도를 잃지 않는 한 늘려 놓으면 사람이 읽고 가릴 수 있다.
+    """
+    masks = coverage_masks(ROWS, [Atom("ngram", "망연계")])
+    rep = next(iter(masks)).value
+    assert len(rep) > len("망연계"), rep
+    assert "망연계" in rep
+
+
+def test_maximal_form_stops_when_support_would_drop():
+    texts = ["가나다라", "가나다마"]
+    assert maximal_form("나다", texts) == "가나다"  # 라/마 에서 갈리므로 더 못 늘린다
 
 
 def test_no_rule_is_learned_from_pure_noise():

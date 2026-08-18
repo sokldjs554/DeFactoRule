@@ -140,6 +140,40 @@ def mine_atoms(rows: list[dict]) -> list[Atom]:
     return atoms
 
 
+def maximal_form(term: str, texts: list[str], limit: int = 40) -> str:
+    """지지도를 잃지 않는 한 좌우로 늘린다.
+
+    문자 n-gram 은 어절 경계를 예사로 가로지른다. '것이전' 은 규칙처럼 보이지만
+    실제로는 "…하는 **것이 전**자금융감독규정 제15조…" 라는 상투 인용구의 조각이다.
+    지지도가 그대로인 한 늘려 보면 정체가 드러난다.
+
+        '것이전'    -> '하는것이전자금융감독규정제1'   상투구
+        '위반인지'  -> '위반인지여부'                  진짜 구절
+        '망연계'    -> '망연계솔루션'                  특정 제품 (2건)
+
+    표면 통계로는 이 셋을 가를 수 없었다 — 지지도도 출처 수도 업권 수도 쪽
+    범위도 같았다. 늘려 놓으면 사람이 읽고 가릴 수 있다.
+    """
+    hits = [t for t in texts if term in t]
+    base = len(hits)
+    if not base:
+        return term
+    cur = term
+    while len(cur) < limit:
+        rights = {t[i + len(cur)] for t in hits
+                  for i in [t.find(cur)] if 0 <= i < len(t) - len(cur)}
+        grown = next((cur + c for c in sorted(rights)
+                      if sum(1 for t in hits if cur + c in t) == base), None)
+        if grown is None:
+            lefts = {t[t.find(cur) - 1] for t in hits if t.find(cur) > 0}
+            grown = next((c + cur for c in sorted(lefts)
+                          if sum(1 for t in hits if c + cur in t) == base), None)
+        if grown is None:
+            break
+        cur = grown
+    return cur
+
+
 def coverage_masks(rows: list[dict], atoms: list[Atom]) -> dict:
     """조건마다 '어느 사례를 덮는가' 를 정수 비트마스크로 만든다.
 
@@ -162,7 +196,17 @@ def coverage_masks(rows: list[dict], atoms: list[Atom]) -> dict:
         keep = by_mask.get(mask)
         if keep is None or (len(atom.value), atom.value) < (len(keep.value), keep.value):
             by_mask[mask] = atom
-    return {atom: mask for mask, atom in by_mask.items()}
+
+    # n-gram 대표는 최대 확장형으로 바꾼다. dev 피복은 그대로이므로 학습에는
+    # 영향이 없고, 규칙을 읽을 수 있게 된다. test 에서는 더 좁게 걸리는데
+    # 그것은 손해가 아니라 정직함이다 — 원래 그 조각은 더 긴 구절의 일부였다.
+    texts = [squeeze(r["request"]) for r in rows]
+    out = {}
+    for mask, atom in by_mask.items():
+        if atom.kind == "ngram":
+            atom = Atom("ngram", maximal_form(atom.value, texts))
+        out[atom] = mask
+    return out
 
 
 def popcount(x: int) -> int:
@@ -393,3 +437,105 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+# ══ 교차검증 기반 규칙 선별 ═══════════════════════════════════════
+#
+# dev 순도로 규칙을 고르면 우연이 신호를 이긴다. 실측으로 확인했다.
+#
+#   '것이전'   dev 5/5 (100%) · laplace 0.750 -> test 20.0%   우연
+#   '위반인지' dev 4/5 ( 80%) · laplace 0.625 -> test 47.4%   신호
+#
+# 순차 피복은 laplace 가 높은 쪽을 먼저 집으므로 '것이전' 을 골랐다. dev 안에서
+# 완벽한 규칙을 찾는 것은 표본이 작을수록 쉽고, 그 쉬움이 곧 함정이다.
+#
+# 그래서 **dev 안에서 다시 나눠** 규칙이 보류 조각에서도 버티는지 본다.
+# test 는 여전히 건드리지 않는다.
+
+FOLDS = 5
+
+
+def fold_of(index: int, folds: int) -> int:
+    """난수 없이 조각을 나눈다. 정렬이 고정되어 있으므로 재현된다."""
+    return index % folds
+
+
+def cross_validate(
+    rows: list[dict],
+    labels: tuple = NON_ACTIONS,
+    folds: int = FOLDS,
+    min_support: int = MIN_SUPPORT,
+    min_precision: float = MIN_PRECISION,
+    max_depth: int = MAX_DEPTH,
+) -> dict:
+    """조각마다 나머지에서 배우고 그 조각에서 잰다.
+
+    같은 조건 결합(atom tuple)이 여러 조각에서 반복해서 나오고, 보류 조각에서도
+    정밀도를 지키면 그 규칙은 믿을 만하다. 한 조각에서만 나왔다면 그 조각의
+    우연이다.
+    """
+    stats: dict[tuple, dict] = {}
+    for f in range(folds):
+        train = [r for i, r in enumerate(rows) if fold_of(i, folds) != f]
+        held = [r for i, r in enumerate(rows) if fold_of(i, folds) == f]
+        if not train or not held:
+            continue
+        learned, _ = induce(train, labels, min_support, min_precision, max_depth)
+        for rule in learned:
+            key = tuple(sorted((a.kind, a.value) for a in rule.atoms))
+            slot = stats.setdefault(key, {
+                "label": rule.label, "folds": 0,
+                "oof_support": 0, "oof_correct": 0,
+                "describe": rule.describe(),
+            })
+            slot["folds"] += 1
+            for row in held:
+                if rule.fires(row):
+                    slot["oof_support"] += 1
+                    slot["oof_correct"] += row["label"] == rule.label
+    for slot in stats.values():
+        slot["oof_precision"] = (
+            slot["oof_correct"] / slot["oof_support"] if slot["oof_support"] else None
+        )
+    return stats
+
+
+def induce_validated(
+    rows: list[dict],
+    labels: tuple = NON_ACTIONS,
+    folds: int = FOLDS,
+    min_support: int = MIN_SUPPORT,
+    min_precision: float = MIN_PRECISION,
+    max_depth: int = MAX_DEPTH,
+    min_oof_support: int = 3,
+    min_oof_precision: float = 0.50,
+) -> tuple[list[Rule], str, dict]:
+    """전체 dev 에서 규칙을 배우되, 교차검증을 통과한 것만 남긴다.
+
+    통과 조건은 두 가지다. 보류 조각에서 **실제로 발화했고**(min_oof_support),
+    거기서도 정밀도를 지켰을 것(min_oof_precision).
+
+    문턱을 0.50 으로 둔 이유는, 소수 클래스 기저율이 8~9% 라 정밀도 50% 도
+    기저율 대비 여섯 배이기 때문이다. dev 순도 100% 를 요구하는 것과는 정반대
+    방향의 기준이다 — 완벽함이 아니라 **버티는가**를 본다.
+    """
+    stats = cross_validate(rows, labels, folds, min_support, min_precision, max_depth)
+    trusted = {
+        key for key, s in stats.items()
+        if s["oof_support"] >= min_oof_support
+        and s["oof_precision"] is not None
+        and s["oof_precision"] >= min_oof_precision
+    }
+
+    full, default = induce(rows, labels, min_support, min_precision, max_depth)
+    kept = []
+    for rule in full:
+        key = tuple(sorted((a.kind, a.value) for a in rule.atoms))
+        if key in trusted:
+            rule.notes.append(
+                f"교차검증 보류 정밀도 {stats[key]['oof_precision']:.1%} "
+                f"({stats[key]['oof_correct']}/{stats[key]['oof_support']})"
+            )
+            rule.order = len(kept) + 1
+            kept.append(rule)
+    return kept, default, stats

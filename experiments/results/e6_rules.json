@@ -66,12 +66,42 @@
     },
     {
       "order": 4,
-      "label": "조치",
-      "description": "본문에 '것이전' 포함 -> 조치",
+      "label": "기타",
+      "description": "본문에 '야하는' 포함 -> 기타",
       "atoms": [
         {
           "kind": "ngram",
-          "value": "것이전"
+          "value": "야하는"
+        }
+      ],
+      "dev_support": 5,
+      "dev_precision": 1.0,
+      "test_support": 10,
+      "test_precision": 0.7
+    },
+    {
+      "order": 5,
+      "label": "비조치",
+      "description": "본문에 '항에따' 포함 -> 비조치",
+      "atoms": [
+        {
+          "kind": "ngram",
+          "value": "항에따"
+        }
+      ],
+      "dev_support": 6,
+      "dev_precision": 1.0,
+      "test_support": 14,
+      "test_precision": 1.0
+    },
+    {
+      "order": 6,
+      "label": "조치",
+      "description": "본문에 '하는것이전자금융감독규정제1' 포함 -> 조치",
+      "atoms": [
+        {
+          "kind": "ngram",
+          "value": "하는것이전자금융감독규정제1"
         }
       ],
       "dev_support": 5,
@@ -80,56 +110,37 @@
       "test_precision": 0.2
     },
     {
-      "order": 5,
-      "label": "기타",
-      "description": "본문에 '공하는' 포함 -> 기타",
-      "atoms": [
-        {
-          "kind": "ngram",
-          "value": "공하는"
-        }
-      ],
-      "dev_support": 5,
-      "dev_precision": 1.0,
-      "test_support": 7,
-      "test_precision": 0.7142857142857143
-    },
-    {
-      "order": 6,
-      "label": "비조치",
-      "description": "본문에 '위반하' 포함 -> 비조치",
-      "atoms": [
-        {
-          "kind": "ngram",
-          "value": "위반하"
-        }
-      ],
-      "dev_support": 5,
-      "dev_precision": 1.0,
-      "test_support": 19,
-      "test_precision": 1.0
-    },
-    {
       "order": 7,
-      "label": "기타",
-      "description": "본문에 '제1항' 포함 AND 본문에 '는지여' 포함 -> 기타",
+      "label": "비조치",
+      "description": "본문에 '업자가' 포함 -> 비조치",
       "atoms": [
         {
           "kind": "ngram",
-          "value": "제1항"
-        },
-        {
-          "kind": "ngram",
-          "value": "는지여"
+          "value": "업자가"
         }
       ],
-      "dev_support": 6,
+      "dev_support": 4,
       "dev_precision": 1.0,
-      "test_support": 8,
-      "test_precision": 0.375
+      "test_support": 10,
+      "test_precision": 0.8
     },
     {
       "order": 8,
+      "label": "기타",
+      "description": "본문에 '제1호' 포함 -> 기타",
+      "atoms": [
+        {
+          "kind": "ngram",
+          "value": "제1호"
+        }
+      ],
+      "dev_support": 4,
+      "dev_precision": 1.0,
+      "test_support": 3,
+      "test_precision": 0.3333333333333333
+    },
+    {
+      "order": 9,
       "label": "비조치",
       "description": "본문에 '에따라' 포함 -> 비조치",
       "atoms": [
@@ -138,25 +149,40 @@
           "value": "에따라"
         }
       ],
-      "dev_support": 5,
+      "dev_support": 4,
       "dev_precision": 1.0,
-      "test_support": 12,
-      "test_precision": 0.9166666666666666
+      "test_support": 10,
+      "test_precision": 0.8
     },
     {
-      "order": 9,
-      "label": "비조치",
-      "description": "본문에 '제2항' 포함 -> 비조치",
+      "order": 10,
+      "label": "기타",
+      "description": "길이 보통(200-600자) -> 기타",
       "atoms": [
         {
-          "kind": "ngram",
-          "value": "제2항"
+          "kind": "length",
+          "value": "보통(200-600자)"
         }
       ],
       "dev_support": 5,
-      "dev_precision": 1.0,
-      "test_support": 3,
-      "test_precision": 1.0
+      "dev_precision": 0.8,
+      "test_support": 6,
+      "test_precision": 0.16666666666666666
+    },
+    {
+      "order": 11,
+      "label": "비조치",
+      "description": "본문에 '<별표' 포함 -> 비조치",
+      "atoms": [
+        {
+          "kind": "ngram",
+          "value": "<별표"
+        }
+      ],
+      "dev_support": 5,
+      "dev_precision": 0.8,
+      "test_support": 10,
+      "test_precision": 0.9
     }
   ]
 }
