@@ -327,6 +327,16 @@ def load_criteria(path) -> list[dict]:
 
     from app.core.io import load_jsonl
 
+    if not Path(path).exists():
+        sys.exit(
+            f"기준 파일이 없습니다: {path}\n\n"
+            "  통합 단계를 먼저 돌리세요 (API 를 쓰지 않습니다):\n"
+            "    python3 scripts/criteria.py consolidate \\\n"
+            "        --input data/interim/criteria_raw.jsonl \\\n"
+            f"        --output {path}\n\n"
+            "  그 앞 단계(extract)부터 확인하려면:\n"
+            "    python3 scripts/criteria.py status"
+        )
     rows = load_jsonl(Path(path))
     if not rows:
         sys.exit(f"기준 파일이 비어 있습니다: {path}")
@@ -546,6 +556,51 @@ def cmd_predict(args) -> None:
     print("  신뢰도: " + ", ".join(f"{k} {conf[k]}" for k in ("high", "medium", "low") if conf[k]))
 
 
+def cmd_status(args) -> None:
+    """파이프라인 어디까지 왔는지 보여준다. 파일만 읽는다.
+
+    단계가 여섯이고 그중 셋이 돈을 쓰므로, "지금 뭘 돌려야 하나" 를 매번
+    문서에서 찾게 하면 안 된다.
+    """
+    from pathlib import Path
+
+    from app.core.io import load_jsonl
+
+    steps = [
+        ("1 extract",     args.raw,        "dev 회답에서 기준 추출 (API · 약 $2.5)"),
+        ("2 consolidate", args.criteria,   "기준 통합 (무료)"),
+        ("3 apply dev",   args.dev_answers, "dev 요청문에 적용 (API · 약 $1.0)"),
+        ("4 apply test",  args.test_answers, "test 요청문에 적용 (API · 약 $2.0)"),
+        ("5 predict",     args.predictions, "답을 라벨로 (무료)"),
+    ]
+    print("Phase 5 진행 상황\n")
+    nxt = None
+    for name, path, what in steps:
+        path = Path(path)
+        if not path.exists():
+            print(f"  [ ] {name:<14} {what}")
+            nxt = nxt or (name, path)
+            continue
+        try:
+            rows = load_jsonl(path)
+        except Exception as exc:  # noqa: BLE001
+            print(f"  [!] {name:<14} 읽을 수 없음 — {exc}")
+            continue
+        errors = sum(1 for r in rows if "error" in r)
+        extra = f" · 실패 {errors}" if errors else ""
+        print(f"  [x] {name:<14} {len(rows)}건{extra}  ({path})")
+        if errors:
+            nxt = nxt or (name + " (--resume)", path)
+
+    if nxt:
+        print(f"\n  다음: {nxt[0]}")
+        print("  각 단계에 --dry-run 을 붙이면 요청을 보내지 않고 비용만 확인합니다.")
+    else:
+        print("\n  모든 단계가 끝났습니다. 채점:")
+        print("    python3 scripts/evaluate.py --gold data/eval/nonaction_test.jsonl \\")
+        print(f"        --pred {args.predictions} --labels nonaction --name criteria")
+
+
 def main() -> None:
     import argparse
 
@@ -587,6 +642,14 @@ def main() -> None:
     pr.add_argument("--high", type=float, default=1.0, help="margin 문턱 (dev 에서 정할 것)")
     pr.add_argument("--medium", type=float, default=0.4)
     pr.set_defaults(func=cmd_predict)
+
+    st = sub.add_parser("status", help="파이프라인 진행 상황 (파일만 읽는다)")
+    st.add_argument("--raw", default="data/interim/criteria_raw.jsonl")
+    st.add_argument("--criteria", default="data/eval/criteria.jsonl")
+    st.add_argument("--dev-answers", default="data/interim/answers_dev.jsonl")
+    st.add_argument("--test-answers", default="data/interim/answers_test.jsonl")
+    st.add_argument("--predictions", default="data/processed/pred_nonaction_criteria.jsonl")
+    st.set_defaults(func=cmd_status)
 
     args = ap.parse_args()
     args.func(args)

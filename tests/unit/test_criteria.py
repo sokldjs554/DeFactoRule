@@ -132,3 +132,31 @@ def test_no_evidence_means_low_confidence():
 def test_scoring_is_deterministic():
     model = fit(ANSWERS, ROWS, n_criteria=2)
     assert score(model, ["yes", "no"]) == score(model, ["yes", "no"])
+
+
+# ── 파이프라인 안내 ──────────────────────────────────────────────
+def test_missing_criteria_file_points_at_the_previous_step(tmp_path):
+    """세 종류의 파일을 쓰는 단계라 헷갈리기 쉽다. 다음에 칠 명령을 알려줘야 한다."""
+    import pytest
+
+    from app.agents.criteria import load_criteria
+
+    with pytest.raises(SystemExit) as exc:
+        load_criteria(tmp_path / "criteria.jsonl")
+    message = str(exc.value)
+    assert "consolidate" in message
+    assert "status" in message
+
+
+def test_wrong_shaped_criteria_file_is_rejected(tmp_path):
+    import json
+
+    import pytest
+
+    from app.agents.criteria import load_criteria
+
+    path = tmp_path / "criteria.jsonl"
+    path.write_text(json.dumps({"label": "비조치"}) + "\n", encoding="utf-8")
+    with pytest.raises(SystemExit) as exc:
+        load_criteria(path)
+    assert "question" in str(exc.value)

@@ -81,6 +81,9 @@ U+2244 는 글머리 기호가 깨져 들어온 것이다. 이 상태로 돌렸�
 ## 단계와 비용
 
 ```bash
+# 0. 지금 어디까지 왔는지 (파일만 읽는다, 비용 0)
+python3 scripts/criteria.py status
+
 # 1. dev 회답에서 기준을 뽑는다                      약 $2.5 · 83건
 python3 scripts/criteria.py extract \
     --dev data/eval/nonaction_dev.jsonl \
@@ -118,6 +121,9 @@ python3 scripts/criteria.py predict \
 python3 scripts/evaluate.py --gold data/eval/nonaction_test.jsonl \
     --pred data/processed/pred_nonaction_criteria.jsonl --labels nonaction --name criteria
 ```
+
+단계를 건너뛰면 무엇을 먼저 돌려야 하는지 알려준다. 순서가 헷갈리면
+`status` 가 체크리스트로 보여준다.
 
 모든 단계에 `--dry-run` 과 `--resume` 이 있다. `--dry-run` 은 요청을 하나도
 보내지 않고 프롬프트와 추정 비용만 보여준다. 계정 수준 오류는 첫 호출 전

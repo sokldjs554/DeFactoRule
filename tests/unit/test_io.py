@@ -46,3 +46,17 @@ def test_write_json_creates_parents(tmp_path):
     path = tmp_path / "deep" / "report.json"
     write_json(path, {"k": "값"})
     assert '"값"' in path.read_text(encoding="utf-8")
+
+
+def test_missing_file_names_the_path(tmp_path):
+    """기본 FileNotFoundError 는 어느 단계가 빠졌는지 알려주지 않는다.
+
+    파이프라인 단계가 여섯이 되면서 '앞 단계를 안 돌렸다' 가 흔한 실수가 됐다.
+    """
+    import pytest
+
+    missing = tmp_path / "없는파일.jsonl"
+    with pytest.raises(FileNotFoundError) as exc:
+        load_jsonl(missing)
+    assert "없는파일.jsonl" in str(exc.value)
+    assert "앞 단계" in str(exc.value)
