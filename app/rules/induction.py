@@ -175,7 +175,7 @@ def maximal_form(term: str, texts: list[str], limit: int = 40) -> str:
     return cur
 
 
-def coverage_masks(rows: list[dict], atoms: list[Atom]) -> dict:
+def coverage_masks(rows: list[dict], atoms: list[Atom], maximalize: bool = True) -> dict:
     """조건마다 '어느 사례를 덮는가' 를 정수 비트마스크로 만든다.
 
     순진하게 매번 문자열을 훑으면 조건 2,000개 × 빔 12 × 깊이 3 에서 분 단위가
@@ -201,6 +201,11 @@ def coverage_masks(rows: list[dict], atoms: list[Atom]) -> dict:
     # n-gram 대표는 최대 확장형으로 바꾼다. dev 피복은 그대로이므로 학습에는
     # 영향이 없고, 규칙을 읽을 수 있게 된다. test 에서는 더 좁게 걸리는데
     # 그것은 손해가 아니라 정직함이다 — 원래 그 조각은 더 긴 구절의 일부였다.
+    if not maximalize:
+        # 이미 최대 확장된 어휘를 받은 경우. 교차검증에서 조각마다 다시 늘리면
+        # 같은 개념의 규칙이 조각마다 다른 문자열이 되어 대조가 불가능해진다.
+        return {atom: mask for mask, atom in by_mask.items()}
+
     texts = [squeeze(r["request"]) for r in rows]
     out = {}
     for mask, atom in by_mask.items():
@@ -208,6 +213,22 @@ def coverage_masks(rows: list[dict], atoms: list[Atom]) -> dict:
             atom = Atom("ngram", maximal_form(atom.value, texts))
         out[atom] = mask
     return out
+
+
+def prepare_atoms(rows: list[dict]) -> list[Atom]:
+    """조건 어휘를 한 번만 만든다. 채굴·중복 제거·최대 확장까지 마친 목록.
+
+    교차검증에서 조각마다 이것을 다시 하면, 같은 개념의 규칙이 조각마다 다른
+    문자열이 된다. 실측으로 확인했다 — 전체 dev 로 배운 규칙 11개와 한 조각을
+    뺀 dev 로 배운 규칙 10개 중 **키가 겹치는 것이 2개뿐**이었다. 그래서
+    보류 조각에서의 성적을 대조할 방법이 없었고, 선별기가 규칙을 하나도
+    남기지 못했다.
+
+    조건 채굴은 요청문만 보고 **라벨을 쓰지 않으므로**, 전체 dev 에서 어휘를
+    뽑아 조각에 쓰는 것은 누출이 아니다. 교차검증이 검증하는 것은 어떤 n-gram 이
+    존재하는가가 아니라 **어떤 규칙이 보류 조각에서도 버티는가**다.
+    """
+    return list(coverage_masks(rows, mine_atoms(rows)))
 
 
 def popcount(x: int) -> int:
@@ -300,6 +321,7 @@ def induce_with_audit(
     min_support: int = MIN_SUPPORT,
     min_precision: float = MIN_PRECISION,
     max_depth: int = MAX_DEPTH,
+    atoms: list[Atom] | None = None,
 ) -> tuple[list[Rule], str, Discards]:
     """순차 피복. 규칙·기본 라벨과 함께 **버린 후보**를 돌려준다.
 
@@ -309,7 +331,11 @@ def induce_with_audit(
     계산해 보고서야 알았다.
     """
     discards = Discards("rule-induction")
-    masks = coverage_masks(rows, mine_atoms(rows))
+    masks = (
+        coverage_masks(rows, atoms, maximalize=False)
+        if atoms is not None
+        else coverage_masks(rows, mine_atoms(rows))
+    )
     live = (1 << len(rows)) - 1
     rules: list[Rule] = []
 
@@ -336,10 +362,11 @@ def induce(
     min_support: int = MIN_SUPPORT,
     min_precision: float = MIN_PRECISION,
     max_depth: int = MAX_DEPTH,
+    atoms: list[Atom] | None = None,
 ) -> tuple[list[Rule], str]:
     """버린 후보가 필요 없을 때 쓰는 얇은 껍데기."""
     rules, default, _ = induce_with_audit(
-        rows, labels, min_support, min_precision, max_depth
+        rows, labels, min_support, min_precision, max_depth, atoms
     )
     return rules, default
 
@@ -378,6 +405,8 @@ def main() -> None:
     ap.add_argument("--min-support", type=int, default=MIN_SUPPORT)
     ap.add_argument("--min-precision", type=float, default=MIN_PRECISION)
     ap.add_argument("--max-depth", type=int, default=MAX_DEPTH)
+    ap.add_argument("--cross-validate", action="store_true",
+                    help="dev 안에서 조각을 나눠 규칙이 얼마나 흔들리는지 본다 (진단)")
     args = ap.parse_args()
 
     dev = [r for r in load_jsonl(Path(args.dev)) if r.get("label")]
@@ -451,6 +480,36 @@ def main() -> None:
         print("  신뢰도: " + ", ".join(
             f"{k} {v}" for k, v in Counter(p["confidence"] for p in preds).most_common()))
 
+    # ── 진단: 학습기가 배우는 규칙이 얼마나 흔들리는가 ────────────
+    if args.cross_validate:
+        vocab = prepare_atoms(dev)
+        full_keys = {tuple(sorted((a.kind, a.value) for a in r.atoms)) for r in rules}
+        print(f"\n{'─' * 74}\n교차검증 — 규칙의 안정성 (진단, 선별용이 아니다)\n")
+        print(f"{'조각':>4}  {'규칙':>4}  {'전체와 겹치는 키':>16}")
+        rediscovered = set()
+        for f in range(FOLDS):
+            train = [r for i, r in enumerate(dev) if fold_of(i, FOLDS) != f]
+            part, _ = induce(train, min_support=args.min_support,
+                             min_precision=args.min_precision,
+                             max_depth=args.max_depth, atoms=vocab)
+            keys = {tuple(sorted((a.kind, a.value) for a in r.atoms)) for r in part}
+            rediscovered |= full_keys & keys
+            print(f"{f:>4}  {len(part):>4}  {len(full_keys & keys):>16}")
+        print(f"\n  전체 규칙 {len(full_keys)}개 중 어느 조각에서든 재발견된 것 "
+              f"{len(rediscovered)}개")
+        print("  순차 피복은 불안정하다 — 전체에서 `'에따른' AND 길이 보통` 이 나오는")
+        print("  자리에서 조각은 `'에따른'` 단독을 낸다. 같은 개념인데 키가 다르다.")
+        print("  그래서 '재발견된 규칙만 남기기' 는 선별 전략으로 성립하지 않는다.")
+
+        stats = cross_validate(dev, min_support=args.min_support,
+                               min_precision=args.min_precision,
+                               max_depth=args.max_depth)
+        held = [(k, s) for k, s in stats.items() if s["oof_support"] >= 3]
+        print(f"\n  보류 조각에서 3건 이상 발화한 조합 {len(held)}개")
+        for _, st in sorted(held, key=lambda kv: -(kv[1]["oof_precision"] or 0))[:6]:
+            print(f"    조각 {st['folds']} · 보류 {st['oof_correct']}/{st['oof_support']} "
+                  f"({st['oof_precision']:.0%})  {st['describe'][:48]}")
+
     if args.report:
         write_json(args.report, {
             "settings": {
@@ -505,17 +564,31 @@ def cross_validate(
 ) -> dict:
     """조각마다 나머지에서 배우고 그 조각에서 잰다.
 
-    같은 조건 결합(atom tuple)이 여러 조각에서 반복해서 나오고, 보류 조각에서도
-    정밀도를 지키면 그 규칙은 믿을 만하다. 한 조각에서만 나왔다면 그 조각의
-    우연이다.
+    **선별기로는 쓸 수 없다.** 처음에는 "여러 조각에서 반복해 나오고 보류
+    조각에서도 정밀도를 지킨 규칙만 남기자" 고 만들었는데, 재 보니 그 전제가
+    성립하지 않았다.
+
+        전체 dev 규칙 11개 중 5개 조각을 통틀어 재발견된 것   5개
+        조각 하나가 재발견하는 수                             0~2개
+        두 문턱(보류 지지 3+ · 정밀도 50%+)을 모두 넘은 것    0개
+
+    순차 피복이 불안정해서다. 전체에서는 `'에따른' AND 길이 보통` 이 나오는데
+    조각에서는 `'에따른'` 단독이 나온다. 같은 개념인데 키가 다르다.
+    (조건 어휘를 조각마다 다시 만들던 시절에는 문자열까지 달라 11개 중 2개만
+    겹쳤다. 어휘를 고정해 그 부분은 고쳤지만, 구조 불안정은 남는다.)
+
+    그래서 이것은 **진단 도구**다. 개별 규칙을 걸러내는 데 쓰지 말고,
+    "이 학습기가 배우는 규칙이 얼마나 흔들리는가" 를 보는 데 쓴다.
     """
+    vocabulary = prepare_atoms(rows)  # 조각마다 다시 만들지 않는다
     stats: dict[tuple, dict] = {}
     for f in range(folds):
         train = [r for i, r in enumerate(rows) if fold_of(i, folds) != f]
         held = [r for i, r in enumerate(rows) if fold_of(i, folds) == f]
         if not train or not held:
             continue
-        learned, _ = induce(train, labels, min_support, min_precision, max_depth)
+        learned, _ = induce(train, labels, min_support, min_precision,
+                            max_depth, vocabulary)
         for rule in learned:
             key = tuple(sorted((a.kind, a.value) for a in rule.atoms))
             slot = stats.setdefault(key, {
@@ -535,42 +608,3 @@ def cross_validate(
     return stats
 
 
-def induce_validated(
-    rows: list[dict],
-    labels: tuple = NON_ACTIONS,
-    folds: int = FOLDS,
-    min_support: int = MIN_SUPPORT,
-    min_precision: float = MIN_PRECISION,
-    max_depth: int = MAX_DEPTH,
-    min_oof_support: int = 3,
-    min_oof_precision: float = 0.50,
-) -> tuple[list[Rule], str, dict]:
-    """전체 dev 에서 규칙을 배우되, 교차검증을 통과한 것만 남긴다.
-
-    통과 조건은 두 가지다. 보류 조각에서 **실제로 발화했고**(min_oof_support),
-    거기서도 정밀도를 지켰을 것(min_oof_precision).
-
-    문턱을 0.50 으로 둔 이유는, 소수 클래스 기저율이 8~9% 라 정밀도 50% 도
-    기저율 대비 여섯 배이기 때문이다. dev 순도 100% 를 요구하는 것과는 정반대
-    방향의 기준이다 — 완벽함이 아니라 **버티는가**를 본다.
-    """
-    stats = cross_validate(rows, labels, folds, min_support, min_precision, max_depth)
-    trusted = {
-        key for key, s in stats.items()
-        if s["oof_support"] >= min_oof_support
-        and s["oof_precision"] is not None
-        and s["oof_precision"] >= min_oof_precision
-    }
-
-    full, default = induce(rows, labels, min_support, min_precision, max_depth)
-    kept = []
-    for rule in full:
-        key = tuple(sorted((a.kind, a.value) for a in rule.atoms))
-        if key in trusted:
-            rule.notes.append(
-                f"교차검증 보류 정밀도 {stats[key]['oof_precision']:.1%} "
-                f"({stats[key]['oof_correct']}/{stats[key]['oof_support']})"
-            )
-            rule.order = len(kept) + 1
-            kept.append(rule)
-    return kept, default, stats

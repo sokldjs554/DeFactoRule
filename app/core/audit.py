@@ -76,15 +76,3 @@ class Discards:
         for reason, n in self._reasons.most_common():
             lines.append(f"{prefix}  {reason}: {n}")
         return "\n".join(lines)
-
-
-def has_discard_channel(record: dict) -> bool:
-    """산출물 한 줄이 '버린 것' 을 담을 자리를 가지고 있는가.
-
-    비어 있어도 된다 — 자리가 있다는 것이 중요하다. 자리가 없으면 버린 순간
-    그 정보는 영영 사라진다.
-    """
-    return any(
-        key in record
-        for key in ("rejected", "error", "warnings", "masked_leaks", "discards")
-    )
