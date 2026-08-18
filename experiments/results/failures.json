@@ -1,10 +1,10 @@
 {
-  "total": 51,
+  "total": 53,
   "min_required": 30,
   "by_layer": {
     "agent": {
-      "ungrounded-evidence": 1,
-      "schema-violation": 1,
+      "ungrounded-evidence": 2,
+      "schema-violation": 2,
       "prior-overcorrection": 1,
       "miscalibration": 3
     },
@@ -143,6 +143,49 @@
         "ran": true,
         "passed": true,
         "detail": "majority=low · 규칙적중=high · 폴백=low"
+      }
+    },
+    {
+      "id": "AG-07",
+      "layer": "agent",
+      "category": "ungrounded-evidence",
+      "title": "조판 잔재 때문에 정상 인용이 버려진다",
+      "symptom": "판단이유 255건 중 252건(98.8%)에 깨진 글머리 기호(U+2244 360회)나 ZWNJ(266회)가 섞여 있다. 공백만 무시하는 대조로는 모델이 그 잔재를 빼고 옮겨 적은 정상 인용이 전부 실패한다. 그대로 돌렸다면 기준이 하나도 채택되지 않고 $2.5 를 쓴 뒤 '모델이 인용을 지어낸다' 는 잘못된 결론에 이르렀을 것이다.",
+      "detection": "--dry-run 으로 프롬프트를 눈으로 보고 잔재를 발견했다. API 호출 전이었다.",
+      "fix": "읽기용과 대조용 위생을 나눴다. 읽기용은 보이지 않는 잡티만 걷어내고 글머리 기호는 남긴다(구조가 사라지면 문단을 잘못 읽는다). 대조용은 글머리 기호까지 걷어내되 글자는 건드리지 않는다 — 뜻이 바뀐 인용은 여전히 걸러진다.",
+      "metric": {
+        "name": "잔재가 든 판단이유",
+        "before": 252,
+        "after": 0,
+        "kind": "live",
+        "unit": "건",
+        "note": "255건 중. 걷어낸 뒤 대조 실패 0."
+      },
+      "probe": "quote_matching_survives_typography",
+      "status": "fixed",
+      "guard": "tests/unit/test_criteria.py::test_quote_survives_typographic_junk",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "잔재를 뺀 정상 인용 통과 True · 위조 인용 차단 True"
+      }
+    },
+    {
+      "id": "AG-08",
+      "layer": "agent",
+      "category": "schema-violation",
+      "title": "기준 질문이 결론을 되물을 수 있다",
+      "symptom": "회답에서 판단 기준을 꺼낼 때, 모델이 '이 사안은 조치 대상인가?' 같은 질문을 기준이라고 내놓을 수 있다. 그것은 기준이 아니라 결론이고, 그대로 쓰면 순환이 된다.",
+      "detection": "요청문 누출을 세 번 겪고 배운 것 — 사람이 눈으로 거르면 반드시 놓친다.",
+      "fix": "결론 표현 정규식으로 질문을 검사하고, 걸리면 그 기준을 버린다. 버린 이유도 집계한다.",
+      "metric": null,
+      "probe": "criterion_questions_cannot_be_circular",
+      "status": "fixed",
+      "guard": "tests/unit/test_criteria.py::test_conclusion_questions_are_rejected",
+      "result": {
+        "ran": true,
+        "passed": true,
+        "detail": "결론형 4개 중 놓침 0 · 사실형 2개 중 오판 0"
       }
     },
     {
