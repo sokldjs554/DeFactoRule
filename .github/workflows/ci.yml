@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 의존성 설치
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-collect.txt
+          pip install pytest ruff
+
+      - name: 린트
+        run: ruff check scripts tests
+
+      # 원본 PDF 는 저장소에 없으므로 서식 회귀 테스트는 자동으로 건너뛰고,
+      # 커밋된 파싱 결과에 대한 불변조건 검사만 돌아간다.
+      - name: 테스트
+        run: pytest tests -v
+
+      - name: 코퍼스 규모 보고
+        run: |
+          for f in data/processed/*.jsonl; do
+            printf '%8d  %s\n' "$(wc -l < "$f")" "$f"
+          done

@@ -51,7 +51,9 @@ RE_DECISION = re.compile(r"(?:[☑☒þ■▣◉]|[√✓Vv]\s*□)\s*(비조치
 #   금감원:        "1. 공통"                                     (번호 → 이름)
 RE_SECTOR_MAJOR_NAME_FIRST = re.compile(r"^\s*([가-힣]{2,10})\s*\n\s*(\d)\s*$", re.MULTILINE)
 RE_SECTOR_NUM_FIRST = re.compile(r"^\s*\d\s*[.．]\s*([가-힣·∙\s]{2,20})\s*$", re.MULTILINE)
-RE_SECTOR_MINOR = re.compile(r"^[•∙\s\ue000-\uf8ff]+\n\s*([가-힣][가-힣\s]{1,20})\s*$", re.MULTILINE)
+RE_SECTOR_MINOR = re.compile(
+    r"^[•∙\s\ue000-\uf8ff]+\n\s*([가-힣][가-힣\s]{1,20})\s*$", re.MULTILINE
+)
 
 NONACTION_FIELDS = ["요청대상행위", "판단", "판단이유"]
 INTERP_FIELDS = ["질의요지", "회답", "이유"]
