@@ -1,0 +1,97 @@
+{
+  "metric": "TRAP",
+  "ngram": 4,
+  "similarity_floor": 0.15,
+  "idf_source": "cases_nonaction.jsonl 259건",
+  "counts": {
+    "agree": 72,
+    "trap": 15,
+    "unanchored": 83
+  },
+  "anchoring_by_class": {
+    "조치": {
+      "n": 14,
+      "anchored": 1,
+      "trap": 0,
+      "max_sim": 0.15061363094029004,
+      "anchor_rate": 0.07142857142857142
+    },
+    "기타": {
+      "n": 30,
+      "anchored": 16,
+      "trap": 9,
+      "max_sim": 0.9508542857177092,
+      "anchor_rate": 0.5333333333333333
+    },
+    "비조치": {
+      "n": 126,
+      "anchored": 70,
+      "trap": 6,
+      "max_sim": 1.000000000000008,
+      "anchor_rate": 0.5555555555555556
+    }
+  },
+  "one_nn_overall": 0.8275862068965517,
+  "models": {
+    "keyword": {
+      "overall": 0.7470588235294118,
+      "overall_n": 170,
+      "agree": 0.9027777777777778,
+      "agree_n": 72,
+      "trap": 0.13333333333333333,
+      "trap_n": 15,
+      "trap_hits": 2,
+      "gap": 0.7694444444444445
+    },
+    "llm": {
+      "overall": 0.7692307692307693,
+      "overall_n": 156,
+      "agree": 0.9152542372881356,
+      "agree_n": 59,
+      "trap": 0.35714285714285715,
+      "trap_n": 14,
+      "trap_hits": 5,
+      "gap": 0.5581113801452784
+    },
+    "majority": {
+      "overall": 0.7411764705882353,
+      "overall_n": 170,
+      "agree": 0.8888888888888888,
+      "agree_n": 72,
+      "trap": 0.4,
+      "trap_n": 15,
+      "trap_hits": 6,
+      "gap": 0.4888888888888888
+    },
+    "neighbor": {
+      "overall": 0.7235294117647059,
+      "overall_n": 170,
+      "agree": 1.0,
+      "agree_n": 72,
+      "trap": 0.0,
+      "trap_n": 15,
+      "trap_hits": 0,
+      "gap": 1.0
+    },
+    "prior": {
+      "overall": 0.7628205128205128,
+      "overall_n": 156,
+      "agree": 0.9152542372881356,
+      "agree_n": 59,
+      "trap": 0.35714285714285715,
+      "trap_n": 14,
+      "trap_hits": 5,
+      "gap": 0.5581113801452784
+    },
+    "sector": {
+      "overall": 0.8,
+      "overall_n": 170,
+      "agree": 0.9583333333333334,
+      "agree_n": 72,
+      "trap": 0.4666666666666667,
+      "trap_n": 15,
+      "trap_hits": 7,
+      "gap": 0.4916666666666667
+    }
+  }
+}
