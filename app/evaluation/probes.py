@@ -390,6 +390,35 @@ def missing_predictions_are_flagged() -> Result:
     return warned, f"gold 5건 · 예측 1건 · 경고 출력: {warned}"
 
 
+def multiple_comparisons_are_corrected() -> Result:
+    """비교 쌍이 많아지면 보정 없이는 '유의' 가 의미를 잃는다.
+
+    7개 모델은 21쌍이다. 유의수준 5%에서 21번 검정하면 아무 차이가 없어도
+    66% 확률로 하나쯤 유의하게 나온다.
+    """
+    from app.evaluation.comparison import holm
+
+    # 전부 0.04 인 20개. 보정 없이는 전부 유의, Holm 이면 전부 탈락해야 한다.
+    flat = [0.04] * 20
+    adj = holm(flat)
+    if any(keep for _, keep in adj):
+        return False, "Holm 이 균일한 경계 p값을 하나도 걸러내지 못했다"
+
+    # 압도적으로 작은 하나는 살아남아야 한다.
+    mixed = [1e-6] + [0.5] * 20
+    adj_mixed = holm(mixed)
+    if not adj_mixed[0][1]:
+        return False, "Holm 이 진짜 신호까지 죽였다 — 보정이 아니라 파괴다"
+
+    # 단조성: 보정된 p 는 원 p 순서를 뒤집지 않아야 한다
+    raw = [0.001, 0.01, 0.02, 0.04, 0.5]
+    values = [v for v, _ in holm(raw)]
+    monotone = all(a <= b for a, b in zip(values, values[1:]))
+    return monotone, (
+        f"균일 경계 20개 전부 탈락 · 강한 신호 1개 생존 · 단조성 {monotone}"
+    )
+
+
 def macro_f1_exposes_majority_baseline() -> Result:
     """정확도를 대표로 삼으면 다수만 찍는 분류기가 좋아 보인다. 실제 test 로 잰다."""
     from app.core.io import load_jsonl

@@ -30,6 +30,7 @@ from pathlib import Path
 from app.core.io import key_of, load_jsonl
 from app.domain.confidence import rank as confidence_rank
 from app.domain.labels import LABEL_SETS
+from app.evaluation.comparison import holm
 from app.evaluation.metrics import macro_f1
 
 
@@ -105,6 +106,7 @@ def main() -> None:
     keys = [k for k in gold if all(k in m for m in models.values())]
     print(f"공통 표본 {len(keys)}건\n")
 
+    aurc_tests: list[dict] = []
     curves: dict[str, list[dict]] = {}
     for name, pred in models.items():
         items = [
@@ -166,10 +168,11 @@ def main() -> None:
     # ── AURC 차이 검정 ───────────────────────────────────────────
     if len(names) >= 2:
         print("─" * 62)
-        print("AURC 차이 — 대응표본 부트스트랩 (2,000회)\n")
+        print("AURC 차이 — 대응표본 부트스트랩 (2,000회) · Holm-Bonferroni 보정\n")
         rng = random.Random(0)
         n = len(keys)
-        draws = [[rng.randrange(n) for _ in range(n)] for _ in range(2000)]
+        rounds = 2000
+        draws = [[rng.randrange(n) for _ in range(n)] for _ in range(rounds)]
         item_cache = {
             name: [
                 (gold[k]["label"], models[name][k].get("predicted", ""), rank_of(models[name][k]))
@@ -177,6 +180,7 @@ def main() -> None:
             ]
             for name in names
         }
+        rows = []
         for i, a in enumerate(names):
             for b in names[i + 1 :]:
                 diffs = []
@@ -188,15 +192,37 @@ def main() -> None:
                         - aurc(operating_points(sb, labels))
                     )
                 diffs.sort()
-                lo = diffs[int(0.025 * len(diffs))]
-                hi = diffs[int(0.975 * len(diffs)) - 1]
-                observed = aurc(curves[a]) - aurc(curves[b])
-                verdict = "유의" if lo > 0 or hi < 0 else "판정 보류"
-                print(
-                    f"  {a} - {b}: {observed:+.3f}  "
-                    f"[95% CI {lo:+.3f}–{hi:+.3f}]  {verdict}"
-                )
-        print("\n  AURC 는 위험의 평균이므로 음수일수록 앞쪽 모델이 낫다.\n")
+                worse = sum(1 for d in diffs if d <= 0) / rounds
+                rows.append({
+                    "a": a, "b": b,
+                    "diff": aurc(curves[a]) - aurc(curves[b]),
+                    "ci95": [diffs[int(0.025 * rounds)], diffs[int(0.975 * rounds) - 1]],
+                    "p_approx": 2 * min(worse, 1 - worse),
+                })
+        for row, (p_adj, keep) in zip(rows, holm([r["p_approx"] for r in rows])):
+            row["p_holm"] = p_adj
+            row["significant_holm"] = bool(keep)
+            row["significant_raw"] = bool(row["ci95"][0] > 0 or row["ci95"][1] < 0)
+
+        width = max(len(f"{r['a']} - {r['b']}") for r in rows)
+        print(f"  {'비교':<{width}}  {'차이':>7}  {'95% CI':>18}  {'p':>7}  {'p(Holm)':>8}  판정")
+        for r in sorted(rows, key=lambda x: x["p_approx"]):
+            lo, hi = r["ci95"]
+            if r["significant_holm"]:
+                verdict = "유의"
+            elif r["significant_raw"]:
+                verdict = "보정 후 탈락"
+            else:
+                verdict = "판정 보류"
+            print(
+                f"  {r['a'] + ' - ' + r['b']:<{width}}  {r['diff']:>+7.3f}  "
+                f"[{lo:>+7.3f}, {hi:>+7.3f}]  {r['p_approx']:>7.3f}  "
+                f"{r['p_holm']:>8.3f}  {verdict}"
+            )
+        survived = sum(1 for r in rows if r["significant_holm"])
+        print(f"\n  {len(rows)}쌍 중 보정 후 유의 {survived}쌍")
+        print("  AURC 는 위험의 평균이므로 음수일수록 앞쪽 모델이 낫다.\n")
+        aurc_tests = rows
 
     if args.report:
         out = Path(args.report)
@@ -207,6 +233,8 @@ def main() -> None:
                     "n": len(keys),
                     "aurc": {name: aurc(pts) for name, pts in curves.items()},
                     "curves": curves,
+                    "correction": "holm-bonferroni",
+                    "comparisons": aurc_tests,
                 },
                 ensure_ascii=False,
                 indent=2,
