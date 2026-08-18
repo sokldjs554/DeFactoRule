@@ -516,6 +516,49 @@ def predictions_are_complete_before_reporting() -> Result:
 
 
 # ══ agent ════════════════════════════════════════════════════════════
+def minority_rules_are_reachable() -> Result:
+    """규칙 학습 문턱이 소수 클래스를 구조적으로 배제하지 않는가.
+
+    라플라스 정밀도를 그대로 통과 문턱으로 쓰면 laplace(4,4,3)=0.714 이라,
+    문턱 0.80 에서는 4건을 완벽히 덮는 규칙도 통과할 수 없다. 통과하려면 8건을
+    완벽히 덮어야 하는데 dev 의 `조치` 는 전부 합쳐 8건이었다. 즉 소수 클래스
+    규칙은 아무리 좋아도 나올 수 없었고, 학습기가 아무것도 못 찾는 것처럼 보였다.
+    """
+    from app.domain.labels import NON_ACTIONS
+    from app.rules.induction import induce, laplace
+
+    rows = (
+        [{"source": "t", "page": i, "serial": str(i), "pair_index": 1, "sector": "공통",
+          "request": f"내부망과 외부망의 망연계 구간 질의 {i}", "label": "조치"}
+         for i in range(1, 7)]
+        + [{"source": "t", "page": 10 + i, "serial": str(10 + i), "pair_index": 1,
+            "sector": "공통", "request": f"겸영업무 신고 대상 여부 질의 {i}",
+            "label": "비조치"} for i in range(1, 9)]
+    )
+    rules, _ = induce(rows, NON_ACTIONS, min_support=4, min_precision=0.80, max_depth=2)
+    minority = [r for r in rules if r.label == "조치"]
+    return bool(minority), (
+        f"laplace(4,4,3)={laplace(4, 4, 3):.3f} (문턱으로 쓰면 0.80 미달) · "
+        f"규칙 {len(rules)}개 중 소수 클래스 {len(minority)}개"
+    )
+
+
+def induced_rules_are_deduplicated() -> Result:
+    """덮는 집합이 같은 n-gram 이 같은 규칙을 여러 벌 만들면 규칙 목록을 읽을 수 없다."""
+    from app.rules.induction import Atom, coverage_masks
+
+    rows = [
+        {"source": "t", "page": i, "serial": str(i), "pair_index": 1, "sector": "공통",
+         "request": f"망연계 구간 {i}", "label": "조치"}
+        for i in range(1, 6)
+    ]
+    masks = coverage_masks(rows, [Atom("ngram", v) for v in ("망연계", "망연", "연계")])
+    return len(masks) == 1, (
+        f"같은 집합을 덮는 조건 3개 -> 대표 {len(masks)}개 "
+        f"({[a.value for a in masks] if masks else '없음'})"
+    )
+
+
 def evidence_must_be_verbatim() -> Result:
     """근거 인용은 원문과 글자 단위로 대조한다. 그럴듯한 요약은 근거가 아니다."""
     from app.agents.classifier import evidence_is_grounded

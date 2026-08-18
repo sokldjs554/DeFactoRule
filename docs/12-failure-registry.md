@@ -1,4 +1,4 @@
-# 실패 케이스 레지스트리 — 46건
+# 실패 케이스 레지스트리 — 50건
 
 명세 §11 은 "최소 30개 이상의 실패 케이스를 의도적으로 구축하고, 각 실패를
 taxonomy 로 분류하고, 개선 전/후를 숫자로 비교한다" 를 요구한다.
@@ -22,7 +22,7 @@ python3 scripts/failure_report.py --layer extraction
 고쳤다는 케이스가 깨졌으면 회귀이고, 열려 있다는 케이스가 통과하면 레지스트리가
 낡은 것이다.
 
-레지스트리는 `data/failures/registry.jsonl` 이고, 46건 중 42건에 probe 가 있다.
+레지스트리는 `data/failures/registry.jsonl` 이고, 50건 중 44건에 probe 가 있다.
 
 ## Taxonomy
 
@@ -30,7 +30,7 @@ python3 scripts/failure_report.py --layer extraction
 |---|---|---|
 | extraction | 15 | format-unhandled 4 · boundary-missplit 4 · silent-empty 3 · encoding-normalization 3 · unreadable-source 1 |
 | labeling | 8 | answer-leakage 3 · split-discipline 3 · label-conflation 2 |
-| evaluation | 8 | metric-misuse 3 · sample-mismatch 2 · misdiagnosis 2 · incomparable-comparison 1 |
+| evaluation | 12 | metric-misuse 5 · sample-mismatch 3 · misdiagnosis 3 · incomparable-comparison 1 |
 | agent | 6 | miscalibration 3 · ungrounded-evidence 1 · schema-violation 1 · prior-overcorrection 1 |
 | infrastructure | 9 | error-classification 2 · continuous-integration 2 · environment 2 · reproducibility 2 · path-resolution 1 |
 
