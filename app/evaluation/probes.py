@@ -967,6 +967,27 @@ def no_evidence_falls_back_to_the_base_rate() -> Result:
     return True, "근거 없음 -> 기저율 최빈(비조치) · 신뢰도 low"
 
 
+def output_cap_grows_with_the_question_count() -> Result:
+    """기준 수가 늘 때 출력 상한도 따라 늘어나는가 (IN-11).
+
+    비용 추정은 기준 수에 비례해 계산하면서 상한은 1200 으로 못 박혀 있었다.
+    기준 88개에서 답 JSON 만 상한을 넘긴다.
+    """
+    import json
+
+    from app.agents.criteria import apply_output_tokens, apply_token_cap
+
+    for n in (15, 88, 244):
+        body = json.dumps({"answers": [{"id": i, "answer": "unknown"} for i in range(n)]},
+                          ensure_ascii=False)
+        need = len(body) / 2.5
+        if apply_token_cap(n) <= need * 2:
+            return False, f"기준 {n}개: 상한 {apply_token_cap(n)} · 답만 {need:.0f}토큰"
+        if apply_token_cap(n) <= apply_output_tokens(n):
+            return False, f"기준 {n}개: 상한이 추정치보다 작다"
+    return True, "기준 15/88/244 에서 상한이 답 JSON 의 두 배 이상"
+
+
 def _is_probe(name: str, fn: object) -> bool:
     """probe 는 **인자 없이** 부를 수 있어야 한다.
 

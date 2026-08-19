@@ -305,3 +305,39 @@ def test_label_absent_from_dev_gets_zero_not_a_verdict():
     w = fit(answers, rows, 1)["criteria"][0]["weights"]
     assert w["기타"] == 0.0, f"dev 에 없는 '기타' 에 {w['기타']:+.3f} 가 붙었습니다"
     assert w["조치"] > 0 and w["비조치"] < 0, "실제 증거는 그대로 반영돼야 합니다"
+
+
+# ── 출력 예산 — 상한이 답을 담을 만큼 큰가 ─────────────────────────
+def test_token_cap_fits_the_answer_json():
+    """상한이 실제 답 JSON 을 담는가.
+
+    기준 88개일 때 답 JSON 만 2,907자(대략 830~1,160토큰)인데 상한이
+    1200 으로 못 박혀 있었다. 적응형 사고 몫까지 그 안에서 나눠 써야 하므로
+    응답이 잘리고, 잘린 JSON 은 파싱 실패로 나타난다 — 돈을 다 쓴 뒤에.
+    """
+    import json
+
+    from app.agents.criteria import apply_token_cap
+
+    for n in (1, 15, 88, 244):
+        body = json.dumps(
+            {"answers": [{"id": i, "answer": "unknown"} for i in range(n)]},
+            ensure_ascii=False,
+        )
+        # 가장 빡빡하게 잡아도 글자당 1/2.5 토큰. 그보다 넉넉해야 한다.
+        need = len(body) / 2.5
+        assert apply_token_cap(n) > need * 2, (
+            f"기준 {n}개: 상한 {apply_token_cap(n)} 이 답 {need:.0f}토큰에 비해 빠듯합니다"
+        )
+
+
+def test_cap_is_never_below_the_estimate():
+    """상한이 비용 추정치보다 작아지는 일이 없는가.
+
+    둘이 따로 계산되던 시절에는 기준 수가 늘자 추정만 따라가고 상한은
+    제자리였다. 같은 자리에서 나오게 했으니 그 관계가 유지되는지 본다.
+    """
+    from app.agents.criteria import apply_output_tokens, apply_token_cap
+
+    for n in range(1, 300, 7):
+        assert apply_token_cap(n) > apply_output_tokens(n), f"기준 {n}개에서 역전"
