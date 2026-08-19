@@ -410,7 +410,10 @@ def test_weights_refuses_to_claim_success_on_noise(tmp_path: Path):
     out = _weights(*_dev_pair(tmp_path, 6, planted=False))
     recall = _recall_of(out, "조치")
     assert recall <= 0.286, f"잡음에서 조치 재현율 {recall} 이 나왔습니다"
-    assert "**못 넘는다**" in out, "사전 등록한 문턱을 못 넘었는데 그렇게 말하지 않았습니다"
+    assert "**넘는다**" not in out, "잡음에 성공 판정을 찍었습니다"
+    # dev 조치 8건으로는 '못 넘는다' 를 **보일 수 없다**. 0/8 이어도 상한이
+    # 0.324 라 문턱을 걸친다. 그러니 여기서 나와야 할 답은 '판정 보류' 다.
+    assert "판정 보류" in out
 
 
 def test_weights_reports_silent_cases(tmp_path: Path):
@@ -431,3 +434,71 @@ def test_weights_needs_no_test_answers(tmp_path: Path):
                "--dev-answers", str(ans))
     assert proc.returncode == 0
     assert not (tmp_path / "test_answers.jsonl").exists()
+
+
+def _partial(tmp_path: Path, n_criteria: int, answered: int):
+    """dev 는 치우쳐 있고, 답은 앞에서부터 일부만 있는 상황을 만든다."""
+    import random
+
+    rng = random.Random(3)
+    # 앞쪽에 소수 클래스를 몰아 둔다 — 앞에서부터 자르면 치우친 표본이 된다
+    labels = (["기타"] * 10 + ["조치"] * 4 + ["비조치"] * 12
+              + ["비조치"] * 46 + ["기타"] * 9 + ["조치"] * 4)
+    gold, answers = [], []
+    for i, label in enumerate(labels):
+        key = {"source": "t", "page": i, "serial": str(i), "pair_index": 1}
+        gold.append({**key, "request": f"요청 {i}", "label": label})
+        if i < answered:
+            a = ["no"] * n_criteria
+            for _ in range(rng.randint(2, 6)):
+                a[rng.randrange(n_criteria)] = "yes"
+            if label == "조치":
+                a[0] = "yes"
+            answers.append({**key, "answers": a})
+    crit = [{"id": j, "question": f"기준 {j} 질문인가?", "name": f"c{j}", "support": 2,
+             "sources": 2, "implies": "비조치", "implies_distribution": {},
+             "observed_decisions": {}, "quotes": []} for j in range(n_criteria)]
+    return (write(tmp_path / "gold.jsonl", gold),
+            write(tmp_path / "ans.jsonl", answers),
+            write(tmp_path / "crit.jsonl", crit))
+
+
+def test_weights_flags_a_partial_skewed_sample(tmp_path: Path):
+    """중간에 멈춘 표본 위에서 잰 값을 dev 값처럼 내놓지 않는가.
+
+    apply 는 파일 순서대로 돈다. 크레딧이 떨어져 26/85 에서 멈추면 남은 것은
+    무작위 표본이 아니다. 실제로 조치가 1.6배, 기타가 1.7배 과대표집됐다.
+    EV-01·EV-08·EV-09 와 같은 모양이고, 이 도구가 네 번째가 될 뻔했다.
+    """
+    out = _weights(*_partial(tmp_path, 20, answered=26))
+    assert "무작위 표본이 아닙니다" in out
+    assert "치우친 라벨" in out
+    assert "잠정" in out, "부분 표본인데 판정을 확정처럼 내놨습니다"
+
+
+def test_weights_does_not_cry_wolf_on_a_complete_run(tmp_path: Path):
+    """다 돌린 경우에는 경고하지 않는가."""
+    out = _weights(*_partial(tmp_path, 20, answered=85))
+    assert "무작위 표본이 아닙니다" not in out
+    assert "잠정" not in out
+
+
+def test_weights_reports_an_interval_not_just_a_point(tmp_path: Path):
+    """소수 클래스 재현율을 점 하나로만 말하지 않는가."""
+    out = _weights(*_partial(tmp_path, 20, answered=26))
+    assert "95% CI" in out, "분모가 한 자리인 재현율을 점추정만으로 내놨습니다"
+    assert re.search(r"\(\d+/\d+\)", out), "분자·분모를 보여주지 않았습니다"
+
+
+def test_weights_says_what_the_sample_can_and_cannot_show(tmp_path: Path):
+    """이 표본으로 애초에 무엇을 보일 수 있는지 먼저 말하는가.
+
+    dev 의 `조치` 는 8건이다. 5/8 이상이면 '넘는다' 가 나오지만, **0/8 이어도
+    '못 넘는다' 는 나오지 않는다** — 상한이 0.324 라 문턱 0.286 을 걸친다.
+    보일 수 없는 것을 못 보였다고 실패로 적으면 그것도 거짓말이다.
+    """
+    out = _weights(*_dev_pair(tmp_path, 6, planted=True))
+    assert "이 표본으로 낼 수 있는 판정" in out
+    assert "어떤 값으로도 나오지 않는다" in out, (
+        "8건으로는 '못 넘는다' 를 보일 수 없다는 사실을 말하지 않았습니다"
+    )
