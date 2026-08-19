@@ -406,3 +406,14 @@ def test_similarity_thresholds_come_from_one_place():
     assert neighbor.HIGH is similarity.TRUST
     assert calibration.DOUBT is similarity.DOUBT
     assert calibration.TRUST is similarity.TRUST
+
+
+def test_calibration_artifact_is_not_stale():
+    """저장된 보정표가 지금 다시 계산한 것과 같은가.
+
+    깨뜨려 보는 검사가 산출물을 덮어쓴 채로 커밋된 적이 있다(IN-14).
+    """
+    from app.evaluation.probes import calibration_artifact_matches_a_fresh_run
+
+    passed, detail = calibration_artifact_matches_a_fresh_run()
+    assert passed, detail

@@ -1075,6 +1075,44 @@ def precedent_risk_bands_are_separable() -> Result:
     return True, f"믿음 구간 위험 {trust:.3f} · 못믿음 {doubt:.3f} — 구간이 갈린다"
 
 
+def calibration_artifact_matches_a_fresh_run() -> Result:
+    """저장된 보정표가 지금 다시 계산한 것과 같은가 (IN-14).
+
+    가드를 일부러 깨뜨려 보는 검사(verify-by-breaking)를 하다가 그 실행이
+    `trap_risk.json` 을 덮어썼고, 원본 코드만 되돌리고 산출물은 그대로 두었다.
+    저장소에 **"선례를 언제나 믿어라"** 라고 적힌 표가 커밋됐다.
+
+    파생 산출물은 원본에서 다시 만들어 대조할 수 있어야 한다. 그러면 낡거나
+    오염된 표가 살아남지 못한다.
+    """
+    import json
+
+    from app.agents.calibration import calibrate
+    from app.core.io import load_jsonl
+    from app.core.paths import EVAL, PROCESSED, RESULTS
+    from app.evaluation.confusable import idf_table
+
+    path = RESULTS / "trap_risk.json"
+    if not path.exists():
+        return True, "trap_risk.json 이 없습니다 — 건너뜀"
+    stored = json.loads(path.read_text(encoding="utf-8"))
+
+    dev = [r for r in load_jsonl(EVAL / "nonaction_dev.jsonl") if r.get("label")]
+    cases = load_jsonl(PROCESSED / "cases_nonaction.jsonl")
+    texts = [c["fields"].get("요청대상행위") or c["fields"].get("질의요지") or ""
+             for c in cases]
+    fresh = calibrate(dev, idf_table([x for x in texts if x]))
+
+    if abs(stored["overall_risk"] - fresh["overall_risk"]) > 1e-9:
+        return False, (f"전체 위험: 저장 {stored['overall_risk']:.3f} · "
+                       f"실제 {fresh['overall_risk']:.3f}")
+    for band, cell in fresh["by_band"].items():
+        if stored["by_band"].get(band, {}).get("n") != cell["n"]:
+            return False, (f"{band} 건수: 저장 "
+                           f"{stored['by_band'].get(band, {}).get('n')} · 실제 {cell['n']}")
+    return True, f"구간 건수·전체 위험 {fresh['overall_risk']:.3f} 일치"
+
+
 def _is_probe(name: str, fn: object) -> bool:
     """probe 는 **인자 없이** 부를 수 있어야 한다.
 

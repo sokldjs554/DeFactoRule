@@ -1,4 +1,4 @@
-# 실패 케이스 레지스트리 — 69건
+# 실패 케이스 레지스트리 — 70건
 
 명세 §11 은 "최소 30개 이상의 실패 케이스를 의도적으로 구축하고, 각 실패를
 taxonomy 로 분류하고, 개선 전/후를 숫자로 비교한다" 를 요구한다.
@@ -22,7 +22,7 @@ python3 scripts/failure_report.py --layer extraction
 고쳤다는 케이스가 깨졌으면 회귀이고, 열려 있다는 케이스가 통과하면 레지스트리가
 낡은 것이다.
 
-레지스트리는 `data/failures/registry.jsonl` 이고, 69건 중 63건에 probe 가 있다.
+레지스트리는 `data/failures/registry.jsonl` 이고, 70건 중 64건에 probe 가 있다.
 
 ## Taxonomy
 
@@ -33,7 +33,7 @@ python3 scripts/failure_report.py --layer extraction
 | labeling | 8 | answer-leakage 3 · split-discipline 3 · label-conflation 2 |
 | evaluation | 22 | metric-misuse 6 · misdiagnosis 5 · sample-mismatch 4 · partial-guard 2 · incomparable-comparison 1 · undiagnosable-discard 1 · phantom-evidence 1 · uniform-threshold 1 · arbitrary-tiebreak 1 |
 | agent | 10 | miscalibration 3 · ungrounded-evidence 2 · schema-violation 2 · prior-overcorrection 1 · undiagnosable-discard 1 · unverified-premise 1 |
-| infrastructure | 13 | reproducibility 3 · continuous-integration 2 · environment 2 · contract-violation 2 · error-classification 1 · undiagnosable-discard 1 · path-resolution 1 · misleading-estimate 1 |
+| infrastructure | 14 | reproducibility 4 · continuous-integration 2 · environment 2 · contract-violation 2 · error-classification 1 · undiagnosable-discard 1 · path-resolution 1 · misleading-estimate 1 |
 <!-- TAXONOMY:끝 -->
 
 계층이 하나라도 비면 테스트가 실패한다. 한 곳에만 실패가 몰려 있다면 나머지를
@@ -82,7 +82,7 @@ python3 scripts/failure_report.py --layer extraction
 
 ## 개선 전 → 후
 
-39건에 수치가 있다. 수치는 두 종류로만 적는다. `measured` 는 실제로 재 본 값이고 출처를 함께
+40건에 수치가 있다. 수치는 두 종류로만 적는다. `measured` 는 실제로 재 본 값이고 출처를 함께
 남긴다. `live` 는 probe 가 실행 시점에 직접 계산한 값이며, 옛 구현을 함께 들고
 있어 before 와 after 를 **같은 입력에서** 잰다. 재 보지 않은 것은 적지 않는다.
 
@@ -126,6 +126,7 @@ python3 scripts/failure_report.py --layer extraction
 | IN-11 | 기준 88개에서 답 JSON 대비 상한 여유 (배) | 1.030 → 6.400 | live |
 | IN-12 | dev 85건 추정 비용 (달러) | 14.290 → 5.110 | live |
 | IN-13 | 기본값으로 재현한 함정 구간 | 10 → 15건 | live |
+| IN-14 | 오염된 채 커밋된 산출물 | 1 → 0건 | measured |
 | LB-01 | 누출 표현이 있는 요청문 | 61 → 0건 | live |
 | LB-03 | 마스크 토큰이 있는 사례 | 60 → 0건 | live |
 <!-- METRICS:끝 -->

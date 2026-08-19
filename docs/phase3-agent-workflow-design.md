@@ -221,22 +221,32 @@ dev 85건 · LOO · 선례를 그대로 따랐을 때 전체 오류율 0.329
 |---|---|---|---|
 | R1 | `rule_conflict` = True | **C** | 규칙끼리 반대를 가리키면 판단할 근거가 없다 |
 | R2 | `evidence_count` = 0 **AND** `rule_fired` = 0 | **C** | 근거가 아예 없다 |
-| R3 | `top_similarity` < `FLOOR`(0.15) **AND** `rule_fired` ≥ 1 | **B** | 선례가 닿지 않는다. 규칙으로 간다 |
-| R4 | `top_similarity` < `FLOOR` **AND** `rule_fired` = 0 | **C** | 둘 다 없다 |
-| R5 | `trap_risk` > `τ_high` | **B** if `rule_fired` else **C** | **표면만 닮았을 위험이 크다 — 선례를 버린다** |
-| R6 | `label_agreement` < `α` **AND** `source_diversity` ≥ 2 | **C** | 서로 다른 사례집이 서로 다른 결론을 가리킨다 |
-| R7 | `recency_gap` > `Y년` **AND** `rule_fired` ≥ 1 | **B** | 오래된 선례보다 현행 규칙 |
-| R8 | `top_similarity` ≥ `HIGH`(0.60) **AND** `trap_risk` < `τ_low` | **A** | 매우 닮았고 함정 위험이 낮다 |
-| R9 | `margin` < `δ` | **C** | 1등과 2등이 붙어 있으면 어느 쪽을 따를지 정할 수 없다 |
+| R3 | `evidence_count` = 0 (규칙은 있다) | **B** | 선례가 닿지 않는다. 규칙으로 간다 |
+| R5 | `trap_risk` > `RISK_CEILING` | **B** if `rule_fired` else **C** | **표면만 닮았을 위험이 크다 — 선례를 버린다** |
+| R6 | `label_agreement` < `MIN_AGREEMENT` **AND** `source_diversity` ≥ 2 | **C** | 서로 다른 출처가 서로 다른 결론을 가리킨다 |
+| R7 | `recency_gap` > `MAX_YEAR_GAP` **AND** `rule_fired` ≥ 1 | **B** | 오래된 선례보다 현행 규칙 |
+| R9 | `margin` < `MIN_MARGIN` **AND** `label_agreement` < 1.0 | **C** | 1·2등이 붙어 있는데 결론이 갈린다 |
+| R8 | `top_similarity` ≥ `TRUST` | **A** | 매우 닮았고 함정 위험이 낮다 |
 | R10 | 그 밖에 `evidence_count` ≥ 1 | **A** | 남은 경우 — 선례를 따르되 Validator 가 본다 |
 
-문턱 기호(`τ_high` `τ_low` `α` `δ` `Y`)는 **지금 값을 적지 않는다.** dev 에서
-격자 탐색으로 정하고, 정한 뒤 이 문서에 값과 근거를 써 넣는다. 지금 임의의
-숫자를 적어 두면 나중에 그것이 "설계된 값" 처럼 읽힌다.
+**초안의 R4 는 지웠다.** "선례도 규칙도 없다" 는 R2 가 이미 잡으므로 **한 번도
+발화할 수 없었다.** 죽은 줄을 찾는 검사를 쓰다 드러났다 — 그리고 그 검사의 첫
+판은 `return` 뒤만 보는 정규식이어서 삼항식 뒤쪽의 R4 를 **놓쳤다.** AST 로
+바꿔 잡히는 것을 확인했다.
 
-`FLOOR` 0.15 와 `HIGH` 0.60 은 이미 있는 값이다(`confusable.SIMILARITY_FLOOR`
-는 0.25, `neighbor.HIGH/MEDIUM` 은 0.60/0.15). **두 파일이 서로 다른 문턱을 쓰고
-있다** — Phase 3 에서 한 곳으로 모은다(§ 설계의 문제점 5번).
+문턱 값과 근거:
+
+| 기호 | 값 | 근거 |
+|---|---|---|
+| `TRUST` | 0.60 | dev LOO 오류율 0.062 [0.017, 0.201] |
+| `DOUBT` | 0.15 | dev LOO 오류율 0.500 [0.364, 0.636] · 위 구간과 비중첩 |
+| `RISK_CEILING` | 0.20 | 믿음 구간 오류율의 95% 상한(0.201)에 맞췄다 |
+| `MIN_AGREEMENT` | 0.60 | 상위 근거의 과반이 같은 결론을 가리켜야 한다 |
+| `MIN_MARGIN` | 0.02 | 1·2등 유사도가 이보다 붙으면 순서가 의미 없다 |
+| `MAX_YEAR_GAP` | 5 | **데이터에서 나오지 않았다.** 코퍼스가 2021~2025 이므로 5년 초과는 현재 세대 이전이라는 뜻으로 잡았다 — 근거가 약하고, 그 사실을 적어 둔다 |
+
+문턱은 전부 `app/domain/similarity.py` 와 `app/agents/router.py` 에서만 정한다.
+세 파일에 흩어져 값이 어긋나던 문제는 IN-13 으로 정리했다.
 
 ---
 
@@ -312,7 +322,8 @@ dev 85건 · LOO · 선례를 그대로 따랐을 때 전체 오류율 0.329
 | F1 | 근거 0건 | 선례 풀을 비우고 규칙도 안 맞는 요청 | `C` / `NO_EVIDENCE` |
 | F2 | 근거 1건 (약함) | 유사도 0.16 짜리 하나만 | `trap_risk` 에 따라 A 또는 B, **절대 무조건 A 가 아님** |
 | F3 | 근거 다수 일치 | 같은 라벨 선례 5건 | `A`, 신뢰도 high |
-| F4 | 근거 충돌 | 유사도 비슷한 선례가 비조치/조치로 갈림 | `C` / `CONFLICTING_EVIDENCE` |
+| F4 | 근거 충돌 (다른 출처) | 유사도 비슷한 선례가 비조치/조치로 갈림 | `C` / R6 / `CONFLICTING_EVIDENCE` |
+| F4b | 근거 충돌 (같은 출처) | R6 이 못 잡는 자리 — 1·2등이 붙어 있고 결론이 갈림 | `C` / R9 / `AMBIGUOUS_MARGIN` |
 | F5 | **잘못된 선례 (TRAP)** | dev 의 실제 함정 15건을 그대로 씀 | `trap_risk` 가 높게 나와 **B 또는 C 로 빠져야 함** |
 | F6 | 부분 근거 | 선례는 있으나 `quote` 가 원문에 없음 | V3 가 근거 폐기 → 재라우팅 또는 기권 |
 | F7 | 버전 불일치 | 2021년 선례 vs 2025년 요청 | R7 로 B, `recency_gap` 이 trace 에 남음 |
