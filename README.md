@@ -153,7 +153,7 @@ tests/             unit · integration · evaluation · regression
 의존 방향은 위에서 아래로만 흐른다. 자세한 근거와 재편 과정은
 [docs/11-architecture.md](docs/11-architecture.md).
 
-테스트 <!--TESTS-->482<!--/TESTS-->개가 네 갈래로 나뉘어 있다. `regression` 은
+테스트 <!--TESTS-->484<!--/TESTS-->개가 네 갈래로 나뉘어 있다. `regression` 은
 고친 실패가 다시 열리는 것을, `evaluation` 은 문서 수치가 산출물과 어긋나는 것을
 막는다.
 
@@ -222,6 +222,46 @@ python3 scripts/sync_docs.py --check   # 어긋난 곳만 본다
 python3 scripts/sync_docs.py           # 산출물에서 다시 써 넣는다
 ```
 
+### Agent Workflow — 무엇을 얻고 무엇을 잃었나
+
+Phase 3 은 판정기 하나를 더 만든 것이 아니라 **어떤 근거로 판단할지 정하는
+절차**를 만든 것이다. 그 절차의 각 부분이 값어치를 하는지 따로 쟀다(E8~E11a,
+새 API 호출 0회).
+
+<!-- README_AGENT:시작 -->
+| 변형 | 커버리지 | 답한 것 정확도 | 매크로 F1 | 함정 15건 (맞힘/틀림/기권) |
+|---|---|---|---|---|
+| `naive` | 100.0% | 0.724 | 0.538 | 0 / **15** / 0 |
+| `always-precedent` | 51.2% | 0.839 | 0.593 | 1 / **14** / 0 |
+| `router` | 54.1% | 0.837 | 0.609 | 2 / **5** / 8 |
+| `router-noabstain` | 98.2% | 0.749 | 0.476 | 2 / **13** / 0 |
+| `router-novalidate` | 54.1% | 0.837 | 0.609 | 2 / **5** / 8 |
+
+기권 78건 중 **답했어도 맞았을 것이 50건(64%)** — 과잉 기권이 지금의 가장 큰 약점이다.
+<!-- README_AGENT:끝 -->
+
+읽는 법 세 가지.
+
+1. **기권은 함정에서 값어치를 한다.** 같은 라우팅에서 기권만 켜면 함정 구간의
+   오답이 13 → 5 로 준다(`router-noabstain` vs `router`). 커버리지 98.2% →
+   54.1% 가 그 대가다.
+2. **검증은 지금 배선에서 아무것도 바꾸지 않는다.** `router-novalidate` 와
+   `router` 의 모든 수치가 같다. 결정이 근거에서 나오고 인용을 원문에서 잘라
+   내므로 검사 넷이 구성상 참이기 때문이다. 지우지 않는 이유와 함께
+   [docs/17](docs/17-e8-e11-agent-workflow.md) 에 적었다.
+3. **전체 위험-커버리지는 나아지지 않았다.** AURC `naive` 0.215 대 `router`
+   0.236, 짝지은 부트스트랩에서 **판정 보류**(p Holm 0.413). 그러므로 이
+   워크플로가 전체적으로 우월하다고 주장하지 않는다.
+
+**결론은 이렇게 적는다.**
+
+> 지금의 Router 는 *더 잘 맞히는 모델* 이 아니다. **표면적으로 위험한 선례에서
+> 무리하게 답하는 오류를 줄이는 대신 커버리지를 크게 희생하는 보수적 라우팅**
+> 이 확인됐다. 다음 과제는 선례의 **실제 적용 가능성**을 판단해 과잉 기권을
+> 줄이는 것이다.
+
+---
+
 ## 8. Failure Cases
 
 실패 케이스 77건을 계층·범주로 분류하고, **각 건마다 재현 검사(probe)를 코드로**
@@ -258,6 +298,10 @@ python3 scripts/failure_report.py --layer extraction
 | [E5](docs/13-retrieval-baseline.md) | 검색만으로 어디까지 되는가 | F1 0.538 · **`조치` 앵커링 7.1%** |
 | [E6](docs/14-rule-induction.md) | 규칙을 역추출하면 전이되는가 | **`조치` 규칙 전이 100%→20%** |
 | [E7](docs/15-full-comparison.md) | 7개 모델 전수 비교, 보정 후 | F1 7/21 · **AURC 10/21 유의** |
+| [E8](docs/17-e8-e11-agent-workflow.md) | 검색을 무조건 믿는 것 대비 나아지는가 | AURC 0.215 → 0.236 — **판정 보류** |
+| [E9](docs/17-e8-e11-agent-workflow.md) | 경로 선택 자체의 값어치 | 함정 오답 14 → 5 |
+| [E10](docs/17-e8-e11-agent-workflow.md) | 기권의 값어치 | **함정 오답 13 → 5** |
+| [E11a](docs/17-e8-e11-agent-workflow.md) | 결정론 검증의 값어치 | **모든 수치 동일 — 값어치 0** |
 
 기각된 가설(E4)과 뒤집힌 진단(E3)을 지우지 않고 남겼다. 실행하지 않은 수치는
 이 저장소 어디에도 쓰지 않는다.
@@ -266,10 +310,18 @@ python3 scripts/failure_report.py --layer extraction
 [분할과 회귀](docs/03-splitting-and-regression.md) · [띄어쓰기 복원](docs/04-spacing-restoration.md) ·
 [Phase 2 baseline](docs/05-phase2-baseline.md) · [비조치 baseline](docs/06-nonaction-baseline.md) ·
 [아키텍처](docs/11-architecture.md) · [실패 레지스트리](docs/12-failure-registry.md) ·
-[회답 근거 구조화](docs/16-criteria-extraction.md)
+[회답 근거 구조화](docs/16-criteria-extraction.md) ·
+[Phase 3 설계](docs/phase3-agent-workflow-design.md) ·
+[E8~E11a Agent Workflow](docs/17-e8-e11-agent-workflow.md)
 
 ## 10. Limitations
 
+- **Agent 가 과하게 기권한다.** 78건 기권 중 **답했어도 맞았을 것이 50건
+  (64%)** 이다. 기권이 함정 구간의 오답을 줄이기는 하지만 값싸게 사지 않는다.
+  지금 이 워크플로의 가장 분명한 약점이고, 다음 과제가 여기서 나온다.
+- **전체 성능은 기존 LLM 판정기보다 낮다.** AURC `router` 0.236 대 `sector`
+  0.124(보정 후 유의). Agent 는 LLM 을 전혀 쓰지 않으므로 당연하지만, 그렇다고
+  "Agent 가 더 낫다" 고 적을 수는 없다.
 - **소수 클래스 표본이 작다.** test 의 `조치` 는 14건이다. 이 프로젝트의 소수
   클래스 수치는 모두 그 위에 있고, 신뢰구간이 넓다. 확대 해석하지 않는다.
 - **회답 근거 구조화가 아직 실행되지 않았다.** 파이프라인·순환 차단·인용 대조는
@@ -311,8 +363,13 @@ python3 scripts/failure_report.py --layer extraction
 | **4a** | E6 — 규칙 역추출 (결정론적 학습기) | ✅ **조치 규칙 전이 100%→20%** |
 | **4b** | E7 — 7개 모델 전수 비교 (Holm 보정) | ✅ F1 7/21 · **AURC 10/21 유의** |
 | **5a** | 회답 근거 구조화 — 파이프라인·안전장치 | ✅ 순환 차단 · 인용 대조 · dry-run |
-| **5b** | 회답 근거 구조화 — 실행 | ⏸ API 필요 (~$5.5, 단계별 중단 가능) |
-| 6~11 | Agent 워크플로 · 배포 | ⬜ 대기 |
+| **5b** | 회답 근거 구조화 — 실행 | ⏸ 중단 (표본 대비 실험 과대 · [docs/16](docs/16-criteria-extraction.md)) |
+| **3-1** | 선례 신뢰도 보정 (dev LOO) | ✅ 구간 분리 확인 · 2차원 초안 폐기 |
+| **3-2** | 검색기 3종 비교 (L·D·H) | ✅ **검색을 바꿔 풀 문제가 아님** |
+| **3-3** | Router · Validator · Workflow | ✅ 극단 케이스 9종 · 실행 흔적 |
+| **3-4** | E8~E11a | ✅ 기권 유효 · 검증 값어치 0 · **AURC 개선 실패** |
+| **3-5** | E11b — 선례 적용가능성 (LLM) | ⏸ 준비 완료 · API 필요 (~$2.4) |
+| 9~11 | UI 확장 · 배포 | ⬜ E11b 결과 뒤로 미룸 |
 
 **현재 규모** — 실패 케이스 77건 · 테스트 331개 · 문서 16편.
 이 숫자들은 `tests/regression/test_documented_numbers.py` 가 매번 대조한다.

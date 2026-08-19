@@ -417,3 +417,47 @@ def test_calibration_artifact_is_not_stale():
 
     passed, detail = calibration_artifact_matches_a_fresh_run()
     assert passed, detail
+
+
+def test_readme_agent_table_matches_the_experiment():
+    """README 의 Agent 표가 E8~E11a 산출물과 같은가.
+
+    커버리지와 정확도를 손으로 옮겨 적으면 반드시 밀린다. 특히 이 표는
+    **커버리지 없이 정확도만 읽으면 거짓말이 되는** 표라 더 그렇다.
+    """
+    path = RESULTS / "e8_e11_agent.json"
+    if not path.exists():
+        pytest.skip("e8_e11_agent.json 이 없습니다")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    block = section(read("README.md"), "README_AGENT")
+
+    for name, cell in data["variants"].items():
+        row = re.search(
+            rf"^\| `{re.escape(name)}` \| ([\d.]+)% \| ([\d.]+) \| ([\d.]+) \| "
+            rf"(\d+) / \*\*(\d+)\*\* / (\d+) \|", block, re.M)
+        assert row, f"README Agent 표에 `{name}` 행이 없습니다"
+        assert row.group(1) == f"{cell['coverage'] * 100:.1f}", (
+            f"{name} 커버리지: 문서 {row.group(1)}% · 실제 {cell['coverage']:.1%}")
+        assert row.group(3) == f"{cell['macro_f1_on_answered']:.3f}", (
+            f"{name} 매크로 F1 이 어긋납니다")
+        trap = cell["trap"]
+        assert (int(row.group(4)), int(row.group(5)), int(row.group(6))) == (
+            trap["correct"], trap["wrong"], trap["abstained"]), (
+            f"{name} 함정 구간 분해가 어긋납니다")
+
+
+def test_readme_states_the_over_abstention_weakness():
+    """가장 큰 약점을 README 가 숨기지 않는가.
+
+    잘 된 것만 적으면 그것은 포트폴리오가 아니라 광고다.
+    """
+    path = RESULTS / "e8_e11_agent.json"
+    if not path.exists():
+        pytest.skip("e8_e11_agent.json 이 없습니다")
+    stats = json.loads(path.read_text(encoding="utf-8"))["variants"]["router"]
+    over = stats["abstention_accuracy"]
+    wasted = over["abstained"] - over["justified"]
+    readme = read("README.md")
+    assert f"{wasted}건" in readme, (
+        f"과잉 기권 {wasted}건을 README 가 적지 않았습니다")
+    assert "과잉 기권" in readme
