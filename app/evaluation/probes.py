@@ -1002,6 +1002,25 @@ def label_patterns_are_anchored() -> Result:
     return True, "re.* 에 넘어가는 패턴 전부 고정됨"
 
 
+def small_denominators_get_intervals() -> Result:
+    """분모가 작은 비율을 점추정만으로 말하지 않는가 (EV-22).
+
+    dev 의 `조치` 는 8건이다. 4건 중 3건이 0.750 으로 적히면 확정된 값처럼
+    읽히지만 실제 구간은 [0.301, 0.954] 다. 그리고 8건으로는 **어떤 값으로도**
+    '못 넘는다' 를 보일 수 없다 — 0/8 이어도 상한이 0.324 다.
+    """
+    from app.evaluation.metrics import verdict_against, wilson_interval
+
+    lo, hi = wilson_interval(3, 4)
+    if hi - lo < 0.4:
+        return False, f"4건짜리 구간이 [{lo:.3f}, {hi:.3f}] 로 좁다"
+    if verdict_against(0.286, *wilson_interval(2, 8)) == "못 넘는다":
+        return False, "8건 중 2건으로 '못 넘는다' 를 단정한다"
+    if verdict_against(0.286, *wilson_interval(30, 40)) != "넘는다":
+        return False, "표본이 충분한데도 판정을 못 낸다"
+    return True, f"3/4 -> [{lo:.3f}, {hi:.3f}] · 8건으로는 기각 불가"
+
+
 def _is_probe(name: str, fn: object) -> bool:
     """probe 는 **인자 없이** 부를 수 있어야 한다.
 

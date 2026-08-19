@@ -69,3 +69,42 @@ def test_bootstrap_is_deterministic_and_brackets_the_estimate():
 
 def test_bootstrap_refuses_degenerate_samples():
     assert bootstrap_macro_f1([("비조치", "비조치")], NA) == (0.0, 0.0)
+
+
+# ── 비율 신뢰구간 — 분모가 한 자리일 때 ───────────────────────────
+def test_wilson_interval_is_wide_when_the_denominator_is_tiny():
+    """4건 중 3건이 0.750 으로 **확정**돼 읽히지 않게 한다."""
+    from app.evaluation.metrics import wilson_interval
+
+    lo, hi = wilson_interval(3, 4)
+    assert lo < 0.35 and hi > 0.9, f"4건짜리 구간이 [{lo:.3f}, {hi:.3f}] 로 좁습니다"
+    wide = hi - lo
+    lo2, hi2 = wilson_interval(30, 40)
+    assert (hi2 - lo2) < wide / 2, "표본이 열 배인데 구간이 절반 이하로 줄지 않았습니다"
+
+
+def test_wilson_interval_stays_inside_zero_and_one():
+    """0 과 1 에 붙어도 구간이 범위를 벗어나지 않는가 — Wald 는 벗어난다."""
+    from app.evaluation.metrics import wilson_interval
+
+    for successes, total in ((0, 4), (4, 4), (0, 1), (1, 1)):
+        lo, hi = wilson_interval(successes, total)
+        assert 0.0 <= lo <= hi <= 1.0, f"{successes}/{total} -> [{lo}, {hi}]"
+    assert wilson_interval(0, 4)[1] > 0.2, "0건이라고 상한이 0 이 되면 안 됩니다"
+    assert wilson_interval(4, 4)[0] < 0.9, "4건 전부라고 하한이 1 에 붙으면 안 됩니다"
+
+
+def test_verdict_refuses_when_the_interval_straddles_the_threshold():
+    """구간이 문턱을 걸치면 판정하지 않는가."""
+    from app.evaluation.metrics import verdict_against, wilson_interval
+
+    assert "보류" in verdict_against(0.286, *wilson_interval(0, 4))
+    assert "보류" in verdict_against(0.286, *wilson_interval(2, 8))
+    assert verdict_against(0.286, *wilson_interval(30, 40)) == "넘는다"
+    assert verdict_against(0.286, *wilson_interval(1, 40)) == "못 넘는다"
+
+
+def test_empty_denominator_does_not_pretend_to_know():
+    from app.evaluation.metrics import wilson_interval
+
+    assert wilson_interval(0, 0) == (0.0, 1.0)
