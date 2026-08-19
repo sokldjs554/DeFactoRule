@@ -55,9 +55,6 @@ from app.domain.labels import NON_ACTIONS
 # 발산하므로 평활은 필요하다. 다만 **어느 쪽으로** 평활하는지가 중요하다.
 PRIOR_STRENGTH = 3.0
 
-# 기저율은 평활하지 않는다. 위 문서의 이유.
-SMOOTH = 0.0
-
 
 def fit(
     answers_by_key: dict,

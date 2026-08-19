@@ -473,14 +473,17 @@ def test_weights_flags_a_partial_skewed_sample(tmp_path: Path):
     out = _weights(*_partial(tmp_path, 20, answered=26))
     assert "무작위 표본이 아닙니다" in out
     assert "치우친 라벨" in out
-    assert "잠정" in out, "부분 표본인데 판정을 확정처럼 내놨습니다"
+    # 각주로 주의를 다는 것으로는 부족하다 — 사람은 굵은 숫자를 읽는다.
+    # **판정 자체를 내주지 않아야** 한다.
+    assert "판정 불가" in out, "부분 표본인데 판정을 내놨습니다"
+    assert "부분 표본" in out and "치우쳤다" in out, "무효 사유를 적지 않았습니다"
 
 
 def test_weights_does_not_cry_wolf_on_a_complete_run(tmp_path: Path):
     """다 돌린 경우에는 경고하지 않는가."""
     out = _weights(*_partial(tmp_path, 20, answered=85))
     assert "무작위 표본이 아닙니다" not in out
-    assert "잠정" not in out
+    assert "판정 불가" not in out, "다 돌렸는데 판정을 거부했습니다"
 
 
 def test_weights_reports_an_interval_not_just_a_point(tmp_path: Path):
@@ -498,7 +501,44 @@ def test_weights_says_what_the_sample_can_and_cannot_show(tmp_path: Path):
     보일 수 없는 것을 못 보였다고 실패로 적으면 그것도 거짓말이다.
     """
     out = _weights(*_dev_pair(tmp_path, 6, planted=True))
-    assert "이 표본으로 낼 수 있는 판정" in out
-    assert "어떤 값으로도 나오지 않는다" in out, (
-        "8건으로는 '못 넘는다' 를 보일 수 없다는 사실을 말하지 않았습니다"
+    assert "한계 —" in out, "이 표본이 할 수 없는 말을 밝히지 않았습니다"
+    assert "'못 넘는다' 를 보일 수 없다" in out, (
+        "8건으로는 기각이 불가능하다는 사실을 말하지 않았습니다"
     )
+
+
+def test_answers_for_a_different_criteria_set_are_rejected(tmp_path: Path):
+    """답 파일이 다른 기준 목록에 대한 것이면 멈추는가.
+
+    답은 순서로만 기준과 이어진다. `consolidate` 를 다시 돌려 기준이 바뀌면
+    같은 순서가 **다른 질문**을 가리키는데, 지문이 없으면 아무 데서도 오류가
+    나지 않는다. 기준 5개짜리 답을 3개짜리 모델로 채점해 보니 조용히 다른
+    답이 나왔다 (AG-11).
+    """
+    import hashlib
+
+    gold, ans, crit = _partial(tmp_path, 20, answered=85)
+    rows = [json.loads(x) for x in ans.read_text(encoding="utf-8").splitlines() if x.strip()]
+    wrong = hashlib.sha256(b"different criteria").hexdigest()[:16]
+    for row in rows:
+        row["criteria_fingerprint"] = wrong
+    write(ans, rows)
+
+    proc = run("weights", "--criteria", str(crit), "--dev", str(gold),
+               "--dev-answers", str(ans), expect_ok=False)
+    assert proc.returncode != 0, "다른 기준의 답인데 그냥 채점했습니다"
+    assert "다른 기준 목록" in proc.stdout + proc.stderr
+
+
+def test_answers_of_the_wrong_length_are_rejected(tmp_path: Path):
+    """지문 없는 옛 형식이라도 길이가 안 맞으면 멈추는가."""
+    gold, ans, crit = _partial(tmp_path, 20, answered=85)
+    rows = [json.loads(x) for x in ans.read_text(encoding="utf-8").splitlines() if x.strip()]
+    for row in rows:
+        row.pop("criteria_fingerprint", None)
+        row["answers"] = row["answers"][:5]
+    write(ans, rows)
+
+    proc = run("weights", "--criteria", str(crit), "--dev", str(gold),
+               "--dev-answers", str(ans), expect_ok=False)
+    assert proc.returncode != 0, "답 길이가 기준 수와 다른데 그냥 채점했습니다"

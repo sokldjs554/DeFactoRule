@@ -768,10 +768,9 @@ def cmd_predict(args) -> None:
     n = len(criteria)
 
     dev_rows = [r for r in load_jsonl(Path(args.dev)) if r.get("label")]
-    dev_answers = {
-        key_of(r): r["answers"]
-        for r in load_jsonl(Path(args.dev_answers)) if "answers" in r
-    }
+    dev_answer_rows = load_jsonl(Path(args.dev_answers))
+    check_fingerprint(dev_answer_rows, criteria, "predict(dev)")
+    dev_answers = {key_of(r): r["answers"] for r in dev_answer_rows if "answers" in r}
     covered = sum(1 for r in dev_rows if key_of(r) in dev_answers)
     if covered < len(dev_rows):
         print(f"  ⚠ dev {len(dev_rows)}건 중 답이 있는 것은 {covered}건입니다. "
@@ -786,6 +785,7 @@ def cmd_predict(args) -> None:
         print(f"{c['id']:>3}  {w['n_yes']:>4}  {top:>16}  {val:>+7.2f}  {c['question'][:44]}")
 
     test_answers = load_jsonl(Path(args.test_answers))
+    check_fingerprint(test_answers, criteria, "predict(test)")
     preds = []
     for r in test_answers:
         if "answers" not in r:
@@ -833,16 +833,16 @@ def cmd_weights(args) -> None:
 
     from app.core.io import key_of, load_jsonl
     from app.domain.labels import NON_ACTIONS
-    from app.evaluation.metrics import macro_f1, verdict_against, wilson_interval
+    from app.evaluation.metrics import macro_f1
+    from app.evaluation.validity import Claim
     from app.rules.criteria_vote import confidence, fit, score
 
     criteria = load_criteria(args.criteria)
     n = len(criteria)
     dev_rows = [r for r in load_jsonl(Path(args.dev)) if r.get("label")]
-    answers = {
-        key_of(r): r["answers"]
-        for r in load_jsonl(Path(args.dev_answers)) if "answers" in r
-    }
+    answer_rows = load_jsonl(Path(args.dev_answers))
+    check_fingerprint(answer_rows, criteria, "weights")
+    answers = {key_of(r): r["answers"] for r in answer_rows if "answers" in r}
     usable = [r for r in dev_rows if key_of(r) in answers]
     print(f"기준 {n}개 · dev {len(dev_rows)}건 중 답이 있는 것 {len(usable)}건\n")
     if not usable:
@@ -926,34 +926,19 @@ def cmd_weights(args) -> None:
         print(f"  {label:<6} {row['support']:>5} {row['recall']:>7.3f} "
               f"{row['precision']:>7.3f} {row['f1']:>7.3f}")
 
-    # 소수 클래스 재현율은 분모가 한 자리일 수 있다. 점추정만 적으면
-    # 0.750 이 확정된 값처럼 읽힌다. 구간으로 말한다.
-    hit = per["조치"]["support"] * per["조치"]["recall"]
-    lo, hi = wilson_interval(round(hit), per["조치"]["support"])
-    verdict = verdict_against(0.286, lo, hi)
+    # 수치는 무효 기준을 통과해야 판정이 된다. 점추정을 적고 옆에 작은 글씨로
+    # 주의를 다는 방식은 이미 실패했다 — 사람은 굵은 숫자를 읽는다 (EV-22).
+    # 무효/한계 기준은 `app/evaluation/validity.py` 한 곳에서만 정한다.
+    claim = Claim(
+        name="조치 재현율",
+        numerator=round(per["조치"]["support"] * per["조치"]["recall"]),
+        denominator=per["조치"]["support"],
+        sample=Counter(r["label"] for r in usable),
+        population=Counter(r["label"] for r in dev_rows),
+        threshold=0.286,
+    )
     print("\n  사전 등록한 기준: 조치 재현율 > 0.286 (E1/E3 LLM)")
-    print(f"  LOO 에서 나온 값: {per['조치']['recall']:.3f} "
-          f"({round(hit)}/{per['조치']['support']}) · 95% CI [{lo:.3f}, {hi:.3f}]")
-    print(f"  판정: {'**' + verdict + '**' if '보류' not in verdict else verdict}")
-    if partial:
-        print(f"  ⚠ 잠정. dev {len(usable)}/{len(dev_rows)} 만 쓴 값이고 표본이 "
-              "치우쳐 있다. 나머지를 채우면 달라질 수 있다.")
-
-    # 이 표본 크기로 애초에 무엇을 보일 수 있는지 먼저 말한다. 보일 수 없는
-    # 것을 못 보였다고 실패로 적으면 그것도 거짓말이다.
-    n_minor = full_dist["조치"]
-    calls = {k: verdict_against(0.286, *wilson_interval(k, n_minor))
-             for k in range(n_minor + 1)}
-    passable = [k for k, verdict in calls.items() if verdict == "넘는다"]
-    failable = [k for k, verdict in calls.items() if verdict == "못 넘는다"]
-    print(f"\n  이 표본으로 낼 수 있는 판정 (dev 조치 {n_minor}건)")
-    print("    '넘는다' 는 "
-          + (f"{min(passable)}/{n_minor} 이상이면 나온다" if passable
-             else "어떤 값으로도 나오지 않는다"))
-    print("    '못 넘는다' 는 "
-          + (f"{max(failable)}/{n_minor} 이하면 나온다" if failable
-             else f"**어떤 값으로도 나오지 않는다** — 0/{n_minor} 여도 상한이 "
-                  f"{wilson_interval(0, n_minor)[1]:.3f} 다"))
+    print(claim.render(indent="  "))
     print("  주의 — 이것은 dev 추정치다. test 수치가 아니다.")
 
     dist = Counter(conf_of)
