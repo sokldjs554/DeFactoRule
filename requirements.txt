@@ -7,3 +7,4 @@ anthropic>=0.40      # LLM 분류기 (app/agents/classifier.py)
 fastapi>=0.110       # API
 pydantic>=2.0        # 경계에서의 형식 강제 (명세 §9 의 schema validation)
 uvicorn>=0.27        # 개발 서버
+numpy>=1.24

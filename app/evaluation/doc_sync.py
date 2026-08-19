@@ -28,7 +28,8 @@ from collections import Counter, defaultdict
 from app.core.paths import ROOT
 
 COUNT_UNITS = {"건", "개", "쌍", "회"}
-LAYER_ORDER = ("extraction", "labeling", "evaluation", "agent", "infrastructure")
+LAYER_ORDER = ("extraction", "labeling", "retrieval", "evaluation",
+               "agent", "infrastructure")
 
 
 def registry() -> list[dict]:
