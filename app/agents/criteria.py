@@ -387,6 +387,27 @@ def load_criteria(path) -> list[dict]:
     return rows
 
 
+def class_floors(distribution: dict, min_support: int) -> dict:
+    """클래스별 지지도 문턱을 **같은 비율**로 환산한다.
+
+    일률 문턱은 클래스마다 요구하는 증거의 비율을 다르게 만든다. dev 가
+    비조치 58 · 조치 8 일 때 "2건 이상" 은 비조치에 3.4%, 조치에 25% 를
+    요구하는 것이다. 소수 클래스 기준은 그래서 구조적으로 살아남지 못한다.
+
+        >>> class_floors({"비조치": 58, "기타": 19, "조치": 8}, 2)
+        {'비조치': 2, '기타': 1, '조치': 1}
+
+    최소는 1 이다 — 0 으로 내려가면 문턱이 아니게 된다.
+    """
+    if not distribution:
+        return {}
+    biggest = max(distribution.values())
+    return {
+        label: max(1, round(min_support * n / biggest))
+        for label, n in distribution.items()
+    }
+
+
 def cmd_consolidate(args) -> None:
     """사례별 추출 결과를 하나의 기준 목록으로 합친다. API 를 쓰지 않는다.
 
@@ -394,6 +415,25 @@ def cmd_consolidate(args) -> None:
     코사인으로 묶고, 가장 많이 반복된 표현을 대표로 삼는다. **여러 사례에서
     반복해 나온 기준일수록 믿을 만하다** — 한 사례에서만 나왔다면 그 사례의
     특수 사정일 수 있다.
+
+    ## 문턱은 개수가 아니라 비율이어야 한다
+
+    dev 는 비조치 58 · 기타 19 · 조치 8 이다. 여기에 "2건 이상" 을 똑같이
+    걸면 클래스마다 요구하는 **증거의 비율**이 달라진다.
+
+        비조치  2/58 = 3.4%
+        조치    2/8  = 25.0%
+
+    조치 쪽에만 일곱 배 엄한 잣대를 대는 것이고, 그러면 소수 클래스 기준은
+    구조적으로 살아남지 못한다. 규칙 학습기에서 라플라스를 통과 문턱으로 쓸 때
+    똑같은 일이 있었다(EV-16 주변). 그래서 클래스별로 **같은 비율**이 되도록
+    문턱을 환산한다.
+
+        문턱(라벨) = max(1, round(min_support × n(라벨) / n(최다 라벨)))
+
+    무리의 문턱은 그 무리를 만든 사례들의 최빈 결론으로 정한다. 낮춰서 살아남은
+    무리가 몇 개인지 반드시 출력한다 — 조용히 완화하면 그것은 완화가 아니라
+    은폐다.
     """
     from collections import Counter
     from pathlib import Path
@@ -459,11 +499,20 @@ def cmd_consolidate(args) -> None:
                 assigned[j] = gid
                 groups[gid].append(j)
 
+    # 클래스별 문턱을 같은 비율로 환산한다
+    dev_dist = Counter(r["decision"] for r in raw)
+    floor = class_floors(dev_dist, args.min_support)
+
     merged = []
+    relaxed = 0
     for members in groups:
         group = [items[m] for m in members]
-        if len(group) < args.min_support:
+        dominant = Counter(c["decision"] for c in group).most_common(1)[0][0]
+        needed = floor.get(dominant, args.min_support)
+        if len(group) < needed:
             continue
+        if len(group) < args.min_support:
+            relaxed += 1
         implied = Counter(c["implies"] for c in group)
         merged.append({
             "id": len(merged),
@@ -481,8 +530,13 @@ def cmd_consolidate(args) -> None:
         c["id"] = i
     write_jsonl(Path(args.output), merged)
 
-    print(f"사례별 기준 {len(items)}개 -> {len(groups)}무리 -> "
-          f"지지도 {args.min_support} 이상 {len(merged)}개")
+    print(f"사례별 기준 {len(items)}개 -> {len(groups)}무리 -> 채택 {len(merged)}개")
+    print("  클래스별 문턱(같은 비율로 환산): "
+          + " · ".join(f"{lab} {floor[lab]}건 (dev {dev_dist[lab]}건)"
+                       for lab in sorted(floor, key=lambda x: -dev_dist[x])))
+    if relaxed:
+        print(f"  이 중 {relaxed}개는 소수 클래스 문턱으로 살아남았다 "
+              f"(일률 {args.min_support}건이었다면 탈락)")
     print(f"\n{'#':>3}  {'지지':>4}  {'사례':>4}  {'가리키는 결론':>12}  질문")
     for c in merged[: args.top]:
         print(f"{c['id']:>3}  {c['support']:>4}  {c['sources']:>4}  "
