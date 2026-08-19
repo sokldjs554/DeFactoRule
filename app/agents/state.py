@@ -119,6 +119,9 @@ class AgentState(BaseModel):
     route_reason: Optional[str] = Field(None, description="발화한 결정 표의 줄 (R1~R10)")
 
     decision: Optional[str] = None
+    provisional: Optional[str] = Field(
+        None,
+        description="기권하더라도 '굳이 답한다면' 무엇인가. **서비스는 쓰지 않는다.**")
     confidence: Optional[str] = None
     evidence_used: List[str] = Field(default_factory=list)
 
@@ -132,11 +135,19 @@ class AgentState(BaseModel):
         self.execution_trace.append(
             TraceStep(node=node, summary=summary, detail=detail))
 
-    def abstain(self, reason: AbstentionReason, summary: str = "") -> None:
-        """기권은 한 곳에서만 일어난다. 이유 없이 기권할 수 없다."""
+    def abstain(self, reason: AbstentionReason, summary: str = "",
+                provisional: Optional[str] = None) -> None:
+        """기권은 한 곳에서만 일어난다. 이유 없이 기권할 수 없다.
+
+        `provisional` 은 **평가를 위해서만** 남긴다. 기권을 `predicted: null` 로
+        내보내면 위험-커버리지 곡선이 그것을 전부 오답으로 세고, 기권의 값어치가
+        수치에서 사라진다 — 기권을 보여주려고 만든 지표가 기권을 벌하는 꼴이다.
+        서비스(`decision`)는 여전히 아무것도 내놓지 않는다.
+        """
         self.abstained = True
         self.abstention_reason = reason
         self.decision = None
+        self.provisional = provisional or self.provisional
         self.confidence = "low"
         self.step("abstain", summary or reason.value, reason=reason.value)
 
@@ -156,7 +167,10 @@ class AgentState(BaseModel):
         return {
             "source": source, "page": page, "serial": serial,
             "pair_index": pair_index,
-            "predicted": self.decision,
+            # 평가용 레코드에는 **굳이 답한다면** 무엇인지를 담는다. 기권
+            # 여부는 `abstained` 로 따로 전한다 — 그래야 위험-커버리지 곡선이
+            # 기권을 오답이 아니라 낮은 신뢰도로 다룬다.
+            "predicted": self.decision or self.provisional,
             "confidence": self.confidence or "low",
             "rule": f"agent:{self.route.value if self.route else '-'}"
                     f":{self.route_reason or '-'}",

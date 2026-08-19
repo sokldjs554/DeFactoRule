@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 
 from app.agents.calibration import band_of
 from app.agents.router import decide, route, signals_from
@@ -51,21 +52,55 @@ HIGH_MARGIN = 0.30
 MEDIUM_MARGIN = 0.10
 
 
+@dataclass(frozen=True)
+class Policy:
+    """무엇을 켜고 끄는가. **변형마다 코드를 복사하지 않기 위해** 있다.
+
+    다섯 벌을 따로 쓰면 반드시 갈라진다 — 문턱이 세 파일에 흩어져 어긋났던
+    IN-13 이 그 예다. 조건은 여기 한 곳에만 둔다.
+    """
+
+    name: str
+    use_router: bool = True       # False 면 선례를 무조건 쓴다
+    use_rules: bool = True        # False 면 규칙 경로가 없다
+    allow_abstain: bool = True    # False 면 무슨 수를 써서든 답한다
+    run_validator: bool = True
+    respect_floor: bool = True    # False 면 유사도 문턱을 무시한다
+    top_k: int = TOP_K            # 몇 건을 근거로 삼는가
+
+
+# Naive RAG 는 **top-1 선례의 라벨을 그대로** 답하는 것이다. 상위 다섯을
+# 다수결하면 그것은 이미 Naive 가 아니다 — 처음 판이 그렇게 돌아서 기준선이
+# 기존 `neighbor` 모델과 어긋났다.
+NAIVE = Policy("naive", use_router=False, use_rules=False, allow_abstain=False,
+               run_validator=False, respect_floor=False, top_k=1)
+ALWAYS_PRECEDENT = Policy("always-precedent", use_router=False, use_rules=False)
+ROUTER = Policy("router")
+ROUTER_NO_ABSTAIN = Policy("router-noabstain", allow_abstain=False)
+ROUTER_NO_VALIDATE = Policy("router-novalidate", run_validator=False)
+
+VARIANTS = {p.name: p for p in (NAIVE, ALWAYS_PRECEDENT, ROUTER,
+                                ROUTER_NO_ABSTAIN, ROUTER_NO_VALIDATE)}
+
+
 class Workflow:
     """요청 하나를 처리한다. 선례 풀과 규칙은 생성 시점에 고정된다."""
 
     def __init__(self, retriever, precedents: list[dict], rules: list[dict],
-                 risk_table: dict, floor: float = DOUBT) -> None:
+                 risk_table: dict, floor: float = DOUBT,
+                 policy: Policy = ROUTER, fallback: str = "비조치") -> None:
         self.retriever = retriever
         self.precedents = precedents
-        self.rules = rules
+        self.rules = rules if policy.use_rules else []
         self.risk_table = risk_table
-        self.floor = floor
+        self.floor = floor if policy.respect_floor else 0.0
+        self.policy = policy
+        self.fallback = fallback
         self.discards = Discards("workflow")
 
     # ── 노드 ────────────────────────────────────────────────────
     def _retrieve(self, state: AgentState) -> None:
-        hits = self.retriever.search(state.request, TOP_K)
+        hits = self.retriever.search(state.request, self.policy.top_k)
         for rank, (index, score) in enumerate(hits):
             source = self.precedents[index]
             state.retrieved_evidence.append(Evidence(
@@ -102,18 +137,43 @@ class Workflow:
             state.retrieved_evidence, state.rule_evidence, risk,
             request_year=year_of(state.request_key[0]),
         )
-        state.route, state.route_reason = route(state.signals)
+        if self.policy.use_router:
+            state.route, state.route_reason = route(state.signals)
+        else:
+            # Router 없이 — 선례가 하나라도 있으면 그것을 쓴다
+            usable = [e for e in state.retrieved_evidence if e.score >= self.floor]
+            state.route = Path.PRECEDENT if usable else Path.ABSTAIN
+            state.route_reason = "always-A" if usable else "no-evidence"
         state.step("route", f"{state.route.value} ({state.route_reason})",
                    trap_risk=round(risk, 4),
                    top_similarity=round(state.signals.top_similarity, 4),
                    rule_fired=state.signals.rule_fired)
 
+    def _best_guess(self, state: AgentState) -> str:
+        """굳이 답한다면 무엇인가. 평가에만 쓴다."""
+        usable = ([e for e in state.retrieved_evidence if e.score >= self.floor]
+                  or list(state.retrieved_evidence) or list(state.rule_evidence))
+        label, _used = decide(usable)
+        return label or self.fallback
+
     def _decide(self, state: AgentState) -> None:
         from app.agents.router import ABSTAIN_FOR
 
-        if state.route == Path.ABSTAIN:
+        if state.route == Path.ABSTAIN and self.policy.allow_abstain:
             state.abstain(ABSTAIN_FOR.get(state.route_reason,
-                                          AbstentionReason.NO_EVIDENCE))
+                                          AbstentionReason.NO_EVIDENCE),
+                          provisional=self._best_guess(state))
+            return
+        if state.route == Path.ABSTAIN:
+            # 기권을 끈 변형 — 있는 근거 중 아무거나, 없으면 기저율 최빈으로
+            usable = ([e for e in state.retrieved_evidence if e.score >= self.floor]
+                      or list(state.rule_evidence))
+            label, used = decide(usable)
+            state.decision = label or self.fallback
+            state.provisional = state.decision
+            state.evidence_used = used
+            state.confidence = "low"
+            state.step("decide", f"{state.decision} (기권 없음)", evidence=used)
             return
         if state.route == Path.PRECEDENT:
             usable = [e for e in state.retrieved_evidence if e.score >= self.floor]
@@ -122,9 +182,11 @@ class Workflow:
 
         label, used = decide(usable)
         if label is None:
-            state.abstain(AbstentionReason.NO_EVIDENCE, "고른 경로에 근거가 없다")
+            state.abstain(AbstentionReason.NO_EVIDENCE, "고른 경로에 근거가 없다",
+                          provisional=self._best_guess(state))
             return
         state.decision = label
+        state.provisional = label
         state.evidence_used = used
         state.confidence = grade(state.signals.margin if state.signals else 0.0)
         state.step("decide", f"{label} ({state.confidence})", evidence=used)
@@ -140,7 +202,7 @@ class Workflow:
         self._match_rules(state)
         self._route(state)
         self._decide(state)
-        if not state.abstained:
+        if not state.abstained and self.policy.run_validator:
             dropped = validate(
                 state, evidence_sources(state.all_evidence(), self.precedents))
             for record in dropped.records():
