@@ -132,6 +132,35 @@ def trap_block(trap: dict) -> str:
     return head + "\n\n" + "\n".join(rows)
 
 
+def agent_block(agent: dict) -> str:
+    """Agent 변형 비교. 커버리지를 **항상 옆에 둔다** — 기권을 켜면 정확도는
+    저절로 오르므로, 커버리지 없이 정확도만 적으면 거짓말이 된다."""
+    order = ["naive", "always-precedent", "router", "router-noabstain",
+             "router-novalidate"]
+    rows = ["| 변형 | 커버리지 | 답한 것 정확도 | 매크로 F1 | 함정 15건 (맞힘/틀림/기권) |",
+            "|---|---|---|---|---|"]
+    for name in order:
+        cell = agent["variants"].get(name)
+        if not cell:
+            continue
+        acc = cell["accuracy_on_answered"]
+        trap = cell["trap"]
+        rows.append(
+            f"| `{name}` | {cell['coverage']:.1%} | "
+            f"{acc:.3f} | {cell['macro_f1_on_answered']:.3f} | "
+            f"{trap['correct']} / **{trap['wrong']}** / {trap['abstained']} |"
+        )
+    over = agent["variants"].get("router", {}).get("abstention_accuracy") or {}
+    if over.get("abstained"):
+        wasted = over["abstained"] - over["justified"]
+        rows.append("")
+        rows.append(
+            f"기권 {over['abstained']}건 중 **답했어도 맞았을 것이 {wasted}건"
+            f"({wasted / over['abstained']:.0%})** — 과잉 기권이 지금의 가장 큰 약점이다."
+        )
+    return "\n".join(rows)
+
+
 def registry_tables() -> tuple[str, str]:
     reg = registry()
     by_layer: dict[str, Counter] = defaultdict(Counter)
@@ -207,6 +236,9 @@ def sync(check_only: bool = False) -> list[str]:
     if f1:
         text = replace_marked(
             text, "README_F1", point_table(f1["point"], "매크로 F1 (커버리지 100%)"))
+    agent = load_report("e8_e11_agent.json")
+    if agent:
+        text = replace_marked(text, "README_AGENT", agent_block(agent))
     trap = load_report("trap.json")
     if trap:
         text = replace_marked(text, "README_BLIND", anchoring_block(trap))
