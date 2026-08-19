@@ -228,6 +228,29 @@ def build_extract_prompt(case: dict) -> str:
     )
 
 
+# ── 출력 예산 ─────────────────────────────────────────────────────
+# 추정과 상한이 **같은 자리에서** 나와야 한다. 한동안 비용 추정은
+# `60 × 기준수` 로 계산하면서 max_tokens 는 1200 으로 못 박혀 있었다. 기준이
+# 15개일 때는 둘 다 맞았고, 88개가 되자 상한만 모자랐다. 잘린 JSON 은
+# 파싱 실패로 나타나고, 그때는 이미 돈을 쓴 뒤다 (IN-11).
+def apply_output_tokens(n_criteria: int) -> int:
+    """기준 n 개에 답하는 데 드는 출력 토큰의 **예상치**.
+
+    답 하나가 `{"id": 87, "answer": "unknown"}` 로 31자, 대략 12토큰이다.
+    여유 있게 60 으로 잡는다 — 비용을 낮게 부르는 쪽으로 틀리지 않기 위해서다.
+    """
+    return 60 * n_criteria + 200
+
+
+def apply_token_cap(n_criteria: int) -> int:
+    """호출에 걸 상한. 예상치에 적응형 사고 몫을 더한다.
+
+    상한은 넉넉해야 한다. 넘겨 잡아도 쓰지 않은 토큰은 청구되지 않지만,
+    모자라면 응답 전체를 잃는다.
+    """
+    return apply_output_tokens(n_criteria) + 2000
+
+
 def build_apply_prompt(request: str, criteria: list[dict]) -> str:
     lines = [f"[요청대상행위]\n{clean_for_prompt(request)}", "", "[판단 기준]"]
     for i, c in enumerate(criteria):
@@ -562,7 +585,7 @@ def cmd_apply(args) -> None:
         rows = rows[: args.limit]
     prompts = [build_apply_prompt(r["request"], criteria) for r in rows]
 
-    _, cost = _estimate(prompts, out_tokens=60 * len(criteria))
+    _, cost = _estimate(prompts, out_tokens=apply_output_tokens(len(criteria)))
     print(f"기준 {len(criteria)}개를 사례 {len(rows)}건에 적용합니다.")
     print(f"  추정 비용 약 ${cost:.2f}")
     if args.dry_run:
@@ -592,7 +615,8 @@ def cmd_apply(args) -> None:
             if key in done:
                 continue
             result = call_structured(client, APPLY_SYSTEM, prompt, schema,
-                                     max_tokens=1200, effort="low")
+                                     max_tokens=apply_token_cap(len(criteria)),
+                                     effort="low")
             record = {
                 "source": row["source"], "serial": row["serial"], "page": row["page"],
                 "pair_index": row.get("pair_index", 1),
