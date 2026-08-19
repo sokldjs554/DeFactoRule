@@ -988,6 +988,20 @@ def output_cap_grows_with_the_question_count() -> Result:
     return True, "기준 15/88/244 에서 상한이 답 JSON 의 두 배 이상"
 
 
+def label_patterns_are_anchored() -> Result:
+    """라벨을 찾는 정규식이 고정돼 있는가 (EV-21).
+
+    `조치` 는 `비조치` 의 부분문자열이다. 고정하지 않으면 조치 행을 찾는
+    정규식이 비조치 행을 읽고, 검사가 **거짓으로 통과한다.**
+    """
+    from app.evaluation.label_patterns import find_unanchored_label_patterns
+
+    problems = find_unanchored_label_patterns()
+    if problems:
+        return False, f"{len(problems)}건 — " + " / ".join(problems[:2])
+    return True, "re.* 에 넘어가는 패턴 전부 고정됨"
+
+
 def _is_probe(name: str, fn: object) -> bool:
     """probe 는 **인자 없이** 부를 수 있어야 한다.
 

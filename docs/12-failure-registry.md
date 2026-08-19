@@ -1,4 +1,4 @@
-# 실패 케이스 레지스트리 — 64건
+# 실패 케이스 레지스트리 — 65건
 
 명세 §11 은 "최소 30개 이상의 실패 케이스를 의도적으로 구축하고, 각 실패를
 taxonomy 로 분류하고, 개선 전/후를 숫자로 비교한다" 를 요구한다.
@@ -22,7 +22,7 @@ python3 scripts/failure_report.py --layer extraction
 고쳤다는 케이스가 깨졌으면 회귀이고, 열려 있다는 케이스가 통과하면 레지스트리가
 낡은 것이다.
 
-레지스트리는 `data/failures/registry.jsonl` 이고, 64건 중 58건에 probe 가 있다.
+레지스트리는 `data/failures/registry.jsonl` 이고, 65건 중 59건에 probe 가 있다.
 
 ## Taxonomy
 
@@ -31,7 +31,7 @@ python3 scripts/failure_report.py --layer extraction
 |---|---|---|
 | extraction | 16 | boundary-missplit 5 · format-unhandled 4 · silent-empty 3 · encoding-normalization 3 · unreadable-source 1 |
 | labeling | 8 | answer-leakage 3 · split-discipline 3 · label-conflation 2 |
-| evaluation | 20 | metric-misuse 6 · misdiagnosis 5 · sample-mismatch 3 · incomparable-comparison 1 · undiagnosable-discard 1 · partial-guard 1 · phantom-evidence 1 · uniform-threshold 1 · arbitrary-tiebreak 1 |
+| evaluation | 21 | metric-misuse 6 · misdiagnosis 5 · sample-mismatch 3 · partial-guard 2 · incomparable-comparison 1 · undiagnosable-discard 1 · phantom-evidence 1 · uniform-threshold 1 · arbitrary-tiebreak 1 |
 | agent | 9 | miscalibration 3 · ungrounded-evidence 2 · schema-violation 2 · prior-overcorrection 1 · undiagnosable-discard 1 |
 | infrastructure | 11 | continuous-integration 2 · environment 2 · reproducibility 2 · contract-violation 2 · error-classification 1 · undiagnosable-discard 1 · path-resolution 1 |
 <!-- TAXONOMY:끝 -->
@@ -82,7 +82,7 @@ python3 scripts/failure_report.py --layer extraction
 
 ## 개선 전 → 후
 
-34건에 수치가 있다. 수치는 두 종류로만 적는다. `measured` 는 실제로 재 본 값이고 출처를 함께
+35건에 수치가 있다. 수치는 두 종류로만 적는다. `measured` 는 실제로 재 본 값이고 출처를 함께
 남긴다. `live` 는 probe 가 실행 시점에 직접 계산한 값이며, 옛 구현을 함께 들고
 있어 before 와 after 를 **같은 입력에서** 잰다. 재 보지 않은 것은 적지 않는다.
 
@@ -106,6 +106,7 @@ python3 scripts/failure_report.py --layer extraction
 | EV-18 | 증거 0건인 조치에 붙은 가중치 (로그승산) | 0.201 → -0.981 | live |
 | EV-19 | 치우친 표본(다수 20·소수 3)에서 살아남은 소수 클래스 기준 | 0 → 3개 | live |
 | EV-20 | 근거 없는 입력의 예측 (라벨) | 기타 → 비조치 | live |
+| EV-21 | 잡음 표본에서 나온 조치 재현율 | 0.964 → 0.250 | live |
 | EX-01 | 결론 미검출 | 49 → 2건 | measured |
 | EX-04 | missing_field:판단이유 | 54 → 2건 | measured |
 | EX-05 | 항목명 잔재 | 406 → 0건 | live |

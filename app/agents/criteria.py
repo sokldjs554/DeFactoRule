@@ -704,6 +704,111 @@ def cmd_predict(args) -> None:
     print("  신뢰도: " + ", ".join(f"{k} {conf[k]}" for k in ("high", "medium", "low") if conf[k]))
 
 
+def cmd_weights(args) -> None:
+    """dev 답만으로 기준의 값어치를 잰다. API 를 쓰지 않고 test 를 열지 않는다.
+
+    ## 왜 필요한가
+
+    `apply` 를 dev 에만 돌린 뒤 test 에 돈을 더 쓸지 정해야 하는 자리가 있다.
+    그런데 `predict` 는 test 답을 요구하므로 그 판단에 쓸 수 없다.
+
+    여기서 보는 것은 셋이다.
+
+        1. 기준별 가중치      — 어떤 기준이 어느 결론을 미는가
+        2. 발화 커버리지      — 아무 기준도 안 걸리는 사례가 얼마나 되는가
+        3. **LOO 교차검증**   — dev 에서 정직하게 잰 성능
+
+    3 번이 핵심이다. 가중치를 dev 전체에서 뽑고 그 dev 를 다시 채점하면 자기
+    답안지로 채점하는 것이다. 사례 하나를 빼고 나머지로 가중치를 뽑아 그
+    하나를 맞히기를 85번 반복하면, test 를 열지 않고도 test 에서 무엇이
+    나올지 가늠할 수 있다. 산술뿐이라 비용은 0 이다.
+    """
+    from pathlib import Path
+
+    from app.core.io import key_of, load_jsonl
+    from app.domain.labels import NON_ACTIONS
+    from app.evaluation.metrics import macro_f1
+    from app.rules.criteria_vote import confidence, fit, score
+
+    criteria = load_criteria(args.criteria)
+    n = len(criteria)
+    dev_rows = [r for r in load_jsonl(Path(args.dev)) if r.get("label")]
+    answers = {
+        key_of(r): r["answers"]
+        for r in load_jsonl(Path(args.dev_answers)) if "answers" in r
+    }
+    usable = [r for r in dev_rows if key_of(r) in answers]
+    print(f"기준 {n}개 · dev {len(dev_rows)}건 중 답이 있는 것 {len(usable)}건\n")
+    if not usable:
+        raise SystemExit("dev 답이 하나도 없습니다. apply 를 먼저 돌리세요.")
+
+    # ── 1. 발화 커버리지 ──────────────────────────────────────────
+    fired_counts = [sum(1 for a in answers[key_of(r)][:n] if a == "yes") for r in usable]
+    silent = sum(1 for c in fired_counts if c == 0)
+    print("발화 커버리지")
+    print(f"  아무 기준도 걸리지 않은 사례: {silent}건 ({silent / len(usable):.1%})")
+    print(f"  사례당 발화 기준 수: 평균 {sum(fired_counts) / len(usable):.1f} · "
+          f"최대 {max(fired_counts)}")
+    by_label: dict[str, list[int]] = {}
+    for r, c in zip(usable, fired_counts):
+        by_label.setdefault(r["label"], []).append(c)
+    for label in NON_ACTIONS:
+        got = by_label.get(label)
+        if got:
+            mute = sum(1 for x in got if x == 0)
+            print(f"    {label:<4} {len(got):>3}건 · 침묵 {mute}건 · 평균 발화 "
+                  f"{sum(got) / len(got):.1f}")
+
+    # ── 2. 기준별 가중치 ──────────────────────────────────────────
+    model = fit(answers, usable, n)
+    print(f"\n기준별 가중치 (상위 {args.top}개, |가중치| 순)")
+    print(f"{'#':>3}  {'yes':>4}  {'미는 결론':>10}  {'가중치':>7}  질문")
+    ranked = sorted(
+        criteria,
+        key=lambda c: -max(model["criteria"][c["id"]]["weights"].values()),
+    )
+    for c in ranked[: args.top]:
+        w = model["criteria"][c["id"]]
+        top, val = max(w["weights"].items(), key=lambda kv: kv[1])
+        print(f"{c['id']:>3}  {w['n_yes']:>4}  {top:>10}  {val:>+7.2f}  {c['question'][:46]}")
+
+    pushing = {lab: sum(1 for c in criteria
+                        if max(model["criteria"][c["id"]]["weights"].items(),
+                               key=lambda kv: kv[1])[0] == lab)
+               for lab in NON_ACTIONS}
+    print("\n  가장 미는 결론별 기준 수: "
+          + " · ".join(f"{k} {v}" for k, v in pushing.items()))
+
+    # ── 3. LOO 교차검증 ───────────────────────────────────────────
+    print(f"\nLOO 교차검증 — 사례 하나를 빼고 가중치를 다시 뽑기를 {len(usable)}번")
+    pairs, conf_of = [], []
+    for i, held in enumerate(usable):
+        rest = usable[:i] + usable[i + 1:]
+        m = fit(answers, rest, n)
+        result = score(m, answers[key_of(held)])
+        pairs.append((held["label"], result["predicted"]))
+        conf_of.append(confidence(result, args.high, args.medium))
+
+    macro, per = macro_f1(pairs, NON_ACTIONS)
+    print(f"  매크로 F1 {macro:.3f}")
+    print(f"  {'라벨':<6} {'정답수':>5} {'재현율':>7} {'정밀도':>7} {'F1':>7}")
+    for label in NON_ACTIONS:
+        row = per[label]
+        print(f"  {label:<6} {row['support']:>5} {row['recall']:>7.3f} "
+              f"{row['precision']:>7.3f} {row['f1']:>7.3f}")
+
+    target = per["조치"]["recall"]
+    print("\n  사전 등록한 기준: 조치 재현율 > 0.286 (E1/E3 LLM)")
+    print(f"  LOO 에서 나온 값: {target:.3f}  ->  "
+          + ("넘는다" if target > 0.286 else "**못 넘는다**"))
+    print("  주의 — 이것은 dev 추정치다. test 수치가 아니다.")
+
+    from collections import Counter
+    dist = Counter(conf_of)
+    print("\n  신뢰도 분포: "
+          + ", ".join(f"{k} {dist[k]}" for k in ("high", "medium", "low") if dist[k]))
+
+
 def cmd_status(args) -> None:
     """파이프라인 어디까지 왔는지 보여준다. 파일만 읽는다.
 
@@ -780,6 +885,15 @@ def main() -> None:
     ap_.add_argument("--resume", action="store_true")
     ap_.add_argument("--dry-run", action="store_true")
     ap_.set_defaults(func=cmd_apply)
+
+    we = sub.add_parser("weights", help="dev 답만으로 기준의 값어치를 잰다 (API 없음)")
+    we.add_argument("--criteria", required=True)
+    we.add_argument("--dev", required=True, help="dev 평가셋 (라벨)")
+    we.add_argument("--dev-answers", required=True)
+    we.add_argument("--top", type=int, default=25)
+    we.add_argument("--high", type=float, default=1.0)
+    we.add_argument("--medium", type=float, default=0.4)
+    we.set_defaults(func=cmd_weights)
 
     pr = sub.add_parser("predict", help="답을 라벨로 바꾼다 — 결정론 (API 없음)")
     pr.add_argument("--criteria", required=True)

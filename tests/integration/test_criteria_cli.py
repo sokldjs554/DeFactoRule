@@ -12,6 +12,7 @@ status)과 두 개의 --dry-run 경로는 전부 결정론이라 테스트할 �
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -346,3 +347,87 @@ def test_apply_prompt_never_contains_the_answer(predict_inputs: dict, tmp_path: 
         assert marker not in shown, f"프롬프트에 '{marker}' 가 새어 들어갔습니다"
     assert "[판단 기준]" in shown
     assert shown.count("[") >= 2, "프롬프트 구조가 예상과 다릅니다"
+
+
+# ── weights — test 를 열지 않고 판단하기 ──────────────────────────
+def _dev_pair(tmp_path: Path, n_criteria: int, planted: bool):
+    """dev 평가셋과 답 파일을 만든다. planted 면 0번 기준이 조치의 진짜 신호."""
+    import random
+
+    rng = random.Random(7)
+    labels = ["비조치"] * 56 + ["기타"] * 19 + ["조치"] * 8
+    gold, answers = [], []
+    for i, label in enumerate(labels):
+        key = {"source": "t", "page": i, "serial": str(i), "pair_index": 1}
+        gold.append({**key, "request": f"요청 {i}", "label": label})
+        a = ["no"] * n_criteria
+        if planted and label == "조치" and rng.random() < 0.9:
+            a[0] = "yes"
+        if planted and label == "비조치" and rng.random() < 0.7:
+            a[1] = "yes"
+        # 나머지는 라벨과 무관한 잡음
+        if rng.random() < 0.3:
+            a[rng.randrange(2 if planted else 0, n_criteria)] = "yes"
+        answers.append({**key, "answers": a})
+
+    crit = [{"id": j, "question": f"기준 {j} 질문인가?", "name": f"기준{j}",
+             "support": 2, "sources": 2, "implies": "비조치",
+             "implies_distribution": {}, "observed_decisions": {}, "quotes": []}
+            for j in range(n_criteria)]
+    return (write(tmp_path / "gold.jsonl", gold),
+            write(tmp_path / "ans.jsonl", answers),
+            write(tmp_path / "crit.jsonl", crit))
+
+
+def _recall_of(out: str, label: str) -> float:
+    """표에서 그 라벨 행의 재현율. 행 머리로 고정한다 — '조치' 는 '비조치' 의
+    부분문자열이라 고정하지 않으면 엉뚱한 행을 읽는다."""
+    row = re.search(rf"^  {label}\s+\d+\s+([\d.]+)", out, re.M)
+    assert row, f"{label} 행을 찾지 못했습니다:\n{out}"
+    return float(row.group(1))
+
+
+def _weights(gold, ans, crit):
+    return run("weights", "--criteria", str(crit), "--dev", str(gold),
+               "--dev-answers", str(ans), "--top", "6").stdout
+
+
+def test_weights_finds_a_planted_signal(tmp_path: Path):
+    """소수 클래스에 진짜 신호가 있으면 LOO 가 그것을 찾는가."""
+    out = _weights(*_dev_pair(tmp_path, 6, planted=True))
+    assert "LOO 교차검증" in out
+    recall = _recall_of(out, "조치")
+    assert recall > 0.5, f"심어 둔 조치 신호를 못 찾았습니다 (재현율 {recall})"
+    assert "넘는다" in out
+
+
+def test_weights_refuses_to_claim_success_on_noise(tmp_path: Path):
+    """신호가 없으면 성공이라 말하지 않는가.
+
+    이 도구의 존재 이유는 test 에 돈을 쓸지 정하는 것이다. 잡음에도
+    '넘는다' 를 찍으면 그 판단을 도와주는 것이 아니라 망친다.
+    """
+    out = _weights(*_dev_pair(tmp_path, 6, planted=False))
+    recall = _recall_of(out, "조치")
+    assert recall <= 0.286, f"잡음에서 조치 재현율 {recall} 이 나왔습니다"
+    assert "**못 넘는다**" in out, "사전 등록한 문턱을 못 넘었는데 그렇게 말하지 않았습니다"
+
+
+def test_weights_reports_silent_cases(tmp_path: Path):
+    """아무 기준도 걸리지 않는 사례 수를 말하는가.
+
+    커버리지가 낮으면 나머지는 전부 기저율로 떨어진다. 그것을 모르면
+    '기준이 잘 듣는다' 로 잘못 읽는다.
+    """
+    out = _weights(*_dev_pair(tmp_path, 6, planted=True))
+    assert "아무 기준도 걸리지 않은 사례" in out
+    assert "침묵" in out
+
+
+def test_weights_needs_no_test_answers(tmp_path: Path):
+    """test 답 없이 돌아가는가 — test 를 열지 않는 것이 요점이다."""
+    gold, ans, crit = _dev_pair(tmp_path, 6, planted=True)
+    proc = run("weights", "--criteria", str(crit), "--dev", str(gold),
+               "--dev-answers", str(ans))
+    assert proc.returncode == 0
+    assert not (tmp_path / "test_answers.jsonl").exists()
