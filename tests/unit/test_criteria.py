@@ -174,3 +174,134 @@ def test_wrong_shaped_criteria_file_is_rejected(tmp_path):
     with pytest.raises(SystemExit) as exc:
         load_criteria(path)
     assert "question" in str(exc.value)
+
+
+# ── 가중치 산술 — 증거가 없으면 가중치도 없다 ─────────────────────
+def _dev_rows():
+    """dev 와 같은 모양의 치우친 표본. 비조치 58 · 기타 19 · 조치 8."""
+    rows = []
+    for i, label in enumerate(["비조치"] * 58 + ["기타"] * 19 + ["조치"] * 8):
+        rows.append({"source": "t", "page": i, "serial": str(i),
+                     "pair_index": 1, "label": label})
+    return rows
+
+
+def _answers(rows, pick_label, k):
+    """pick_label 인 사례 k 건만 'yes' 라고 답한 것으로 둔다."""
+    from app.core.io import key_of
+
+    out, seen = {}, 0
+    for r in rows:
+        if r["label"] == pick_label and seen < k:
+            out[key_of(r)] = ["yes"]
+            seen += 1
+        else:
+            out[key_of(r)] = ["no"]
+    return out
+
+
+def test_evidence_free_label_gets_no_positive_weight():
+    """증거가 0 건인 라벨에 양수 가중치가 붙지 않는가.
+
+    라플라스 평활(+1)을 쓰던 시절, 비조치 5건·조치 0건인 기준이 조치에
+    **더 큰** 가중치를 줬다(비조치 +0.112 vs 조치 +0.201). 균등 사전분포로
+    평활한 값을 치우친 실제 기저율로 나누면 희귀 클래스가 부풀려진다.
+    """
+    from app.rules.criteria_vote import fit
+
+    rows = _dev_rows()
+    w = fit(_answers(rows, "비조치", 5), rows, 1)["criteria"][0]["weights"]
+    assert w["조치"] < 0, f"증거가 없는 조치에 {w['조치']:+.3f} 가 붙었습니다"
+    assert w["기타"] < 0
+    assert max(w, key=w.get) == "비조치", "증거가 있는 쪽이 이겨야 합니다"
+
+
+def test_real_minority_evidence_still_wins():
+    """소수 클래스에 **실제** 증거가 있으면 여전히 강하게 잡는가.
+
+    유령 가중치를 없애면서 진짜 신호까지 눌러 버리면 고친 것이 아니다.
+    """
+    from app.rules.criteria_vote import fit
+
+    rows = _dev_rows()
+    w = fit(_answers(rows, "조치", 3), rows, 1)["criteria"][0]["weights"]
+    assert max(w, key=w.get) == "조치", f"조치 3건 증거인데 {max(w, key=w.get)} 로 갔습니다"
+    assert w["조치"] > 1.0, f"소수 클래스 신호가 눌렸습니다: {w['조치']:+.3f}"
+
+
+def test_zero_evidence_criterion_is_exactly_neutral():
+    """아무도 yes 라고 답하지 않은 기준의 가중치는 정확히 0 인가."""
+    from app.core.io import key_of
+    from app.rules.criteria_vote import fit
+
+    rows = _dev_rows()
+    answers = {key_of(r): ["no"] for r in rows}
+    w = fit(answers, rows, 1)["criteria"][0]["weights"]
+    assert all(abs(v) < 1e-9 for v in w.values()), f"증거 없는 기준에 가중치가 붙었습니다: {w}"
+
+
+def test_nothing_fired_falls_back_to_the_base_rate():
+    """발화한 기준이 없을 때 자모 순서가 아니라 기저율로 돌아가는가.
+
+    점수가 전부 0 이면 이름순 정렬이 '기타' 를 골랐다. 그것은 판단이 아니다.
+    """
+    from app.core.io import key_of
+    from app.rules.criteria_vote import confidence, fit, score
+
+    rows = _dev_rows()
+    model = fit({key_of(r): ["no"] for r in rows}, rows, 1)
+    result = score(model, ["no"])
+    assert result["predicted"] == "비조치", f"기저율 최빈이 아니라 {result['predicted']}"
+    assert confidence(result, 0.5, 0.2) == "low", "근거가 없으면 low 여야 합니다"
+
+
+# ── 통합 문턱 — 클래스마다 같은 비율을 요구하는가 ──────────────────
+def test_class_floors_equalise_the_evidence_rate():
+    """일률 문턱이 소수 클래스에만 엄해지는 것을 막는가."""
+    from app.agents.criteria import class_floors
+
+    floors = class_floors({"비조치": 58, "기타": 19, "조치": 8}, 2)
+    assert floors["비조치"] == 2
+    assert floors["조치"] == 1, "조치에 2건을 요구하면 25% 를 요구하는 셈입니다"
+    # 요구 비율이 대략 같은 자리에 있는가 (일률 문턱은 7배 차이였다)
+    rates = {k: floors[k] / n for k, n in {"비조치": 58, "기타": 19, "조치": 8}.items()}
+    assert max(rates.values()) / min(rates.values()) < 4, f"요구 비율이 여전히 치우침: {rates}"
+
+
+def test_class_floors_never_reach_zero():
+    """아무리 드문 클래스도 문턱이 0 이 되지는 않는가."""
+    from app.agents.criteria import class_floors
+
+    assert class_floors({"많음": 1000, "하나": 1}, 2)["하나"] == 1
+    assert class_floors({}, 2) == {}
+
+
+def test_criterion_that_fires_on_everything_is_exactly_neutral():
+    """모두에게 yes 인 기준은 아무것도 가르지 못한다 — 가중치가 정확히 0.
+
+    기저율은 평활하고 조건부는 다르게 평활하면 이 값이 0 에서 벗어난다.
+    실제로 그렇게 어긋나 있었고, 없는 라벨에 -2.04 가 붙었다.
+    """
+    from app.core.io import key_of
+    from app.rules.criteria_vote import fit
+
+    rows = _dev_rows()
+    answers = {key_of(r): ["yes"] for r in rows}
+    w = fit(answers, rows, 1)["criteria"][0]["weights"]
+    assert all(abs(v) < 1e-9 for v in w.values()), f"가르지 못하는 기준에 가중치: {w}"
+
+
+def test_label_absent_from_dev_gets_zero_not_a_verdict():
+    """dev 에 한 번도 없는 라벨에는 큰 음수가 아니라 0 을 준다.
+
+    없는 정보를 지어내지 않는다. 근거가 없으면 밀지도 당기지도 않는다.
+    """
+    from app.core.io import key_of
+    from app.rules.criteria_vote import fit
+
+    rows = [{"source": "t", "page": i, "serial": str(i), "pair_index": 1,
+             "label": "비조치" if i % 2 else "조치"} for i in range(1, 21)]
+    answers = {key_of(r): (["yes"] if r["label"] == "조치" else ["no"]) for r in rows}
+    w = fit(answers, rows, 1)["criteria"][0]["weights"]
+    assert w["기타"] == 0.0, f"dev 에 없는 '기타' 에 {w['기타']:+.3f} 가 붙었습니다"
+    assert w["조치"] > 0 and w["비조치"] < 0, "실제 증거는 그대로 반영돼야 합니다"

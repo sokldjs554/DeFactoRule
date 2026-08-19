@@ -914,6 +914,59 @@ def every_guard_is_proven_by_a_counterexample() -> Result:
     return patterns.every_guard_is_proven_by_a_counterexample()
 
 
+def weights_need_evidence() -> Result:
+    """증거가 없는 라벨에 양수 가중치가 붙지 않는가 (EV-18).
+
+    라플라스(+1) 평활은 균등 사전분포를 가정한다. 그 값을 치우친 실제 기저율로
+    나누면 희귀 클래스가 증거 없이 부풀려진다.
+    """
+    from app.core.io import key_of
+    from app.rules.criteria_vote import fit
+
+    rows = [{"source": "t", "page": i, "serial": str(i), "pair_index": 1,
+             "label": lab}
+            for i, lab in enumerate(["비조치"] * 58 + ["기타"] * 19 + ["조치"] * 8)]
+    answers, seen = {}, 0
+    for r in rows:
+        if r["label"] == "비조치" and seen < 5:
+            answers[key_of(r)] = ["yes"]
+            seen += 1
+        else:
+            answers[key_of(r)] = ["no"]
+    w = fit(answers, rows, 1)["criteria"][0]["weights"]
+    top = max(w, key=w.get)
+    if top != "비조치":
+        return False, f"비조치 5건·조치 0건 증거인데 {top} 를 민다 ({w[top]:+.3f})"
+    return True, f"증거 있는 비조치 {w['비조치']:+.3f} · 증거 없는 조치 {w['조치']:+.3f}"
+
+
+def support_floor_is_proportional() -> Result:
+    """지지도 문턱이 클래스마다 같은 비율을 요구하는가 (EV-19)."""
+    from app.agents.criteria import class_floors
+
+    dist = {"비조치": 58, "기타": 19, "조치": 8}
+    floors = class_floors(dist, 2)
+    rates = {k: floors[k] / n for k, n in dist.items()}
+    spread = max(rates.values()) / min(rates.values())
+    if spread >= 4:
+        return False, f"요구 비율이 {spread:.1f}배 차이 난다: {rates}"
+    return True, f"문턱 {floors} · 요구 비율 차이 {spread:.1f}배 (일률이면 7.2배)"
+
+
+def no_evidence_falls_back_to_the_base_rate() -> Result:
+    """발화한 기준이 없을 때 자모 순서가 아니라 기저율로 가는가 (EV-20)."""
+    from app.core.io import key_of
+    from app.rules.criteria_vote import fit, score
+
+    rows = [{"source": "t", "page": i, "serial": str(i), "pair_index": 1, "label": lab}
+            for i, lab in enumerate(["비조치"] * 58 + ["기타"] * 19 + ["조치"] * 8)]
+    model = fit({key_of(r): ["no"] for r in rows}, rows, 1)
+    got = score(model, ["no"])["predicted"]
+    if got != "비조치":
+        return False, f"근거가 없는데 {got} 를 골랐다 (기저율 최빈은 비조치)"
+    return True, "근거 없음 -> 기저율 최빈(비조치) · 신뢰도 low"
+
+
 def _is_probe(name: str, fn: object) -> bool:
     """probe 는 **인자 없이** 부를 수 있어야 한다.
 

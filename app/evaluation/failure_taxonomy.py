@@ -44,6 +44,9 @@ TAXONOMY: dict[str, dict[str, str]] = {
         "incomparable-comparison": "비교 조건이 달라 비교가 성립하지 않는다",
         "misdiagnosis": "숫자는 맞는데 해석이 틀렸다",
         "partial-guard": "가드가 대상의 일부만 보고 통과시킨다",
+        "phantom-evidence": "증거가 없는데 있는 것처럼 셈한다",
+        "uniform-threshold": "일률 문턱이 클래스마다 다른 잣대가 된다",
+        "arbitrary-tiebreak": "동점을 판단이 아닌 것으로 가른다",
         "distribution-mismatch": "쓰이지 않을 분포에서 성능을 잰다",
     },
     "agent": {

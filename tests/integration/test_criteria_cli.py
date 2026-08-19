@@ -94,11 +94,59 @@ def test_consolidate_assigns_contiguous_ids_by_support(raw: Path, tmp_path: Path
     assert merged == sorted(merged, key=lambda c: -c["support"])
 
 
-def test_consolidate_drops_groups_below_min_support(raw: Path, tmp_path: Path):
+def _skewed(tmp_path: Path, n_major: int, n_minor: int) -> Path:
+    """다수 클래스 사례마다 서로 다른 기준 하나씩(전부 지지도 1),
+    소수 클래스도 서로 다른 기준 하나씩(역시 지지도 1)."""
+    rows = []
+    for i in range(n_major):
+        rows.append({
+            "source": "t", "page": 100 + i, "serial": f"M{i}", "sector": "공통",
+            "decision": "비조치", "proposed": 1, "rejected": [],
+            "criteria": [criterion(f"다수{i}", f"요청이 유형 {i} 에 해당하는가?",
+                                   f"유형 {i}", "비조치")],
+            "input_tokens": 10, "output_tokens": 5,
+        })
+    for i in range(n_minor):
+        rows.append({
+            "source": "t", "page": 200 + i, "serial": f"m{i}", "sector": "전자금융",
+            "decision": "조치", "proposed": 1, "rejected": [],
+            "criteria": [criterion(f"소수{i}", f"위반 사유 {i} 가 확인되는가?",
+                                   f"사유 {i}", "조치")],
+            "input_tokens": 10, "output_tokens": 5,
+        })
+    return write(tmp_path / "skewed_raw.jsonl", rows)
+
+
+def test_majority_class_groups_below_the_floor_are_dropped(tmp_path: Path):
+    """다수 클래스에서 한 사례에만 나온 기준은 여전히 떨어지는가.
+
+    비율 환산은 문턱을 없애는 것이 아니다. 다수 쪽 잣대는 그대로여야 한다.
+    """
     out = tmp_path / "criteria.jsonl"
-    run("consolidate", "--input", str(raw), "--output", str(out), "--min-support", "2")
+    run("consolidate", "--input", str(_skewed(tmp_path, 20, 3)),
+        "--output", str(out), "--min-support", "2")
     merged = [json.loads(x) for x in out.read_text(encoding="utf-8").splitlines() if x.strip()]
-    assert len(merged) == 1 and merged[0]["support"] == 2
+    assert not any(c["observed_decisions"].get("비조치") for c in merged), (
+        "지지도 1 짜리 다수 클래스 기준이 살아남았습니다"
+    )
+
+
+def test_minority_class_survives_the_proportional_floor(tmp_path: Path):
+    """소수 클래스 기준이 일률 문턱에 구조적으로 지워지지 않는가.
+
+    dev 는 비조치 58 · 조치 8 이다. "2건 이상" 을 똑같이 걸면 조치에는
+    25% 의 증거를 요구하는 셈이고, 그러면 소수 클래스 기준은 나올 수 없다.
+    """
+    out = tmp_path / "criteria.jsonl"
+    proc = run("consolidate", "--input", str(_skewed(tmp_path, 20, 3)),
+               "--output", str(out), "--min-support", "2")
+    merged = [json.loads(x) for x in out.read_text(encoding="utf-8").splitlines() if x.strip()]
+    minority = [c for c in merged if c["observed_decisions"].get("조치")]
+    assert len(minority) == 3, f"소수 클래스 기준 {len(minority)}개만 남았습니다"
+    assert "소수 클래스 문턱으로 살아남았다" in proc.stdout, (
+        "완화한 사실을 출력에 남기지 않았습니다 — 조용한 완화는 은폐입니다"
+    )
+    assert "조치 1건" in proc.stdout, "환산된 문턱을 보여주지 않았습니다"
 
 
 def test_consolidate_diagnoses_when_nothing_was_accepted(tmp_path: Path):
