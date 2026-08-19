@@ -53,6 +53,7 @@ TAXONOMY: dict[str, dict[str, str]] = {
         "degenerate-representation": "표현이 무너져 서로 다른 것이 같아진다",
         "coverage-blind-spot": "필요한 곳에서 아무것도 찾지 못한다",
         "misleading-hit": "찾기는 하는데 그것이 근거가 되지 못한다",
+        "numeric-hygiene": "수치가 정의된 범위를 벗어난다",
     },
     "agent": {
         "undiagnosable-discard": "버린 것을 기록하지 않아 원인을 되짚을 수 없다",
@@ -61,6 +62,8 @@ TAXONOMY: dict[str, dict[str, str]] = {
         "miscalibration": "확신의 정도가 정확도와 맞지 않는다",
         "prior-overcorrection": "사전 정보가 소수 클래스를 지운다",
         "unverified-premise": "재보지 않은 가정 위에 설계를 세운다",
+        "evidence-hierarchy": "약한 근거가 강한 근거를 덮는다",
+        "orphaned-wiring": "만들어 놓고 배선하지 않아 아무 일도 하지 않는다",
     },
     "infrastructure": {
         "undiagnosable-discard": "버린 것을 기록하지 않아 원인을 되짚을 수 없다",

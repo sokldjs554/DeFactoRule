@@ -1113,6 +1113,49 @@ def calibration_artifact_matches_a_fresh_run() -> Result:
     return True, f"구간 건수·전체 위험 {fresh['overall_risk']:.3f} 일치"
 
 
+def answers_are_tied_to_their_criteria() -> Result:
+    """답 파일이 어떤 기준 목록에 대한 답인지 확인되는가 (AG-11).
+
+    답은 순서로만 기준과 이어진다. 지문을 기록만 하고 **읽는 쪽이 대조하지
+    않으면** 아무것도 막지 못한다 — 실제로 한동안 그랬다.
+    """
+    import inspect
+
+    from app.agents import criteria
+
+    source = inspect.getsource(criteria)
+    callers = source.count("check_fingerprint(")
+    if callers < 2:
+        return False, f"check_fingerprint 가 정의만 있고 호출되지 않는다 ({callers})"
+    for command in ("cmd_weights", "cmd_predict"):
+        if "check_fingerprint" not in inspect.getsource(getattr(criteria, command)):
+            return False, f"{command} 가 지문을 대조하지 않는다"
+    return True, f"지문 대조 호출 {callers - 1}곳"
+
+
+def verdicts_go_through_the_validity_gate() -> Result:
+    """판정이 무효 기준 게이트를 거치는가 (EV-23).
+
+    무효 기준을 형으로 만들어 두고 정작 쓰지 않으면 고아 코드일 뿐이다.
+    """
+    import inspect
+    from collections import Counter
+
+    from app.agents.criteria import cmd_weights
+    from app.evaluation.validity import Claim
+
+    if "Claim(" not in inspect.getsource(cmd_weights):
+        return False, "cmd_weights 가 Claim 을 쓰지 않는다"
+
+    partial = Claim(name="시험", numerator=3, denominator=4,
+                    sample=Counter({"비조치": 12, "기타": 10, "조치": 4}),
+                    population=Counter({"비조치": 58, "기타": 19, "조치": 8}),
+                    threshold=0.286)
+    if "판정 불가" not in partial.verdict():
+        return False, f"부분·치우친 표본에 판정을 내준다: {partial.verdict()}"
+    return True, f"부분 표본 -> {partial.verdict()} · 무효 사유 {len(partial.problems())}건"
+
+
 def _is_probe(name: str, fn: object) -> bool:
     """probe 는 **인자 없이** 부를 수 있어야 한다.
 

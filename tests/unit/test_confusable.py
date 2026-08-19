@@ -92,3 +92,25 @@ def test_confidence_bands_are_ordered():
     assert band(HIGH) == "high"
     assert band(MEDIUM) == "medium"
     assert band(MEDIUM - 0.01) == "low"
+
+
+def test_cosine_never_exceeds_one():
+    """글자가 같은 텍스트에서도 1 을 넘지 않는가.
+
+    누적 오차로 1.0000000000000022 가 나왔고, 근거 스키마의 상한 제약이
+    그것을 잡아 워크플로가 멈췄다. 자르는 자리는 `cosine` 한 곳이다 —
+    쓰는 쪽마다 자르면 언젠가 한 곳을 빠뜨린다.
+    """
+    from app.evaluation.confusable import cosine, idf_table, weighted_vector
+
+    texts = [
+        "금융지주회사법령 및 감독규정상 IT 전문 자회사에 지주의 전산시스템 관련 "
+        "관리·운영 업무를 위탁하는 것이 허용되는지 여부",
+        "전자금융거래법상 등록 의무에 관한 질의입니다",
+        "망분리 대체정보보호통제를 적용하는 경우에 관하여",
+    ]
+    idf = idf_table(texts)
+    for text in texts:
+        vector = weighted_vector(text, idf)
+        assert 0.0 <= cosine(vector, vector) <= 1.0
+    assert cosine({}, {}) == 0.0

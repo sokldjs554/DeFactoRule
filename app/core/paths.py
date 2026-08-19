@@ -20,18 +20,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 DATA = ROOT / "data"
-RAW = DATA / "raw"
-INTERIM = DATA / "interim"
 PROCESSED = DATA / "processed"
 EVAL = DATA / "eval"
 FAILURES = DATA / "failures"
 
-MODELS = ROOT / "models"
 EXPERIMENTS = ROOT / "experiments"
 RESULTS = EXPERIMENTS / "results"
 
 DEV_BASE_RATES = EVAL / "dev_base_rates.json"
-SPACING_MODEL = MODELS / "spacing.json"
 
 
 def check_root() -> bool:

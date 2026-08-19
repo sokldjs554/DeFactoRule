@@ -50,7 +50,7 @@ TOP_K = 3               # 일치도·출처 다양성을 볼 상위 근거 수
 
 # 경로를 고른 이유 → 기권했을 때의 사유 코드
 ABSTAIN_FOR = {
-    "R1": AbstentionReason.CONFLICTING_EVIDENCE,
+    "R1": AbstentionReason.CONFLICTING_EVIDENCE,   # 규칙 경로 가드
     "R2": AbstentionReason.NO_EVIDENCE,
     "R5": AbstentionReason.SURFACE_ONLY,
     "R6": AbstentionReason.CONFLICTING_EVIDENCE,
@@ -104,10 +104,19 @@ def route(signals: RouterSignals) -> tuple[Path, str]:
     "왜 이 경로인가" 를 사람의 서술이 아니라 데이터가 답해야 한다.
     """
     s = signals
+    # 규칙 경로를 쓸 수 있는가. 규칙끼리 반대를 가리키면 쓸 수 없다.
+    #
+    # 초안은 이것을 **맨 위 줄(R1)** 로 뒀다. 그러자 dev 85건 중 29건이 규칙
+    # 충돌로 기권했고, **그중 10건은 유사도 0.60 이상의 선례를 갖고 있었다.**
+    # 약한 근거(n-gram 규칙, E6 에서 조치 전이 100%→20%)가 강한 근거(선례)를
+    # 덮는 것은 증거의 위계를 뒤집는 것이다. 규칙 충돌은 **규칙 경로에 대한
+    # 정보**이지 선례 경로에 대한 정보가 아니다. 그래서 가드로 강등했다.
+    rule_usable = s.rule_fired > 0 and not s.rule_conflict
 
-    # R1 — 규칙끼리 반대를 가리킨다. 판단할 근거가 없다.
-    if s.rule_conflict:
-        return Path.ABSTAIN, "R1"
+    def to_rules(reason: str) -> tuple[Path, str]:
+        if rule_usable:
+            return Path.RULE, reason
+        return Path.ABSTAIN, "R1" if s.rule_conflict else reason
 
     # R2 — 선례도 규칙도 없다.
     if s.evidence_count == 0 and s.rule_fired == 0:
@@ -117,18 +126,18 @@ def route(signals: RouterSignals) -> tuple[Path, str]:
     # (설계 초안의 R4 "선례도 규칙도 없다" 는 R2 가 이미 잡으므로 **도달할 수
     #  없었다.** 죽은 줄은 지운다 — 안 발화하는 규칙은 규칙이 아니다.)
     if s.evidence_count == 0:
-        return Path.RULE, "R3"
+        return to_rules("R3")
 
     # R5 — 표면만 닮았을 위험이 크다. 선례를 버린다.
     if s.trap_risk > RISK_CEILING:
-        return (Path.RULE, "R5") if s.rule_fired else (Path.ABSTAIN, "R5")
+        return to_rules("R5")
 
     # R6 — 서로 다른 출처가 서로 다른 결론을 가리킨다.
     if s.label_agreement < MIN_AGREEMENT and s.source_diversity >= 2:
         return Path.ABSTAIN, "R6"
 
     # R7 — 오래된 선례보다 현행 규칙.
-    if s.recency_gap is not None and s.recency_gap > MAX_YEAR_GAP and s.rule_fired:
+    if s.recency_gap is not None and s.recency_gap > MAX_YEAR_GAP and rule_usable:
         return Path.RULE, "R7"
 
     # R9 — 1등과 2등이 붙어 있는데 결론이 갈린다. (R8 보다 먼저 본다)

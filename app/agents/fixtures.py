@@ -162,6 +162,19 @@ SCENARIOS: list[Scenario] = [
 
 
 SCENARIOS.append(Scenario(
+    name="F10_rules_conflict_but_precedent_is_strong",
+    what="규칙끼리 반대를 가리키는데 선례는 강하다 — 증거의 위계",
+    request="클라우드 구간에 내부 업무용시스템을 연결하는 데 관한 질의입니다.",
+    precedents=[Precedent("g1", "클라우드 구간 내부시스템 연결", "비조치", TRUSTED)],
+    rules_fire=["비조치", "조치"],      # 규칙끼리 반대
+    # 규칙 충돌은 **규칙 경로에 대한 정보**다. 선례가 믿을 만하면 선례를 쓴다.
+    # 초안은 이것을 맨 위 줄로 둬서 dev 29건이 기권했고, 그중 10건은 유사도
+    # 0.60 이상의 선례를 갖고 있었다.
+    expect_route=Path.PRECEDENT,
+    expect_rule="R8",
+))
+
+SCENARIOS.append(Scenario(
     name="F4b_same_source_tie",
     what="같은 출처의 선례 둘이 붙어 있는데 결론이 갈린다 — R6 이 못 잡는 자리",
     request="전자지급결제대행 등록 대상인지 질의합니다.",
@@ -175,13 +188,6 @@ SCENARIOS.append(Scenario(
     expect_route=Path.ABSTAIN,
     expect_rule="R9",
 ))
-
-
-def by_name(name: str) -> Scenario:
-    for scenario in SCENARIOS:
-        if scenario.name == name:
-            return scenario
-    raise KeyError(f"그런 시나리오가 없습니다: {name}")
 
 
 def action_cases(gold_rows: list[dict]) -> list[dict]:

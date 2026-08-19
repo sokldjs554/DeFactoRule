@@ -112,6 +112,8 @@ class AgentState(BaseModel):
     retrieved_evidence: List[Evidence] = Field(default_factory=list)
     rule_evidence: List[Evidence] = Field(default_factory=list)
     signals: Optional[RouterSignals] = None
+    precedent_score: float = Field(
+        0.0, description="최상위 선례의 유사도 — Router 가 위험을 조회하는 값")
 
     route: Optional[Path] = None
     route_reason: Optional[str] = Field(None, description="발화한 결정 표의 줄 (R1~R10)")

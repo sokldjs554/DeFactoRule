@@ -1,0 +1,107 @@
+"""워크플로 F9 — **실제 `조치` 사례에서 선례를 따르지 않는가.**
+
+이것이 Phase 3 의 존재 이유이자 완료 기준 1번이다.
+
+E5 실측: test 의 `조치` 14건 중 dev 에 닮은 선례가 있는 것은 **1건(7.1%)** 이다.
+그러므로 Agent 가 `조치` 사례에서 선례 경로(A)를 자주 고른다면, 그것은 없는
+근거를 있다고 착각하는 것이다. 합성으로는 이 성질을 흉내 낼 수 없어 실제
+데이터를 쓴다.
+"""
+
+from __future__ import annotations
+
+import json
+from collections import Counter
+
+import pytest
+
+from app.agents.fixtures import action_cases
+from app.agents.state import Path as RoutePath
+from app.agents.workflow import Workflow
+from app.core.io import load_jsonl
+from app.core.paths import EVAL, PROCESSED, RESULTS
+from app.retrieval.lexical import LexicalRetriever
+
+
+@pytest.fixture(scope="module")
+def workflow_states():
+    for path in (EVAL / "nonaction_dev.jsonl", EVAL / "nonaction_test.jsonl",
+                 PROCESSED / "cases_nonaction.jsonl", RESULTS / "e6_rules.json",
+                 RESULTS / "trap_risk.json"):
+        if not path.exists():
+            pytest.skip(f"{path.name} 이 없습니다")
+
+    dev = [r for r in load_jsonl(EVAL / "nonaction_dev.jsonl") if r.get("label")]
+    test = [r for r in load_jsonl(EVAL / "nonaction_test.jsonl") if r.get("label")]
+    cases = load_jsonl(PROCESSED / "cases_nonaction.jsonl")
+    corpus = [c["fields"].get("요청대상행위") or c["fields"].get("질의요지") or ""
+              for c in cases]
+    rules = json.loads((RESULTS / "e6_rules.json").read_text(encoding="utf-8"))["rules"]
+    risk = json.loads((RESULTS / "trap_risk.json").read_text(encoding="utf-8"))
+
+    flow = Workflow(LexicalRetriever().fit(dev, [t for t in corpus if t]),
+                    dev, rules, risk)
+    return test, [flow.run(row) for row in test]
+
+
+def test_action_cases_do_not_follow_precedents(workflow_states):
+    """`조치` 사례에서 선례 경로를 고르지 않는가 — 완료 기준 1번."""
+    test, states = workflow_states
+    actions = action_cases(test)
+    assert actions, "test 에 `조치` 사례가 없습니다"
+
+    routes = Counter(state.route for row, state in zip(test, states)
+                     if row["label"] == "조치")
+    followed = routes[RoutePath.PRECEDENT]
+    assert followed <= 1, (
+        f"`조치` {len(actions)}건 중 {followed}건에서 선례를 따랐습니다. "
+        f"E5 실측으로 닮은 선례가 있는 것은 1건(7.1%)뿐입니다 — 없는 근거를 "
+        f"있다고 본 것입니다. 경로 분포: {dict(routes)}"
+    )
+
+
+def test_the_agent_abstains_rather_than_guessing_on_actions(workflow_states):
+    """`조치` 사례의 대부분에서 판단을 보류하는가.
+
+    커버리지가 떨어지는 것은 실패가 아니다. **근거 없이 답하는 것이 실패다.**
+    """
+    test, states = workflow_states
+    abstained = sum(1 for row, state in zip(test, states)
+                    if row["label"] == "조치" and state.abstained)
+    total = sum(1 for row in test if row["label"] == "조치")
+    assert abstained >= total * 0.5, (
+        f"`조치` {total}건 중 기권은 {abstained}건뿐입니다. 근거가 없는데 "
+        f"답하고 있습니다."
+    )
+
+
+def test_every_answer_carries_the_evidence_it_used(workflow_states):
+    """답한 건은 전부 근거를 추적할 수 있는가 — 완료 기준 5번."""
+    _test, states = workflow_states
+    for state in states:
+        if state.abstained:
+            assert state.abstention_reason is not None, "이유 없이 기권했습니다"
+            continue
+        assert state.evidence_used, f"근거 없이 답했습니다: {state.request_key}"
+        known = set(state.evidence_by_id())
+        assert set(state.evidence_used) <= known, "실재하지 않는 근거를 인용했습니다"
+
+
+def test_execution_trace_is_complete(workflow_states):
+    """모든 단계가 흔적을 남기는가 — 재현 가능성의 최소 조건."""
+    _test, states = workflow_states
+    for state in states:
+        nodes = [step.node for step in state.execution_trace]
+        assert nodes[:3] == ["retrieve", "rules", "route"], nodes
+        assert state.route_reason, "어느 줄이 발화했는지 남지 않았습니다"
+
+
+def test_both_evidence_paths_are_used(workflow_states):
+    """선례 경로와 규칙 경로가 둘 다 쓰이는가 — 완료 기준 2번.
+
+    한쪽만 쓰인다면 경로를 나눈 의미가 없다.
+    """
+    _test, states = workflow_states
+    routes = Counter(state.route for state in states)
+    for path in (RoutePath.PRECEDENT, RoutePath.RULE, RoutePath.ABSTAIN):
+        assert routes[path] > 0, f"{path.value} 경로가 한 번도 쓰이지 않았습니다: {dict(routes)}"

@@ -78,9 +78,16 @@ def weighted_vector(text: str, idf: dict[str, float], n: int = NGRAM) -> dict[st
 
 
 def cosine(a: dict[str, float], b: dict[str, float]) -> float:
+    """정규화된 두 벡터의 내적. **[0, 1] 을 벗어나지 않게 자른다.**
+
+    벡터는 미리 정규화돼 있으므로 수학적으로는 [0, 1] 이다. 그런데 글자가
+    완전히 같은 두 텍스트에서 부동소수점 누적 오차로 `1.0000000000000022` 가
+    나왔고, 근거 스키마의 `le=1.0` 제약이 그것을 잡아 워크플로가 멈췄다.
+    자르는 자리는 여기다 — 쓰는 쪽마다 자르면 언젠가 한 곳을 빠뜨린다.
+    """
     if len(a) > len(b):
         a, b = b, a
-    return sum(v * b.get(g, 0.0) for g, v in a.items())
+    return min(1.0, max(0.0, sum(v * b.get(g, 0.0) for g, v in a.items())))
 
 
 def nearest(
