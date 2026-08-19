@@ -69,3 +69,47 @@ def test_cost_ignores_failed_records():
 
 def test_cost_of_nothing_is_zero():
     assert estimate_cost([]) == 0.0
+
+
+# ── 사전 점검 — 계약을 보는가, 그리고 헛짖지 않는가 ────────────────
+class _StubClient:
+    """call_structured 를 대신할 자리. preflight 는 이 결과만 보고 판단한다."""
+
+    def __init__(self, result):
+        self.result = result
+
+
+def _run_preflight(monkeypatch, result):
+    """call_structured 를 고정 결과로 바꿔 preflight 만 검사한다."""
+    from app.infrastructure import anthropic_client as ac
+
+    monkeypatch.setattr(ac, "call_structured", lambda *a, **k: result)
+    ac.preflight(_StubClient(result), schema={"type": "object"})
+
+
+def test_contract_rejection_stops_before_any_real_request(monkeypatch, capsys):
+    """400 이면 한 건도 보내지 않고 멈추는가 — IN-10 이 일어난 자리."""
+    import pytest
+
+    detail = "output_config.format.schema: For 'array' type, property 'maxItems' is not supported"
+    with pytest.raises(SystemExit) as exc:
+        _run_preflight(monkeypatch, {
+            "error": "BadRequestError: 400", "status": 400, "error_detail": detail,
+        })
+    assert "maxItems" in str(exc.value), "왜 거부됐는지 말해야 고칠 수 있다"
+
+
+def test_unparseable_probe_output_is_not_a_warning(monkeypatch, capsys):
+    """200 을 받았는데 내용이 스키마에 못 미친 것은 계약 통과다.
+
+    점 하나짜리 프롬프트가 스키마에 맞는 내용을 못 내놓는 것은 당연하다.
+    이것을 경고로 찍으면 매번 짖고, 매번 짖는 경고는 읽히지 않는다.
+    """
+    _run_preflight(monkeypatch, {"error": "unparseable_output", "raw": "..."})
+    assert capsys.readouterr().out == "", "정상 동작에 경고를 찍었습니다"
+
+
+def test_probe_that_never_reached_the_api_does_warn(monkeypatch, capsys):
+    """연결 자체가 안 된 것은 계약을 확인하지 못한 것이므로 말해야 한다."""
+    _run_preflight(monkeypatch, {"error": "connection: timed out"})
+    assert "확인하지 못했습니다" in capsys.readouterr().out

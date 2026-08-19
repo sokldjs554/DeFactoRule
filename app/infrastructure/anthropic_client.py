@@ -55,12 +55,22 @@ def connect():
         )
 
 
+# 200 을 받았으나 내용이 스키마에 못 미친 경우. 계약은 통과한 것이다.
+CONTENT_ONLY_ERRORS = frozenset({"unparseable_output", "refusal"})
+
+_BILLING_HELP = (
+    "사전 점검 실패 — 요청을 하나도 보내지 않았습니다.\n  {detail}\n\n"
+    "  Anthropic Console 의 Plans & Billing 에서 크레딧을 확인하세요.\n"
+    "  충전 직후에는 반영에 몇 분 걸릴 수 있습니다."
+)
+
+
 def preflight(client, schema: dict | None = None) -> None:
     """본 요청을 던지기 전에 계정과 **요청 계약**이 살아 있는지 확인한다.
 
     처음에는 계정만 봤다. 스키마 없이 한 글자를 보내 200 이 오면 통과였다.
-    그래서 구조화 출력 스키마가 거부되는 것을 잡지 못했고, 83건 × 4회 = 332
-    요청이 전부 400 으로 죽은 뒤에야 드러났다(IN-10).
+    그래서 구조화 출력 스키마가 거부되는 것을 잡지 못했고, 83건 × 재시도 =
+    332 요청이 전부 400 으로 죽은 뒤에야 드러났다(IN-10).
 
         output_config.format.schema: For 'array' type,
         property 'maxItems' is not supported
@@ -69,32 +79,47 @@ def preflight(client, schema: dict | None = None) -> None:
     schema 를 주면 **실제로 쓸 스키마 그대로** 한 번 호출한다. 토큰은 최소이고
     비용은 사실상 0 이다.
     """
+    if schema is not None:
+        _check_contract(client, schema)
+    else:
+        _check_account(client)
+
+
+def _check_contract(client, schema: dict) -> None:
+    """본 요청과 같은 스키마로 한 번 호출해 계약이 받아들여지는지 본다."""
+    try:
+        probe = call_structured(client, "간단히 답합니다.", ".", schema, max_tokens=64)
+    except FatalApiError as exc:
+        sys.exit(_BILLING_HELP.format(detail=str(exc).strip()))
+
+    if probe.get("status") == 400:
+        sys.exit(
+            "사전 점검 실패 — 요청 계약이 거부됐습니다. "
+            "요청을 하나도 보내지 않았습니다.\n"
+            f"  {probe.get('error_detail') or probe['error']}\n\n"
+            "  구조화 출력 스키마를 고쳐야 합니다."
+        )
+    # 여기서 묻는 것은 **계약이 받아들여졌는가** 뿐이다. 점 하나짜리 프롬프트가
+    # 스키마에 맞는 내용을 못 내놓는 것은 당연하고, 그것을 경고로 찍으면 매번
+    # 짖는 가드가 된다 — 매번 짖는 경고는 곧 아무도 읽지 않는 경고가 된다.
+    if "data" in probe or probe.get("error") in CONTENT_ONLY_ERRORS:
+        return
+    if "error" in probe:
+        print(f"  ⚠ 계약을 확인하지 못했습니다: {probe['error']}")
+
+
+def _check_account(client) -> None:
+    """스키마가 없을 때 — 계정이 살아 있는지만 본다."""
     import anthropic
 
     try:
-        if schema is None:
-            client.messages.create(
-                model=MODEL, max_tokens=1, messages=[{"role": "user", "content": "."}]
-            )
-        else:
-            probe = call_structured(client, "간단히 답합니다.", ".", schema, max_tokens=64)
-            if probe.get("status") == 400:
-                sys.exit(
-                    "사전 점검 실패 — 요청 계약이 거부됐습니다. "
-                    "요청을 하나도 보내지 않았습니다.\n"
-                    f"  {probe.get('error_detail') or probe['error']}\n\n"
-                    "  구조화 출력 스키마를 고쳐야 합니다."
-                )
-            if "error" in probe:
-                print(f"  ⚠ 계약 점검에서 예상치 못한 응답: {probe['error']}")
+        client.messages.create(
+            model=MODEL, max_tokens=1, messages=[{"role": "user", "content": "."}]
+        )
     except anthropic.APIStatusError as exc:
         detail = getattr(exc, "message", "") or str(exc)
         if is_fatal(detail, getattr(exc, "body", None)):
-            sys.exit(
-                f"사전 점검 실패 — 요청을 하나도 보내지 않았습니다.\n  {detail.strip()}\n\n"
-                "  Anthropic Console 의 Plans & Billing 에서 크레딧을 확인하세요.\n"
-                "  충전 직후에는 반영에 몇 분 걸릴 수 있습니다."
-            )
+            sys.exit(_BILLING_HELP.format(detail=detail.strip()))
         print(f"  ⚠ 사전 점검에서 예상치 못한 오류: {type(exc).__name__} {exc.status_code}")
 
 
