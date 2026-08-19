@@ -341,3 +341,35 @@ def test_cap_is_never_below_the_estimate():
 
     for n in range(1, 300, 7):
         assert apply_token_cap(n) > apply_output_tokens(n), f"기준 {n}개에서 역전"
+
+
+# ── 낱말 겹침 미리보기 — 돈 쓰기 전의 눈금 ────────────────────────
+def test_relevance_preview_separates_matching_from_unrelated():
+    """기준과 상관없는 사례를 상관있는 사례와 가르는가."""
+    from app.agents.criteria import relevance_preview
+
+    criteria = [{"question": "요청이 부동산PF 사업장 재구조화와 관련되는가?"}]
+    rows = [
+        {"request": "부동산PF 사업장 재구조화 관련 신규자금 지원이 가능한지",
+         "label": "비조치"},
+        {"request": "금융지주회사의 IT 전문 자회사에 전산 운영 업무를 위탁할 수 있는지",
+         "label": "조치"},
+    ]
+    out = relevance_preview(rows, criteria)
+    assert "1/2" in out, f"겹치는 사례를 하나로 세지 못했습니다:\n{out}"
+
+
+def test_relevance_preview_warns_when_nothing_overlaps():
+    """아무것도 겹치지 않으면 그렇게 말하는가.
+
+    조용히 0% 를 적어 두면 읽는 사람은 그냥 지나친다. 돈을 쓸지 정하는
+    자리이므로 분명히 말해야 한다.
+    """
+    from app.agents.criteria import relevance_preview
+
+    out = relevance_preview(
+        [{"request": "전혀 다른 이야기입니다", "label": "조치"}],
+        [{"question": "부동산PF 사업장 재구조화와 관련되는가?"}],
+    )
+    assert "0/1" in out
+    assert "기준이 이 사례들에 대해 말할 것이 없다" in out

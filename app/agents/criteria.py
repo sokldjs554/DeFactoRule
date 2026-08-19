@@ -268,6 +268,52 @@ def _estimate(prompts: list[str], out_tokens: int) -> tuple[int, float]:
     return in_tokens, cost
 
 
+def relevance_preview(rows: list[dict], criteria: list[dict], floor: float = 0.15) -> str:
+    """요청문과 기준 질문이 **얼마나 겹치는가** 를 호출 없이 재본다.
+
+    기준은 사례별 판단이유에서 뽑았으므로 그 사례의 특수 사정을 그대로 담을 수
+    있다. "요청이 부동산PF 사업장 재구조화와 관련되는가" 같은 기준은 PF 사안
+    바깥에서는 언제나 아니오다. 그런 기준만 남으면 대부분의 사례에서 아무것도
+    발화하지 않고, 예측은 기저율로 주저앉는다.
+
+    글자 4-gram IDF 코사인으로 사례마다 가장 닮은 기준을 찾는다. 문턱은 TRAP
+    지표에서 쓰는 값과 같은 0.15 다. **이것은 대리 측정이다** — 모델은 낱말이
+    겹치지 않아도 뜻으로 판단할 수 있다. 그러니 여기서 나온 수는 발화율의
+    상한이 아니라 눈금이다. 다만 눈금이 바닥이면 돈을 쓸 이유가 없다.
+    """
+    from app.evaluation.confusable import cosine, idf_table, weighted_vector
+
+    questions = [c["question"] for c in criteria]
+    texts = questions + [r.get("request", "") for r in rows]
+    idf = idf_table(texts)
+    q_vecs = [weighted_vector(q, idf) for q in questions]
+
+    best = []
+    for row in rows:
+        vec = weighted_vector(row.get("request", ""), idf)
+        best.append(max((cosine(vec, q) for q in q_vecs), default=0.0))
+
+    over = [b for b in best if b >= floor]
+    ordered = sorted(best)
+    mid = ordered[len(ordered) // 2] if ordered else 0.0
+    lines = [
+        f"  기준과 낱말이 겹치는 사례: {len(over)}/{len(rows)} "
+        f"({len(over) / max(1, len(rows)):.1%}, 문턱 {floor})",
+        f"  최대 닮음의 중앙값 {mid:.3f} · 최댓값 {max(best, default=0):.3f}",
+    ]
+    by_label: dict[str, list[float]] = {}
+    for row, b in zip(rows, best):
+        if row.get("label"):
+            by_label.setdefault(row["label"], []).append(b)
+    for label, vals in sorted(by_label.items(), key=lambda kv: -len(kv[1])):
+        hit = sum(1 for v in vals if v >= floor)
+        lines.append(f"    {label:<4} {len(vals):>3}건 · 겹침 {hit}건 "
+                     f"({hit / len(vals):.0%}) · 중앙값 {sorted(vals)[len(vals) // 2]:.3f}")
+    if not over:
+        lines.append("  ⚠ 겹치는 사례가 없다. 기준이 이 사례들에 대해 말할 것이 없다는 뜻이다.")
+    return "\n".join(lines)
+
+
 def cmd_extract(args) -> None:
     from pathlib import Path
 
@@ -589,6 +635,8 @@ def cmd_apply(args) -> None:
     print(f"기준 {len(criteria)}개를 사례 {len(rows)}건에 적용합니다.")
     print(f"  추정 비용 약 ${cost:.2f}")
     if args.dry_run:
+        print("\n낱말 겹침 미리보기 (호출 없음 · 대리 측정)")
+        print(relevance_preview(rows, criteria))
         print("\n--dry-run 이므로 요청을 보내지 않습니다. 첫 사례의 프롬프트:\n")
         print("─" * 70)
         print(prompts[0][:1600] + ("…" if len(prompts[0]) > 1600 else ""))
