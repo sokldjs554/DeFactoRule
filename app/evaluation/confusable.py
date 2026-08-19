@@ -37,12 +37,15 @@ from pathlib import Path
 
 from app.core.io import key_of, load_jsonl, write_json
 from app.core.paths import PROCESSED
+from app.domain import similarity as domain_similarity
 
 NGRAM = 4
 
 # 이보다 안 닮았으면 "선례를 따라간다" 는 전제 자체가 없다. 그런 사례는
 # 두 무리 어디에도 넣지 않고 따로 센다.
-SIMILARITY_FLOOR = 0.25
+# 문턱은 도메인 한 곳에서만 정한다 — 세 파일이 서로 다른 값을 쓰다
+# 발표된 표가 기본값으로 재현되지 않았다 (app/domain/similarity.py).
+SIMILARITY_FLOOR = domain_similarity.SIMILARITY_FLOOR
 
 JUNK = re.compile(r"[\s​﻿]+")
 

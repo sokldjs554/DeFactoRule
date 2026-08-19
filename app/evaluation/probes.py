@@ -1021,6 +1021,60 @@ def small_denominators_get_intervals() -> Result:
     return True, f"3/4 -> [{lo:.3f}, {hi:.3f}] · 8건으로는 기각 불가"
 
 
+def published_numbers_reproduce_with_defaults() -> Result:
+    """발표된 TRAP 표가 인자 없이 재현되는가 (IN-13).
+
+    수치가 맞아도 **같은 명령으로 같은 표가 나오지 않으면** 재현이 아니다.
+    """
+    import json
+
+    from app.core.io import load_jsonl
+    from app.core.paths import EVAL, PROCESSED, RESULTS
+    from app.evaluation.confusable import idf_table, nearest, partition
+
+    report = RESULTS / "trap.json"
+    if not report.exists():
+        return True, "trap.json 이 없습니다 — 건너뜀"
+    published = json.loads(report.read_text(encoding="utf-8"))["counts"]
+
+    dev = [r for r in load_jsonl(EVAL / "nonaction_dev.jsonl") if r.get("label")]
+    test = [r for r in load_jsonl(EVAL / "nonaction_test.jsonl") if r.get("label")]
+    cases = load_jsonl(PROCESSED / "cases_nonaction.jsonl")
+    texts = [c["fields"].get("요청대상행위") or c["fields"].get("질의요지") or ""
+             for c in cases]
+    groups = partition(nearest(test, dev, idf_table([x for x in texts if x])))
+    got = {k: len(v) for k, v in groups.items()}
+    if got != published:
+        return False, f"기본값 {got} · 발표 {published}"
+    return True, f"기본값으로 순응 {got['agree']} · 함정 {got['trap']} 재현"
+
+
+def precedent_risk_bands_are_separable() -> Result:
+    """믿음/못믿음 구간이 실제로 갈리는가 — Router 설계의 전제 (Phase 3).
+
+    갈리지 않으면 유사도로 위험을 가를 수 없고, Router 의 경로 선택이
+    근거를 잃는다.
+    """
+    from app.agents.calibration import calibrate
+    from app.core.io import load_jsonl
+    from app.core.paths import EVAL, PROCESSED
+    from app.evaluation.confusable import idf_table
+
+    dev_path = EVAL / "nonaction_dev.jsonl"
+    if not dev_path.exists():
+        return True, "평가셋이 없습니다 — 건너뜀"
+    dev = [r for r in load_jsonl(dev_path) if r.get("label")]
+    cases = load_jsonl(PROCESSED / "cases_nonaction.jsonl")
+    texts = [c["fields"].get("요청대상행위") or c["fields"].get("질의요지") or ""
+             for c in cases]
+    report = calibrate(dev, idf_table([x for x in texts if x]))
+    if not report["bands_separable"]:
+        return False, report["separability_detail"]
+    trust = report["by_band"]["trust"]["risk"]
+    doubt = report["by_band"]["doubt"]["risk"]
+    return True, f"믿음 구간 위험 {trust:.3f} · 못믿음 {doubt:.3f} — 구간이 갈린다"
+
+
 def _is_probe(name: str, fn: object) -> bool:
     """probe 는 **인자 없이** 부를 수 있어야 한다.
 

@@ -1,0 +1,75 @@
+{
+  "n_dev": 85,
+  "thresholds": {
+    "trust": 0.6,
+    "doubt": 0.15
+  },
+  "overall_risk": 0.0,
+  "by_band": {
+    "trust": {
+      "n": 85,
+      "wrong": 0,
+      "risk": 0.0,
+      "ci95": [
+        0.0,
+        0.04324100421424198
+      ]
+    },
+    "middle": {
+      "n": 0,
+      "wrong": 0,
+      "risk": null,
+      "ci95": [
+        0.0,
+        1.0
+      ]
+    },
+    "doubt": {
+      "n": 0,
+      "wrong": 0,
+      "risk": null,
+      "ci95": [
+        0.0,
+        1.0
+      ]
+    }
+  },
+  "by_neighbor_label": {
+    "기타": {
+      "n": 19,
+      "wrong": 0,
+      "risk": 0.0,
+      "ci95": [
+        0.0,
+        0.16818436536845055
+      ]
+    },
+    "비조치": {
+      "n": 58,
+      "wrong": 0,
+      "risk": 0.0,
+      "ci95": [
+        0.0,
+        0.062119996895293766
+      ]
+    },
+    "조치": {
+      "n": 8,
+      "wrong": 0,
+      "risk": 0.0,
+      "ci95": [
+        0.0,
+        0.32441561951087694
+      ]
+    }
+  },
+  "joint_cell_counts": {
+    "trust|비조치": 58,
+    "trust|기타": 19,
+    "trust|조치": 8
+  },
+  "sparse_cells": 0,
+  "bands_separable": false,
+  "separability_detail": "구간 하나가 비어 있다",
+  "idf_source": "cases_nonaction.jsonl 259건"
+}

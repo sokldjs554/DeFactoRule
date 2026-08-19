@@ -28,6 +28,7 @@ FAILURES = DATA / "failures"
 
 MODELS = ROOT / "models"
 EXPERIMENTS = ROOT / "experiments"
+RESULTS = EXPERIMENTS / "results"
 
 DEV_BASE_RATES = EVAL / "dev_base_rates.json"
 SPACING_MODEL = MODELS / "spacing.json"
