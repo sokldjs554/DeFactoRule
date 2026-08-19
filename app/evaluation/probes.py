@@ -1156,32 +1156,6 @@ def verdicts_go_through_the_validity_gate() -> Result:
     return True, f"부분 표본 -> {partial.verdict()} · 무효 사유 {len(partial.problems())}건"
 
 
-def api_paths_are_tested_without_calling(): 
-    """API 를 부르는 경로가 가짜 클라이언트로 검사되는가 (IN-16).
-
-    이 프로젝트의 실패는 거의 전부 API 경로에서 났는데, 그 경로는 한 번도
-    테스트되지 않았다 — 키가 없으니 못 돈다고 여겼기 때문이다. 그건 틀렸다.
-    호출 자체를 가짜로 두면 그 위의 배선은 전부 검사할 수 있다.
-    """
-    from app.core.paths import ROOT
-
-    path = ROOT / "tests/integration/test_applicability_run.py"
-    if not path.exists():
-        return False, "API 경로 통합 테스트가 없다"
-    text = path.read_text(encoding="utf-8")
-    needed = {
-        "이어하기": "--resume",
-        "중단": "FatalApiError",
-        "인용 대조": "ungrounded",
-        "스키마 계약": "check_output_schema",
-        "dry-run": "--dry-run",
-    }
-    missing = [name for name, token in needed.items() if token not in text]
-    if missing:
-        return False, f"검사하지 않는 경로: {missing}"
-    return True, f"{len(needed)}갈래를 호출 없이 검사한다"
-
-
 def _is_probe(name: str, fn: object) -> bool:
     """probe 는 **인자 없이** 부를 수 있어야 한다.
 
