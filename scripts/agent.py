@@ -134,6 +134,14 @@ def cmd_applicability(args) -> None:
     chosen = scope[:limit]
     print(f"\n이번에 부를 건: {len(chosen)}건 · 추정 비용 ${estimate_cost(len(chosen)):.2f}")
 
+    if not chosen:
+        print("\n부를 건이 없습니다 — 선례가 문턱 위인 기권이 하나도 없습니다.")
+        return
+
+    def key_of_row(row):
+        return (row["source"], row["page"], str(row["serial"]),
+                row.get("pair_index", 1))
+
     if args.dry_run:
         i = chosen[0]
         neighbor = states[i].retrieved_evidence[0]
@@ -152,28 +160,38 @@ def cmd_applicability(args) -> None:
         connect,
         preflight,
     )
-    from app.infrastructure.anthropic_client import (
-        estimate_cost as actual_cost,
-    )
+    from app.infrastructure.anthropic_client import estimate_cost as actual_cost
 
     out = Path(args.output or PROCESSED / "applicability.jsonl")
-    done, records = set(), []
+    # 키 -> 레코드. 재시도하면 **덮어쓴다** — 실패 행을 그대로 두고 새 행을
+    # 덧붙이면 성공/실패 개수가 이중으로 세어진다.
+    saved: dict = {}
     if args.resume and out.exists():
-        records = load_jsonl(out)
-        done = {(r["source"], r["page"], r["serial"], r["pair_index"])
-                for r in records if "error" not in r}
+        for record in load_jsonl(out):
+            saved[(record["source"], record["page"], record["serial"],
+                   record["pair_index"])] = record
+        done = {k for k, r in saved.items() if "error" not in r}
         print(f"  이어하기: {len(done)}건은 건너뜁니다.")
+    else:
+        done = set()
+
+    # **저장된 판정을 상태에 먼저 반영한다.** 안 하면 이어하기 뒤의 회수 건수와
+    # 정확도가 이번 실행분만 세어져 통째로 틀린다.
+    index_of = {key_of_row(row): i for i, row in enumerate(test)}
+    for key, record in saved.items():
+        i = index_of.get(key)
+        if i is None or "verdict" not in record or record.get("ungrounded"):
+            continue
+        apply_verdict(states[i], record["verdict"])
 
     client = connect()
     preflight(client, schema())
     discards = Discards("applicability")
-    verdicts, recovered = Counter(), 0
 
     try:
         for n, i in enumerate(chosen, 1):
             row, state = test[i], states[i]
-            key = (row["source"], row["page"], str(row["serial"]),
-                   row.get("pair_index", 1))
+            key = key_of_row(row)
             if key in done:
                 continue
             neighbor = state.retrieved_evidence[0]
@@ -194,21 +212,26 @@ def cmd_applicability(args) -> None:
                 if bad:
                     discards.drop({"key": str(key), "fields": bad},
                                   ["인용이 원문에 없다"])
+                else:
+                    apply_verdict(state, data["verdict"])
                 record.update({**data, "ungrounded": bad,
                                "input_tokens": result["input_tokens"],
                                "output_tokens": result["output_tokens"]})
-                verdicts[data["verdict"]] += 1
-                if not bad and apply_verdict(state, data["verdict"])[0]:
-                    recovered += 1
-            records.append(record)
-            write_jsonl(out, records)
+            saved[key] = record        # 재시도면 덮어쓴다
+            write_jsonl(out, list(saved.values()))
             if n % 5 == 0:
                 print(f"  {n}/{len(chosen)}")
     except FatalApiError as exc:
         print(f"\n중단 — 계정 수준 오류입니다.\n  {exc}")
-        print(f"  여기까지 {len(records)}건 저장. --resume 으로 이어가세요.")
+        print(f"  여기까지 {len(saved)}건 저장. --resume 으로 이어가세요.")
 
+    # 보고는 **저장된 전체**에서 센다 — 이번 실행분만 세면 이어하기 뒤에 틀린다.
+    records = list(saved.values())
     ok = [r for r in records if "error" not in r]
+    verdicts = Counter(r["verdict"] for r in ok if "verdict" in r)
+    recovered = sum(1 for i in chosen
+                    if not states[i].abstained and states[i].route_reason == "V3+")
+
     print(f"\n{len(records)}건 처리 · 성공 {len(ok)} · 실패 {len(records) - len(ok)}")
     print(f"  판정 분포: {dict(verdicts)}")
     ungrounded = sum(1 for r in ok if r.get("ungrounded"))
@@ -219,12 +242,11 @@ def cmd_applicability(args) -> None:
     print(f"  실제 비용 ${actual_cost(records):.3f}")
     print(f"-> {out}")
 
-    if ok and not args.dry_run:
+    if recovered:
         correct = sum(1 for i in chosen
-                      if not states[i].abstained
+                      if states[i].route_reason == "V3+"
                       and states[i].decision == test[i]["label"])
-        answered = sum(1 for i in chosen if not states[i].abstained)
-        print(f"\n  회수한 {answered}건 중 맞은 것 {correct}건")
+        print(f"\n  회수한 {recovered}건 중 맞은 것 {correct}건")
 
 
 def main() -> None:
