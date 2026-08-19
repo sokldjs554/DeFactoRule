@@ -1,0 +1,213 @@
+{
+  "n_test": 170,
+  "trap_n": 15,
+  "corpus": "cases_nonaction 256건",
+  "primary_endpoint": "TRAP 정확도 (사전 등록)",
+  "variants": {
+    "naive": {
+      "coverage": 1.0,
+      "answered": 170,
+      "macro_f1_on_answered": 0.5383306281048645,
+      "accuracy_on_answered": 0.7235294117647059,
+      "unsupported_claim_rate": 0.0,
+      "abstention_reasons": {},
+      "routes": {
+        "A": 170
+      },
+      "abstention_accuracy": {
+        "abstained": 0,
+        "justified": 0,
+        "rate": null,
+        "ci95": [
+          0.0,
+          1.0
+        ]
+      },
+      "trap": {
+        "n": 15,
+        "correct": 0,
+        "wrong": 15,
+        "abstained": 0,
+        "accuracy": 0.0,
+        "accuracy_ci95": [
+          0.0,
+          0.20388926630434784
+        ],
+        "error_rate": 1.0
+      }
+    },
+    "always-precedent": {
+      "coverage": 0.5117647058823529,
+      "answered": 87,
+      "macro_f1_on_answered": 0.5927128427128427,
+      "accuracy_on_answered": 0.8390804597701149,
+      "unsupported_claim_rate": 0.0,
+      "abstention_reasons": {
+        "NO_EVIDENCE": 83
+      },
+      "routes": {
+        "C": 83,
+        "A": 87
+      },
+      "abstention_accuracy": {
+        "abstained": 83,
+        "justified": 35,
+        "rate": 0.42168674698795183,
+        "ci95": [
+          0.3212284435427638,
+          0.5290737157910118
+        ]
+      },
+      "trap": {
+        "n": 15,
+        "correct": 1,
+        "wrong": 14,
+        "abstained": 0,
+        "accuracy": 0.06666666666666667,
+        "accuracy_ci95": [
+          0.011866588606194828,
+          0.29817077552423993
+        ],
+        "error_rate": 0.9333333333333333
+      }
+    },
+    "router": {
+      "coverage": 0.5411764705882353,
+      "answered": 92,
+      "macro_f1_on_answered": 0.6088627258605185,
+      "accuracy_on_answered": 0.8369565217391305,
+      "unsupported_claim_rate": 0.0,
+      "abstention_reasons": {
+        "NO_EVIDENCE": 38,
+        "CONFLICTING_EVIDENCE": 33,
+        "SURFACE_ONLY": 7
+      },
+      "routes": {
+        "C": 78,
+        "B": 44,
+        "A": 48
+      },
+      "abstention_accuracy": {
+        "abstained": 78,
+        "justified": 28,
+        "rate": 0.358974358974359,
+        "ci95": [
+          0.261454020206891,
+          0.46973403085760435
+        ]
+      },
+      "trap": {
+        "n": 15,
+        "correct": 2,
+        "wrong": 5,
+        "abstained": 8,
+        "accuracy": 0.13333333333333333,
+        "accuracy_ci95": [
+          0.0373604698913593,
+          0.3788249920651624
+        ],
+        "error_rate": 0.3333333333333333
+      }
+    },
+    "router-noabstain": {
+      "coverage": 0.9823529411764705,
+      "answered": 167,
+      "macro_f1_on_answered": 0.4756607884243844,
+      "accuracy_on_answered": 0.7485029940119761,
+      "unsupported_claim_rate": 0.0,
+      "abstention_reasons": {
+        "VALIDATION_FAILED": 3
+      },
+      "routes": {
+        "C": 78,
+        "B": 44,
+        "A": 48
+      },
+      "abstention_accuracy": {
+        "abstained": 3,
+        "justified": 3,
+        "rate": 1.0,
+        "ci95": [
+          0.43849391955098227,
+          1.0
+        ]
+      },
+      "trap": {
+        "n": 15,
+        "correct": 2,
+        "wrong": 13,
+        "abstained": 0,
+        "accuracy": 0.13333333333333333,
+        "accuracy_ci95": [
+          0.0373604698913593,
+          0.3788249920651624
+        ],
+        "error_rate": 0.8666666666666667
+      }
+    },
+    "router-novalidate": {
+      "coverage": 0.5411764705882353,
+      "answered": 92,
+      "macro_f1_on_answered": 0.6088627258605185,
+      "accuracy_on_answered": 0.8369565217391305,
+      "unsupported_claim_rate": 0.0,
+      "abstention_reasons": {
+        "NO_EVIDENCE": 38,
+        "CONFLICTING_EVIDENCE": 33,
+        "SURFACE_ONLY": 7
+      },
+      "routes": {
+        "C": 78,
+        "B": 44,
+        "A": 48
+      },
+      "abstention_accuracy": {
+        "abstained": 78,
+        "justified": 28,
+        "rate": 0.358974358974359,
+        "ci95": [
+          0.261454020206891,
+          0.46973403085760435
+        ]
+      },
+      "trap": {
+        "n": 15,
+        "correct": 2,
+        "wrong": 5,
+        "abstained": 8,
+        "accuracy": 0.13333333333333333,
+        "accuracy_ci95": [
+          0.0373604698913593,
+          0.3788249920651624
+        ],
+        "error_rate": 0.3333333333333333
+      }
+    }
+  },
+  "comparisons": [
+    {
+      "id": "E8",
+      "a": "naive",
+      "b": "router",
+      "question": "검색 결과를 무조건 믿는 것 대비"
+    },
+    {
+      "id": "E9",
+      "a": "always-precedent",
+      "b": "router",
+      "question": "경로 선택 자체의 값어치"
+    },
+    {
+      "id": "E10",
+      "a": "router-noabstain",
+      "b": "router",
+      "question": "기권의 값어치"
+    },
+    {
+      "id": "E11a",
+      "a": "router-novalidate",
+      "b": "router",
+      "question": "결정론 검증의 값어치"
+    }
+  ]
+}

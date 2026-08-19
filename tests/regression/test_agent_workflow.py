@@ -105,3 +105,27 @@ def test_both_evidence_paths_are_used(workflow_states):
     routes = Counter(state.route for state in states)
     for path in (RoutePath.PRECEDENT, RoutePath.RULE, RoutePath.ABSTAIN):
         assert routes[path] > 0, f"{path.value} 경로가 한 번도 쓰이지 않았습니다: {dict(routes)}"
+
+
+def test_abstained_rows_still_carry_a_provisional_label(workflow_states):
+    """기권한 건도 평가용 레코드에는 라벨을 담는가 (EV-24).
+
+    `predicted: null` 로 내보내면 위험-커버리지 하네스가 기권을 **오답**으로
+    센다. 기권을 보여주려고 만든 지표가 기권을 벌하는 꼴이고, 실제로 AURC
+    비교의 판정이 뒤집혔다(-0.270 유의 -> -0.021 판정 보류).
+
+    서비스가 쓰는 `decision` 은 여전히 비어 있어야 한다 — 평가와 서비스는
+    다른 것을 본다.
+    """
+    _test, states = workflow_states
+    abstained = [s for s in states if s.abstained]
+    assert abstained, "기권한 건이 하나도 없습니다"
+    for state in abstained:
+        assert state.decision is None, "기권했는데 서비스가 답을 내놓습니다"
+        record = state.to_prediction()
+        assert record["predicted"], (
+            f"기권 레코드에 라벨이 없습니다 — 곡선이 이것을 오답으로 셉니다: "
+            f"{state.request_key}"
+        )
+        assert record["abstained"] is True
+        assert record["confidence"] == "low"
