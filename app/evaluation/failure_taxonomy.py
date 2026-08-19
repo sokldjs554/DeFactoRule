@@ -63,6 +63,7 @@ TAXONOMY: dict[str, dict[str, str]] = {
         "reproducibility": "같은 입력이 같은 결과를 내지 않는다",
         "environment": "실행 환경 차이로 코드가 돌지 않는다",
         "contract-violation": "요청이 외부 API 의 계약을 어겨 거부된다",
+        "misleading-estimate": "미리 알려 주는 수가 실제와 달라 판단을 흐린다",
         "continuous-integration": "자동 검사가 실제로는 돌지 않는다",
     },
 }

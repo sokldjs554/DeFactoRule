@@ -237,18 +237,26 @@ def apply_output_tokens(n_criteria: int) -> int:
     """기준 n 개에 답하는 데 드는 출력 토큰의 **예상치**.
 
     답 하나가 `{"id": 87, "answer": "unknown"}` 로 31자, 대략 12토큰이다.
-    여유 있게 60 으로 잡는다 — 비용을 낮게 부르는 쪽으로 틀리지 않기 위해서다.
+
+    한동안 여유 있게 60 으로 잡았다. "비용을 낮게 부르는 쪽으로 틀리지 않기
+    위해서" 였는데, 기준이 88개가 되자 그 여유가 5배로 불어나 **$14 라고
+    부르는 값의 실제가 $5 언저리**가 됐다. 그렇게 부풀린 추정은 안전한 것이
+    아니라 판단을 망친다 — 쓸 만한 실험을 비싸 보인다는 이유로 접게 만든다.
+
+    그래서 실측값으로 잡는다. 대신 **적응형 사고 토큰은 여기 들어 있지
+    않다.** 그 몫은 미리 알 수 없으므로 범위로 따로 보여 준다.
     """
-    return 60 * n_criteria + 200
+    return 13 * n_criteria + 200
 
 
 def apply_token_cap(n_criteria: int) -> int:
-    """호출에 걸 상한. 예상치에 적응형 사고 몫을 더한다.
+    """호출에 걸 상한. 답이 예상의 두 배로 길어져도 담고, 사고 몫을 더한다.
 
     상한은 넉넉해야 한다. 넘겨 잡아도 쓰지 않은 토큰은 청구되지 않지만,
-    모자라면 응답 전체를 잃는다.
+    모자라면 응답 전체를 잃는다. 여유를 **곱셈으로** 두는 것이 중요하다 —
+    고정값으로 두면 기준 수가 늘 때 여유만 줄어든다. 그것이 IN-11 이었다.
     """
-    return apply_output_tokens(n_criteria) + 2000
+    return 2 * apply_output_tokens(n_criteria) + 2000
 
 
 def build_apply_prompt(request: str, criteria: list[dict]) -> str:
@@ -631,9 +639,15 @@ def cmd_apply(args) -> None:
         rows = rows[: args.limit]
     prompts = [build_apply_prompt(r["request"], criteria) for r in rows]
 
-    _, cost = _estimate(prompts, out_tokens=apply_output_tokens(len(criteria)))
-    print(f"기준 {len(criteria)}개를 사례 {len(rows)}건에 적용합니다.")
-    print(f"  추정 비용 약 ${cost:.2f}")
+    n = len(criteria)
+    _, low = _estimate(prompts, out_tokens=apply_output_tokens(n))
+    _, high = _estimate(prompts, out_tokens=apply_token_cap(n))
+    print(f"기준 {n}개를 사례 {len(rows)}건에 적용합니다.")
+    print(f"  추정 비용 ${low:.2f} ~ ${high:.2f}")
+    print("    아래쪽은 답 JSON 만 셌을 때, 위쪽은 상한까지 다 썼을 때입니다.")
+    print("    적응형 사고 토큰은 미리 알 수 없어 이 범위로 갈음합니다.")
+    print(f"    --limit 5 로 먼저 돌리면 실제 비용이 출력되고, {len(rows)}건으로 "
+          "환산해 볼 수 있습니다.")
     if args.dry_run:
         print("\n낱말 겹침 미리보기 (호출 없음 · 대리 측정)")
         print(relevance_preview(rows, criteria))
