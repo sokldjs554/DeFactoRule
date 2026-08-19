@@ -30,11 +30,13 @@ from pathlib import Path
 
 from app.core.io import load_jsonl, write_jsonl
 from app.core.paths import PROCESSED
+from app.domain import similarity as domain_similarity
 from app.evaluation.confusable import cosine, idf_table, weighted_vector
 
 # dev leave-one-out 에서 정했다. test 는 열지 않았다.
-HIGH = 0.60
-MEDIUM = 0.15
+# 도메인 문턱을 그대로 쓴다. 여기서 따로 정하면 또 어긋난다.
+HIGH = domain_similarity.TRUST
+MEDIUM = domain_similarity.DOUBT
 
 
 def band(similarity: float) -> str:

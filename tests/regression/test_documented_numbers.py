@@ -355,3 +355,54 @@ def test_readme_cited_failure_ids_exist():
     assert cited, "README 8절에 인용된 실패 케이스 ID 가 없습니다"
     missing = cited - ids
     assert not missing, f"레지스트리에 없는 ID 를 인용했습니다: {sorted(missing)}"
+
+
+# ── 기본값으로 재현되는가 ─────────────────────────────────────────
+def test_published_trap_counts_reproduce_with_default_thresholds():
+    """발표된 TRAP 표가 **인자 없이** 재현되는가.
+
+    한동안 `confusable.SIMILARITY_FLOOR` 는 0.25 였고 발표된 표는 0.15 로
+    만든 것이었다. 기본값으로 돌리면 함정 구간이 15건이 아니라 10건이 나왔다.
+    수치가 틀린 것이 아니라 **재현 경로가 틀렸다** — 읽는 사람이 같은 명령으로
+    같은 표를 볼 수 없었다 (IN-13).
+    """
+    from app.core.io import load_jsonl
+    from app.core.paths import EVAL, PROCESSED
+    from app.evaluation.confusable import idf_table, nearest, partition
+
+    report_path = RESULTS / "trap.json"
+    if not report_path.exists():
+        pytest.skip("trap.json 이 없습니다")
+    published = json.loads(report_path.read_text(encoding="utf-8"))
+
+    dev = [r for r in load_jsonl(EVAL / "nonaction_dev.jsonl") if r.get("label")]
+    test = [r for r in load_jsonl(EVAL / "nonaction_test.jsonl") if r.get("label")]
+    cases = load_jsonl(PROCESSED / "cases_nonaction.jsonl")
+    texts = [c["fields"].get("요청대상행위") or c["fields"].get("질의요지") or ""
+             for c in cases]
+    # 문턱을 넘기지 않는다 — 기본값이 발표 수치를 내야 한다는 것이 요점이다
+    groups = partition(nearest(test, dev, idf_table([t for t in texts if t])))
+
+    for key in ("agree", "trap", "unanchored"):
+        assert len(groups[key]) == published["counts"][key], (
+            f"기본값으로 {key} 가 {len(groups[key])}건인데 발표는 "
+            f"{published['counts'][key]}건입니다. 문턱이 어긋났습니다."
+        )
+
+
+def test_similarity_thresholds_come_from_one_place():
+    """유사도 문턱이 한 곳에서만 정해지는가.
+
+    세 파일이 각자 숫자를 들고 있었고 값이 달랐다. 다시 흩어지면 같은 일이
+    일어난다.
+    """
+    from app.agents import calibration
+    from app.domain import similarity
+    from app.evaluation import confusable
+    from app.retrieval import neighbor
+
+    assert confusable.SIMILARITY_FLOOR is similarity.SIMILARITY_FLOOR
+    assert neighbor.MEDIUM is similarity.DOUBT
+    assert neighbor.HIGH is similarity.TRUST
+    assert calibration.DOUBT is similarity.DOUBT
+    assert calibration.TRUST is similarity.TRUST

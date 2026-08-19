@@ -55,6 +55,7 @@ TAXONOMY: dict[str, dict[str, str]] = {
         "ungrounded-evidence": "원문에 없는 것을 근거로 든다",
         "miscalibration": "확신의 정도가 정확도와 맞지 않는다",
         "prior-overcorrection": "사전 정보가 소수 클래스를 지운다",
+        "unverified-premise": "재보지 않은 가정 위에 설계를 세운다",
     },
     "infrastructure": {
         "undiagnosable-discard": "버린 것을 기록하지 않아 원인을 되짚을 수 없다",
