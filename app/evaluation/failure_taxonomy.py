@@ -49,6 +49,11 @@ TAXONOMY: dict[str, dict[str, str]] = {
         "arbitrary-tiebreak": "동점을 판단이 아닌 것으로 가른다",
         "distribution-mismatch": "쓰이지 않을 분포에서 성능을 잰다",
     },
+    "retrieval": {
+        "degenerate-representation": "표현이 무너져 서로 다른 것이 같아진다",
+        "coverage-blind-spot": "필요한 곳에서 아무것도 찾지 못한다",
+        "misleading-hit": "찾기는 하는데 그것이 근거가 되지 못한다",
+    },
     "agent": {
         "undiagnosable-discard": "버린 것을 기록하지 않아 원인을 되짚을 수 없다",
         "schema-violation": "형식 계약을 벗어난 출력",

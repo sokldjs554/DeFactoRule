@@ -1,0 +1,97 @@
+{
+  "floor": 0.15,
+  "n_dev": 85,
+  "n_test": 170,
+  "retrievers": {
+    "L": {
+      "agree": 72,
+      "trap": 15,
+      "unanchored": 83,
+      "anchored": 87,
+      "trap_rate": 0.1724137931034483,
+      "by_label": {
+        "비조치": {
+          "n": 126,
+          "anchored": 70,
+          "trap": 6,
+          "anchor_rate": 0.5555555555555556,
+          "trap_rate": 0.08571428571428572
+        },
+        "조치": {
+          "n": 14,
+          "anchored": 1,
+          "trap": 0,
+          "anchor_rate": 0.07142857142857142,
+          "trap_rate": 0.0
+        },
+        "기타": {
+          "n": 30,
+          "anchored": 16,
+          "trap": 9,
+          "anchor_rate": 0.5333333333333333,
+          "trap_rate": 0.5625
+        }
+      }
+    },
+    "D": {
+      "agree": 71,
+      "trap": 32,
+      "unanchored": 67,
+      "anchored": 103,
+      "trap_rate": 0.3106796116504854,
+      "by_label": {
+        "비조치": {
+          "n": 126,
+          "anchored": 79,
+          "trap": 19,
+          "anchor_rate": 0.626984126984127,
+          "trap_rate": 0.24050632911392406
+        },
+        "조치": {
+          "n": 14,
+          "anchored": 6,
+          "trap": 3,
+          "anchor_rate": 0.42857142857142855,
+          "trap_rate": 0.5
+        },
+        "기타": {
+          "n": 30,
+          "anchored": 18,
+          "trap": 10,
+          "anchor_rate": 0.6,
+          "trap_rate": 0.5555555555555556
+        }
+      }
+    },
+    "H(L+D)": {
+      "agree": 59,
+      "trap": 13,
+      "unanchored": 98,
+      "anchored": 72,
+      "trap_rate": 0.18055555555555555,
+      "by_label": {
+        "비조치": {
+          "n": 126,
+          "anchored": 59,
+          "trap": 6,
+          "anchor_rate": 0.46825396825396826,
+          "trap_rate": 0.1016949152542373
+        },
+        "조치": {
+          "n": 14,
+          "anchored": 0,
+          "trap": 0,
+          "anchor_rate": 0.0,
+          "trap_rate": null
+        },
+        "기타": {
+          "n": 30,
+          "anchored": 13,
+          "trap": 7,
+          "anchor_rate": 0.43333333333333335,
+          "trap_rate": 0.5384615384615384
+        }
+      }
+    }
+  }
+}
