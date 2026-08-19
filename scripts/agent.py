@@ -14,6 +14,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from collections import Counter  # noqa: E402
+
 from app.agents.experiments import (  # noqa: E402
     COMPARISONS,
     dump,
@@ -100,6 +102,131 @@ def cmd_experiment(args) -> None:
     print(f"\n-> {path}")
 
 
+def cmd_applicability(args) -> None:
+    """E11b — 선례가 실제로 적용되는가. **사정거리가 좁다는 것을 먼저 보여준다.**"""
+    from app.agents.applicability import (
+        MAX_TOKENS,
+        SYSTEM,
+        apply_verdict,
+        build_prompt,
+        estimate_cost,
+        quotes_are_grounded,
+        schema,
+        targets,
+    )
+    from app.core.audit import Discards
+    from app.domain.similarity import DOUBT
+
+    dev, test, corpus, rules, risk, fallback = load_everything(args)
+    states = run_variant("router", LexicalRetriever, dev, rules, risk, test,
+                         corpus, fallback)
+    scope = targets(states, test, DOUBT)
+    abstained = [i for i, s in enumerate(states) if s.abstained]
+    wasted = [i for i in abstained if states[i].provisional == test[i]["label"]]
+
+    print(f"기권 {len(abstained)}건 · 그중 답했어도 맞았을 것 {len(wasted)}건")
+    print(f"이 검사가 닿는 건: {len(scope)}건 "
+          f"({len(scope) / max(1, len(abstained)):.0%}) — 선례가 문턱 위인 기권만")
+    reachable = [i for i in scope if i in set(wasted)]
+    print(f"  그중 아까운 것 {len(reachable)}건 = **회수 상한**")
+
+    limit = args.limit or len(scope)
+    chosen = scope[:limit]
+    print(f"\n이번에 부를 건: {len(chosen)}건 · 추정 비용 ${estimate_cost(len(chosen)):.2f}")
+
+    if args.dry_run:
+        i = chosen[0]
+        neighbor = states[i].retrieved_evidence[0]
+        origin = next((p for p in dev
+                       if f"prec:{p['source']}#{p['serial']}" == neighbor.id), None)
+        print("\n--dry-run 이므로 요청을 보내지 않습니다. 첫 건의 프롬프트:\n")
+        print("-" * 70)
+        print(build_prompt(test[i]["request"], (origin or {}).get("request", ""))[:1200])
+        print("-" * 70)
+        print(f"\n시스템 프롬프트 {len(SYSTEM)}자 · 출력 상한 {MAX_TOKENS}")
+        return
+
+    from app.infrastructure.anthropic_client import (
+        FatalApiError,
+        call_structured,
+        connect,
+        preflight,
+    )
+    from app.infrastructure.anthropic_client import (
+        estimate_cost as actual_cost,
+    )
+
+    out = Path(args.output or PROCESSED / "applicability.jsonl")
+    done, records = set(), []
+    if args.resume and out.exists():
+        records = load_jsonl(out)
+        done = {(r["source"], r["page"], r["serial"], r["pair_index"])
+                for r in records if "error" not in r}
+        print(f"  이어하기: {len(done)}건은 건너뜁니다.")
+
+    client = connect()
+    preflight(client, schema())
+    discards = Discards("applicability")
+    verdicts, recovered = Counter(), 0
+
+    try:
+        for n, i in enumerate(chosen, 1):
+            row, state = test[i], states[i]
+            key = (row["source"], row["page"], str(row["serial"]),
+                   row.get("pair_index", 1))
+            if key in done:
+                continue
+            neighbor = state.retrieved_evidence[0]
+            origin = next((p for p in dev
+                           if f"prec:{p['source']}#{p['serial']}" == neighbor.id), {})
+            prompt = build_prompt(row["request"], origin.get("request", ""))
+            result = call_structured(client, SYSTEM, prompt, schema(),
+                                     max_tokens=MAX_TOKENS, effort="low")
+            record = {"source": key[0], "page": key[1], "serial": key[2],
+                      "pair_index": key[3], "neighbor": neighbor.id,
+                      "similarity": round(neighbor.score, 4)}
+            if "error" in result:
+                record.update(result)
+            else:
+                data = result["data"]
+                bad = quotes_are_grounded(data, row["request"],
+                                          origin.get("request", ""))
+                if bad:
+                    discards.drop({"key": str(key), "fields": bad},
+                                  ["인용이 원문에 없다"])
+                record.update({**data, "ungrounded": bad,
+                               "input_tokens": result["input_tokens"],
+                               "output_tokens": result["output_tokens"]})
+                verdicts[data["verdict"]] += 1
+                if not bad and apply_verdict(state, data["verdict"])[0]:
+                    recovered += 1
+            records.append(record)
+            write_jsonl(out, records)
+            if n % 5 == 0:
+                print(f"  {n}/{len(chosen)}")
+    except FatalApiError as exc:
+        print(f"\n중단 — 계정 수준 오류입니다.\n  {exc}")
+        print(f"  여기까지 {len(records)}건 저장. --resume 으로 이어가세요.")
+
+    ok = [r for r in records if "error" not in r]
+    print(f"\n{len(records)}건 처리 · 성공 {len(ok)} · 실패 {len(records) - len(ok)}")
+    print(f"  판정 분포: {dict(verdicts)}")
+    ungrounded = sum(1 for r in ok if r.get("ungrounded"))
+    rate = ungrounded / len(ok) if ok else 0.0
+    print(f"  인용 미대조 {ungrounded}건 ({rate:.1%})"
+          + ("  ⚠ 20% 초과 — 사전 등록한 중단 조건입니다" if rate > 0.20 else ""))
+    print(f"  기권 회수 {recovered}건 (상한 {len(reachable)})")
+    print(f"  실제 비용 ${actual_cost(records):.3f}")
+    print(f"-> {out}")
+
+    if ok and not args.dry_run:
+        correct = sum(1 for i in chosen
+                      if not states[i].abstained
+                      and states[i].decision == test[i]["label"])
+        answered = sum(1 for i in chosen if not states[i].abstained)
+        print(f"\n  회수한 {answered}건 중 맞은 것 {correct}건")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--dev", default=str(EVAL / "nonaction_dev.jsonl"))
@@ -115,6 +242,14 @@ def main() -> None:
 
     exp = sub.add_parser("experiment", help="E8~E11a 를 한 번에 (API 없음)")
     exp.set_defaults(func=cmd_experiment)
+
+    app_ = sub.add_parser("applicability",
+                          help="E11b — 선례가 실제로 적용되는가 (API)")
+    app_.add_argument("--limit", type=int, default=0)
+    app_.add_argument("--dry-run", action="store_true")
+    app_.add_argument("--resume", action="store_true")
+    app_.add_argument("--output")
+    app_.set_defaults(func=cmd_applicability)
 
     args = ap.parse_args()
     args.func(args)

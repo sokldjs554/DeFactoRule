@@ -122,3 +122,49 @@ def estimate_cost(n_targets: int, prompt_chars: int = 1400) -> float:
 
     inp = (prompt_chars + len(SYSTEM)) * n_targets
     return inp / 1e6 * PRICE_IN + MAX_TOKENS * n_targets / 1e6 * PRICE_OUT
+
+
+def apply_verdict(state, verdict: str) -> tuple[bool, str]:
+    """판정을 상태에 반영한다. **회수만 하고 새로 기권시키지 않는다.**
+
+    이 검사는 이미 기권한 건에만 걸린다. `applies` 면 선례를 믿어도 된다는
+    뜻이므로 기권을 거두고 선례 경로로 되돌린다. `differs` 와 `unclear` 는
+    기권을 그대로 둔다 — 원래 기권이었으므로 아무것도 나빠지지 않는다.
+
+    되돌린 경로는 흔적에 남는다. "왜 답하게 됐는가" 를 추적할 수 있어야 한다.
+    """
+    from app.agents.router import decide
+    from app.agents.state import Path
+
+    if verdict != Applicability.APPLIES.value:
+        state.step("applicability", f"{verdict} — 기권 유지", verdict=verdict)
+        return False, verdict
+
+    usable = [e for e in state.retrieved_evidence if e.rank == 0]
+    label, used = decide(usable)
+    if label is None:
+        state.step("applicability", "applies 이지만 쓸 근거가 없다", verdict=verdict)
+        return False, verdict
+
+    state.abstained = False
+    state.abstention_reason = None
+    state.route, state.route_reason = Path.PRECEDENT, "V3+"
+    state.decision = label
+    state.provisional = label
+    state.evidence_used = used
+    state.confidence = "medium"     # 모델이 거들었으므로 high 를 주지 않는다
+    state.step("applicability", f"applies — 기권 회수 · {label}",
+               verdict=verdict, evidence=used)
+    return True, verdict
+
+
+def quotes_are_grounded(result: dict, request: str, precedent: str) -> list[str]:
+    """인용 둘이 각자의 원문에 글자 그대로 있는가. 없는 것의 이름을 돌려준다."""
+    from app.agents.criteria import quote_is_grounded
+
+    bad = []
+    for field, origin in (("quote_a", request), ("quote_b", precedent)):
+        quote = (result or {}).get(field) or ""
+        if not quote_is_grounded(quote, origin):
+            bad.append(field)
+    return bad

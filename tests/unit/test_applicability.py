@@ -138,3 +138,78 @@ def test_real_scope_is_small_and_we_know_it():
         f"사정거리 {len(scope)}건 / 기권 {abstained}건 — 문서의 설명과 다릅니다"
     )
     assert estimate_cost(len(scope)) < 1.0
+
+
+# ── 판정 반영 — 회수만 하고 새로 기권시키지 않는다 ─────────────────
+def _abstained_state():
+    from app.agents.state import (
+        AbstentionReason,
+        AgentState,
+        Evidence,
+        EvidenceKind,
+        Path,
+    )
+
+    state = AgentState(request="요청", request_key=("2024년.pdf", 1, "1", 1))
+    state.retrieved_evidence = [
+        Evidence(id="prec:2024년.pdf#7", kind=EvidenceKind.PRECEDENT, label="비조치",
+                 score=0.45, rank=0, source="2024년.pdf", serial="7"),
+        Evidence(id="prec:2024년.pdf#9", kind=EvidenceKind.PRECEDENT, label="조치",
+                 score=0.30, rank=1, source="2024년.pdf", serial="9"),
+    ]
+    state.route, state.route_reason = Path.ABSTAIN, "R5"
+    state.abstain(AbstentionReason.SURFACE_ONLY, provisional="비조치")
+    return state
+
+
+def test_applies_recovers_the_abstention():
+    from app.agents.applicability import apply_verdict
+
+    state = _abstained_state()
+    recovered, _ = apply_verdict(state, "applies")
+    assert recovered
+    assert not state.abstained and state.abstention_reason is None
+    assert state.decision == "비조치"          # rank 0 선례의 라벨
+    assert state.route_reason == "V3+"          # 어떻게 답하게 됐는지 남는다
+    assert state.confidence == "medium", "모델이 거들었는데 high 를 줬습니다"
+
+
+@pytest.mark.parametrize("verdict", ["differs", "unclear"])
+def test_other_verdicts_leave_the_abstention_alone(verdict):
+    """이 검사는 **회수만 한다.** 새로 기권시키지 않으므로 나빠질 수 없다."""
+    from app.agents.applicability import apply_verdict
+
+    state = _abstained_state()
+    recovered, _ = apply_verdict(state, verdict)
+    assert not recovered
+    assert state.abstained and state.decision is None
+
+
+def test_recovery_is_recorded_in_the_trace():
+    from app.agents.applicability import apply_verdict
+
+    state = _abstained_state()
+    apply_verdict(state, "applies")
+    nodes = [step.node for step in state.execution_trace]
+    assert "applicability" in nodes, "어떻게 답하게 됐는지 흔적이 없습니다"
+
+
+# ── 인용 대조 ────────────────────────────────────────────────────
+def test_fabricated_quotes_are_caught():
+    """지어낸 인용을 잡는가 — 사전 등록한 중단 조건이 이 수치 위에 있다."""
+    from app.agents.applicability import quotes_are_grounded
+
+    request = "금융회사가 내부 임직원의 인사정보를 처리하기 위해"
+    precedent = "내부 업무용시스템을 DMZ 중계서버를 통해 연동할 경우"
+
+    good = {"quote_a": "내부 임직원의 인사정보", "quote_b": "DMZ 중계서버"}
+    assert quotes_are_grounded(good, request, precedent) == []
+
+    swapped = {"quote_a": "DMZ 중계서버", "quote_b": "내부 임직원의 인사정보"}
+    assert set(quotes_are_grounded(swapped, request, precedent)) == {"quote_a", "quote_b"}
+
+    invented = {"quote_a": "원문에 없는 문장", "quote_b": "DMZ 중계서버"}
+    assert quotes_are_grounded(invented, request, precedent) == ["quote_a"]
+
+    empty = {"quote_a": "", "quote_b": ""}
+    assert len(quotes_are_grounded(empty, request, precedent)) == 2
