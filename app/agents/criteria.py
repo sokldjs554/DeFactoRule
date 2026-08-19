@@ -276,6 +276,47 @@ def _estimate(prompts: list[str], out_tokens: int) -> tuple[int, float]:
     return in_tokens, cost
 
 
+def criteria_fingerprint(criteria: list[dict]) -> str:
+    """기준 목록의 지문. 답 파일이 **어떤 질문들에 대한 답인지** 를 붙들어 둔다.
+
+    답은 `["yes", "no", ...]` 처럼 순서로만 기준과 이어진다. `consolidate` 를
+    다시 돌려 기준이 바뀌면 그 순서가 다른 질문을 가리키는데, 어디서도 오류가
+    나지 않는다. 실제로 재현해 봤다 — 기준 5개짜리 답을 3개짜리 모델로 채점하니
+    조용히 다른 답이 나왔다.
+
+    질문 문장 자체로 지문을 만든다. id 나 개수만으로는 "질문 하나가 다른 것으로
+    바뀐" 경우를 못 잡는다.
+    """
+    import hashlib
+
+    joined = "\n".join(c["question"] for c in criteria)
+    return hashlib.sha256(joined.encode("utf-8")).hexdigest()[:16]
+
+
+def check_fingerprint(records: list[dict], criteria: list[dict], where: str) -> None:
+    """답 파일이 지금의 기준 목록에 대한 답이 맞는지 확인한다."""
+    want = criteria_fingerprint(criteria)
+    seen = {r.get("criteria_fingerprint") for r in records if "answers" in r}
+    unknown = None in seen or "" in seen
+    wrong = {f for f in seen if f and f != want}
+    if wrong:
+        raise SystemExit(
+            f"{where}: 답이 다른 기준 목록에 대한 것입니다.\n"
+            f"  지금 기준 지문 {want} · 답 파일 지문 {', '.join(sorted(wrong))}\n\n"
+            "  consolidate 를 다시 돌렸다면 apply 도 다시 돌려야 합니다.\n"
+            "  답은 순서로만 기준과 이어지므로, 섞이면 조용히 틀립니다."
+        )
+    if unknown:
+        lengths = {len(r["answers"]) for r in records if "answers" in r}
+        print(f"  ⚠ 지문이 없는 옛 형식 답이 있습니다 (기준 지문 {want}).")
+        print(f"     답 길이 {sorted(lengths)} · 지금 기준 {len(criteria)}개 — "
+              "길이만 대조했습니다.")
+        if lengths - {len(criteria)}:
+            raise SystemExit(
+                "  답 길이가 기준 수와 다릅니다. apply 를 다시 돌리세요."
+            )
+
+
 def relevance_preview(rows: list[dict], criteria: list[dict], floor: float = 0.15) -> str:
     """요청문과 기준 질문이 **얼마나 겹치는가** 를 호출 없이 재본다.
 
@@ -667,6 +708,7 @@ def cmd_apply(args) -> None:
         print(f"  이어하기: {len(done)}건은 건너뜁니다.")
 
     schema = apply_schema(len(criteria))
+    fingerprint = criteria_fingerprint(criteria)
     client = connect()
     preflight(client, schema)
 
@@ -682,6 +724,7 @@ def cmd_apply(args) -> None:
             record = {
                 "source": row["source"], "serial": row["serial"], "page": row["page"],
                 "pair_index": row.get("pair_index", 1),
+                "criteria_fingerprint": fingerprint,
             }
             if "error" in result:
                 record.update(result)
