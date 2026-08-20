@@ -151,10 +151,15 @@ def _abstained_state():
     )
 
     state = AgentState(request="요청", request_key=("2024년.pdf", 1, "1", 1))
+    # 2등의 라벨은 1등과 **같아야 한다.** 처음에는 `조치` 였는데, 그것은 문턱
+    # 위에 남은 반대 근거이므로 이 상태 자체가 충돌 사례였다 — 실측에서
+    # `SURFACE_ONLY` 기권 7건 중 그런 모양은 0건이다(전부 한 라벨로 모인다).
+    # 이 시험들이 보려는 것은 충돌이 아니라 **회수 절차**이므로 모양을 실측에
+    # 맞춘다. 충돌 쪽은 `_conflicting_abstention()` 이 따로 맡는다.
     state.retrieved_evidence = [
         Evidence(id="prec:2024년.pdf#7", kind=EvidenceKind.PRECEDENT, label="비조치",
                  score=0.45, rank=0, source="2024년.pdf", serial="7"),
-        Evidence(id="prec:2024년.pdf#9", kind=EvidenceKind.PRECEDENT, label="조치",
+        Evidence(id="prec:2024년.pdf#9", kind=EvidenceKind.PRECEDENT, label="비조치",
                  score=0.30, rank=1, source="2024년.pdf", serial="9"),
     ]
     state.route, state.route_reason = Path.ABSTAIN, "R5"
