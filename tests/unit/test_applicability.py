@@ -213,3 +213,129 @@ def test_fabricated_quotes_are_caught():
 
     empty = {"quote_a": "", "quote_b": ""}
     assert len(quotes_are_grounded(empty, request, precedent)) == 2
+
+
+# ── 확정된 설계 결정 둘 ───────────────────────────────────────────
+#
+# 두 fixture 모두 **실측한 근거 구성**을 그대로 쓴다. 지어낸 숫자로 정책을
+# 고정하면 그 정책이 실제 데이터에서 발화하는지 알 수 없다.
+#
+#   test 170건 · Lexical · router 정책 → 기권 78건 · 사정거리 22건
+#   그중 문턱 위 반대 근거가 남은 것 5건 — **전부 CONFLICTING_EVIDENCE**
+#   나머지 17건은 근거가 한 라벨로 모여 있다 (아래 _clean_abstention 이 그 모양)
+
+def _clean_abstention():
+    """실측 #41 의 모양 — R5 기권, 근거가 한 라벨로 모여 있다.
+
+    비조치 0.270 / 비조치 0.217. 반대 근거가 없으므로 `applies` 면 회수된다.
+    """
+    from app.agents.state import (
+        AbstentionReason,
+        AgentState,
+        Evidence,
+        EvidenceKind,
+        Path,
+    )
+
+    state = AgentState(request="요청", request_key=("2023년.pdf", 4, "12", 1))
+    state.retrieved_evidence = [
+        Evidence(id="prec:2023년.pdf#12", kind=EvidenceKind.PRECEDENT, label="비조치",
+                 score=0.270, rank=0, source="2023년.pdf", serial="12"),
+        Evidence(id="prec:2023년.pdf#31", kind=EvidenceKind.PRECEDENT, label="비조치",
+                 score=0.217, rank=1, source="2023년.pdf", serial="31"),
+    ]
+    state.route, state.route_reason = Path.ABSTAIN, "R5"
+    state.abstain(AbstentionReason.SURFACE_ONLY, provisional="비조치")
+    return state
+
+
+def _conflicting_abstention():
+    """실측 #127 의 모양 — R6 기권, 1등과 반대 근거가 0.008 차이.
+
+    비조치 0.918 / 기타 0.910. 둘 다 TRUST(0.60) 위다 — **강한 선례가 서로
+    반대를 가리키는** 자리이고, 사정거리 22건 중 5건이 이 계열이다.
+    """
+    from app.agents.state import (
+        AbstentionReason,
+        AgentState,
+        Evidence,
+        EvidenceKind,
+        Path,
+    )
+
+    state = AgentState(request="요청", request_key=("2025년.pdf", 9, "3", 1))
+    state.retrieved_evidence = [
+        Evidence(id="prec:2025년.pdf#3", kind=EvidenceKind.PRECEDENT, label="비조치",
+                 score=0.918, rank=0, source="2025년.pdf", serial="3"),
+        Evidence(id="prec:2022년.pdf#8", kind=EvidenceKind.PRECEDENT, label="기타",
+                 score=0.910, rank=1, source="2022년.pdf", serial="8"),
+    ]
+    state.route, state.route_reason = Path.ABSTAIN, "R6"
+    state.abstain(AbstentionReason.CONFLICTING_EVIDENCE, provisional="비조치")
+    return state
+
+
+def test_partial_application_has_no_verdict_of_its_own_and_never_recovers():
+    """③ — `partial` 을 만들지 않는다. 회수는 `applies` 하나에서만 일어난다.
+
+    부분 적용은 `differs`/`unclear` 로 흡수한다. 그 둘이 기권을 유지한다는 것은
+    fixture 10·11 이 이미 고정한다. **여기서 새로 고정하는 것은 두 가지다.**
+
+      ① 스키마에 `partial` 이 들어갈 자리가 없다 — 모델이 그 값을 낼 수 없다
+      ② 그럼에도 스키마 밖의 값이 새어 들어오면 **회수하지 않는다**(fail-closed)
+
+    ②가 없으면 판정 문자열이 어긋나는 날 회수 쪽으로 기울 수 있다. 회수는
+    기권을 없애는 방향이므로, 흔들릴 때는 막는 쪽이 맞다.
+    """
+    from app.agents.applicability import apply_verdict
+
+    # ① 부분 적용은 판정값이 아니다
+    assert "partial" not in schema()["properties"]["verdict"]["enum"]
+    assert {a.value for a in Applicability} == {"applies", "differs", "unclear"}
+
+    # 먼저 이 상태가 **회수될 수 있는 상태**임을 확인한다 — 아니면 아래가 공허하다
+    recovered, _ = apply_verdict(_clean_abstention(), "applies")
+    assert recovered, "반대 근거가 없는데도 회수되지 않습니다 — 시험이 공허해집니다"
+
+    # ② 그 상태에서도 applies 가 아닌 값은 무엇이든 기권을 유지한다
+    for verdict in ("partial", "partially_applies", "APPLIES", "applies ", ""):
+        state = _clean_abstention()
+        recovered, _ = apply_verdict(state, verdict)
+        assert not recovered, f"'{verdict}' 로 회수됐습니다"
+        assert state.abstained and state.decision is None
+        assert state.abstention_reason is not None
+
+
+def test_opposing_evidence_blocks_recovery_even_when_the_model_says_applies():
+    """⑤(b) — top-1 이 `applies` 여도 문턱 위 반대 근거가 남아 있으면 기권 유지.
+
+    **가설 H1 이다. 검증된 사실이 아니다.** 모델은 top-1 만 보고 답하므로
+    "top-1 이 적용된다" 는 말이 반대 선례를 배제하지 않는다. E11b 실측에서
+    막힌 건의 정답이 top-1 라벨과 과반 일치하면 이 가드가 틀린 것이다.
+    """
+    from app.agents.applicability import apply_verdict, opposing_evidence
+
+    state = _conflicting_abstention()
+    assert opposing_evidence(state) == ["prec:2022년.pdf#8"]
+
+    recovered, verdict = apply_verdict(state, "applies")
+    assert not recovered
+    assert state.abstained and state.decision is None
+    assert state.route_reason == "R6", "원래 기권 경로가 덮어써졌습니다"
+    assert verdict == "applies", "판정 자체는 그대로 보고돼야 합니다"
+
+    # 왜 막았는지가 흔적에 남는다 — 남지 않으면 나중에 셀 수 없다
+    step = [s for s in state.execution_trace if s.node == "applicability"][-1]
+    assert step.detail.get("opposing") == ["prec:2022년.pdf#8"]
+
+    # 가드가 **반대 근거 때문에** 막았음을 보인다. 반대 근거를 문턱 아래로
+    # 내리면 같은 판정이 회수된다 — 그렇지 않으면 이 시험은 아무것도 못 가른다.
+    from app.domain.similarity import DOUBT
+
+    loosened = _conflicting_abstention()
+    for evidence in loosened.retrieved_evidence:
+        if evidence.rank != 0:
+            evidence.score = DOUBT - 0.01
+    recovered, _ = apply_verdict(loosened, "applies")
+    assert recovered and loosened.decision == "비조치"
+    assert loosened.route_reason == "V3+"
