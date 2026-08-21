@@ -194,10 +194,17 @@ def apply_verdict(state, verdict: str) -> tuple[bool, str]:
 
     `applies` 라도 문턱 위에 반대 근거가 남아 있으면 회수하지 않는다(가설 H1).
 
+    **1등 근거라도 `DOUBT` 아래면 쓰지 않는다.** dry-run 에서 유사도 0.0559 인
+    선례로 기권이 거둬지는 것을 확인했다. `targets()` 가 사정거리를 막고
+    있으므로 지금 배선으로는 도달하지 않지만, 그러면 안전이 **호출자의 예의**
+    에 걸린다 — 사정거리 밖 기권 56건 전부가 1등 선례를 문턱 아래에 갖고
+    있다. 여기서 한 번 더 막는다. 새 문턱을 만들지 않고 기존 `DOUBT` 를 쓴다.
+
     되돌린 경로는 흔적에 남는다. "왜 답하게 됐는가" 를 추적할 수 있어야 한다.
     """
     from app.agents.router import decide
     from app.agents.state import Path
+    from app.domain.similarity import DOUBT
 
     if verdict != Applicability.APPLIES.value:
         state.step("applicability", f"{verdict} — 기권 유지", verdict=verdict)
@@ -210,7 +217,8 @@ def apply_verdict(state, verdict: str) -> tuple[bool, str]:
                    verdict=verdict, opposing=opposing)
         return False, verdict
 
-    usable = [e for e in state.retrieved_evidence if e.rank == 0]
+    usable = [e for e in state.retrieved_evidence
+              if e.rank == 0 and e.score >= DOUBT]
     label, used = decide(usable)
     if label is None:
         state.step("applicability", "applies 이지만 쓸 근거가 없다", verdict=verdict)
