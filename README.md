@@ -153,7 +153,7 @@ tests/             unit · integration · evaluation · regression
 의존 방향은 위에서 아래로만 흐른다. 자세한 근거와 재편 과정은
 [docs/11-architecture.md](docs/11-architecture.md).
 
-테스트 <!--TESTS-->499<!--/TESTS-->개가 네 갈래로 나뉘어 있다. `regression` 은
+테스트 <!--TESTS-->500<!--/TESTS-->개가 네 갈래로 나뉘어 있다. `regression` 은
 고친 실패가 다시 열리는 것을, `evaluation` 은 문서 수치가 산출물과 어긋나는 것을
 막는다.
 

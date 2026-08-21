@@ -129,3 +129,57 @@ def test_abstained_rows_still_carry_a_provisional_label(workflow_states):
         )
         assert record["abstained"] is True
         assert record["confidence"] == "low"
+
+
+def test_a_precedent_below_the_floor_never_recovers_an_abstention():
+    """E11b dry-run 이 잡은 결함 — **문턱 아래 선례로 기권이 거둬졌다.**
+
+    `apply_verdict` 는 1등 근거를 `rank == 0` 으로만 집었고 점수를 보지
+    않았다. 그래서 유사도 0.0559 짜리 선례로도 답을 내놓았다. dev 보정에서
+    `DOUBT`(0.15) 아래 구간의 오류율은 0.500 이다 — 동전 던지기다.
+
+    지금은 `targets()` 가 사정거리를 22건으로 막아 실제로는 도달하지 않는다.
+    그러나 그러면 안전이 **호출자의 예의**에 걸린다. 사정거리 밖 기권 56건은
+    전부 1등 선례를 문턱 아래에 갖고 있으므로, 실행기가 `targets()` 를 한 번
+    빼먹으면 56건이 동전 던지기로 답한다.
+
+    0.0559 는 지어낸 값이 아니라 test #0 에서 관측한 값이다.
+    """
+    from app.agents.applicability import apply_verdict
+    from app.agents.state import (
+        AbstentionReason,
+        AgentState,
+        Evidence,
+        EvidenceKind,
+    )
+    from app.domain.similarity import DOUBT
+
+    def below_floor_abstention(score: float):
+        state = AgentState(request="요청", request_key=("2021년.pdf", 2, "5", 1))
+        state.retrieved_evidence = [
+            Evidence(id="prec:2021년.pdf#5", kind=EvidenceKind.PRECEDENT,
+                     label="비조치", score=score, rank=0,
+                     source="2021년.pdf", serial="5"),
+        ]
+        state.precedent_score = score
+        state.route, state.route_reason = RoutePath.ABSTAIN, "R2"
+        state.abstain(AbstentionReason.NO_EVIDENCE, provisional="비조치")
+        return state
+
+    observed = 0.0559
+    assert observed < DOUBT, "이 시험의 전제가 무너졌습니다"
+
+    state = below_floor_abstention(observed)
+    recovered, _ = apply_verdict(state, "applies")
+
+    assert not recovered, f"유사도 {observed} 선례로 기권을 거뒀습니다"
+    assert state.abstained, "기권이 풀렸습니다"
+    assert state.abstention_reason is AbstentionReason.NO_EVIDENCE
+    assert state.decision is None, "문턱 아래 선례로 답을 내놓았습니다"
+    assert state.route_reason == "R2", "원래 기권 경로가 덮어써졌습니다"
+
+    # 막은 것이 **문턱**임을 보인다. 점수만 문턱 위로 올리면 회수된다 —
+    # 그렇지 않으면 이 시험은 다른 이유로 통과하고 있는 것이다.
+    above = below_floor_abstention(DOUBT)
+    recovered, _ = apply_verdict(above, "applies")
+    assert recovered and above.decision == "비조치"
