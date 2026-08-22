@@ -399,7 +399,9 @@ def measure_on(rules: list[Rule], rows: list[dict]) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--dev", required=True)
-    ap.add_argument("--test", required=True)
+    ap.add_argument("--test",
+                    help="없으면 **전이 측정을 건너뛴다** — 규칙 유도만 한다. "
+                         "test 를 아직 열면 안 되는 단계에서 쓴다.")
     ap.add_argument("--output", help="test 예측을 JSONL 로 저장")
     ap.add_argument("--report")
     ap.add_argument("--min-support", type=int, default=MIN_SUPPORT)
@@ -410,7 +412,8 @@ def main() -> None:
     args = ap.parse_args()
 
     dev = [r for r in load_jsonl(Path(args.dev)) if r.get("label")]
-    test = [r for r in load_jsonl(Path(args.test)) if r.get("label")]
+    test = [r for r in load_jsonl(Path(args.test)) if r.get("label")] \
+        if args.test else []
 
     print(f"dev {len(dev)}건에서 규칙을 찾는다 "
           f"(최소 피복 {args.min_support} · 최소 정밀도 {args.min_precision} "
@@ -421,7 +424,10 @@ def main() -> None:
     rules, default = induce(dev, min_support=args.min_support,
                             min_precision=args.min_precision,
                             max_depth=args.max_depth)
-    measure_on(rules, test)
+    if test:
+        measure_on(rules, test)
+    else:
+        print("  (--test 없음 — 전이 측정을 건너뛴다. test_* 는 null 로 남긴다)")
 
     print(f"\n규칙 {len(rules)}개 · 기본 라벨 '{default}'\n")
     if not rules:
@@ -466,7 +472,7 @@ def main() -> None:
         print("\n  같은 dev 정밀도라도 클래스마다 전이가 다르다. 소수 클래스 규칙이")
         print("  무너진다면, 그 클래스의 신호가 본문 표면에 없다는 뜻이다.")
 
-    if args.output:
+    if args.output and test:
         preds = []
         for row in test:
             label, rule, conf = apply_rules(rules, default, row)
@@ -523,7 +529,8 @@ def main() -> None:
                 "order": r.order, "label": r.label, "description": r.describe(),
                 "atoms": [{"kind": a.kind, "value": a.value} for a in r.atoms],
                 "dev_support": r.dev_support, "dev_precision": r.dev_precision,
-                "test_support": r.test_support, "test_precision": r.test_precision,
+                "test_support": r.test_support if test else None,
+                "test_precision": r.test_precision if test else None,
             } for r in rules],
         })
         print(f"-> {args.report}")
