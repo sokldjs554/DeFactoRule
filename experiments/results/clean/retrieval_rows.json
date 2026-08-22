@@ -1,0 +1,2522 @@
+[
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      13,
+      "220020",
+      1
+    ],
+    "label": "비조치",
+    "year": 2022,
+    "top_similarity": 0.1093,
+    "top_label": "조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      14,
+      "220024",
+      1
+    ],
+    "label": "비조치",
+    "year": 2022,
+    "top_similarity": 0.062,
+    "top_label": "조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      18,
+      "220039",
+      1
+    ],
+    "label": "조치",
+    "year": 2022,
+    "top_similarity": 0.0665,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      19,
+      "220041",
+      1
+    ],
+    "label": "기타",
+    "year": 2022,
+    "top_similarity": 0.162,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "trap"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      21,
+      "220042",
+      1
+    ],
+    "label": "기타",
+    "year": 2022,
+    "top_similarity": 0.1909,
+    "top_label": "기타",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      23,
+      "220049",
+      1
+    ],
+    "label": "비조치",
+    "year": 2022,
+    "top_similarity": 0.1643,
+    "top_label": "기타",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "trap"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      24,
+      "220054",
+      1
+    ],
+    "label": "비조치",
+    "year": 2022,
+    "top_similarity": 0.0464,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      26,
+      "220062",
+      1
+    ],
+    "label": "비조치",
+    "year": 2022,
+    "top_similarity": 0.1338,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      29,
+      "220070",
+      1
+    ],
+    "label": "기타",
+    "year": 2022,
+    "top_similarity": 0.1899,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "trap"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      31,
+      "220000",
+      1
+    ],
+    "label": "비조치",
+    "year": 2022,
+    "top_similarity": 0.0186,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      33,
+      "220022",
+      1
+    ],
+    "label": "비조치",
+    "year": 2022,
+    "top_similarity": 0.2155,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      34,
+      "220026",
+      1
+    ],
+    "label": "기타",
+    "year": 2022,
+    "top_similarity": 0.1779,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "trap"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      37,
+      "220031",
+      1
+    ],
+    "label": "비조치",
+    "year": 2022,
+    "top_similarity": 0.154,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      4,
+      "220028",
+      1
+    ],
+    "label": "비조치",
+    "year": 2022,
+    "top_similarity": 0.0407,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      40,
+      "220063",
+      1
+    ],
+    "label": "비조치",
+    "year": 2022,
+    "top_similarity": 0.0159,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      42,
+      "220076",
+      1
+    ],
+    "label": "비조치",
+    "year": 2022,
+    "top_similarity": 0.0382,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      43,
+      "220090",
+      1
+    ],
+    "label": "비조치",
+    "year": 2022,
+    "top_similarity": 0.0157,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      46,
+      "220007",
+      1
+    ],
+    "label": "비조치",
+    "year": 2022,
+    "top_similarity": 0.0,
+    "top_label": "조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      48,
+      "220033",
+      1
+    ],
+    "label": "비조치",
+    "year": 2022,
+    "top_similarity": 0.0428,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      49,
+      "220060",
+      1
+    ],
+    "label": "비조치",
+    "year": 2022,
+    "top_similarity": 0.0428,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      51,
+      "220088",
+      1
+    ],
+    "label": "기타",
+    "year": 2022,
+    "top_similarity": 0.0349,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      53,
+      "220035",
+      1
+    ],
+    "label": "비조치",
+    "year": 2022,
+    "top_similarity": 0.027,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      54,
+      "220044",
+      1
+    ],
+    "label": "비조치",
+    "year": 2022,
+    "top_similarity": 0.0267,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      55,
+      "220047",
+      1
+    ],
+    "label": "기타",
+    "year": 2022,
+    "top_similarity": 0.0255,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      57,
+      "220081",
+      1
+    ],
+    "label": "비조치",
+    "year": 2022,
+    "top_similarity": 0.0305,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      6,
+      "220003",
+      1
+    ],
+    "label": "조치",
+    "year": 2022,
+    "top_similarity": 0.0246,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      60,
+      "220021",
+      1
+    ],
+    "label": "비조치",
+    "year": 2022,
+    "top_similarity": 0.1545,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      61,
+      "220037",
+      1
+    ],
+    "label": "기타",
+    "year": 2022,
+    "top_similarity": 0.0319,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      64,
+      "220052",
+      1
+    ],
+    "label": "비조치",
+    "year": 2022,
+    "top_similarity": 0.0423,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      65,
+      "220084",
+      1
+    ],
+    "label": "비조치",
+    "year": 2022,
+    "top_similarity": 0.9057,
+    "top_label": "비조치",
+    "band": "trust",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      7,
+      "220004",
+      1
+    ],
+    "label": "기타",
+    "year": 2022,
+    "top_similarity": 0.0914,
+    "top_label": "조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      8,
+      "220005",
+      1
+    ],
+    "label": "비조치",
+    "year": 2022,
+    "top_similarity": 0.095,
+    "top_label": "조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2022년 비조치의견서 사례집.pdf",
+      9,
+      "220006",
+      1
+    ],
+    "label": "비조치",
+    "year": 2022,
+    "top_similarity": 0.0457,
+    "top_label": "조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      101,
+      "230053",
+      1
+    ],
+    "label": "비조치",
+    "year": 2023,
+    "top_similarity": 0.9129,
+    "top_label": "비조치",
+    "band": "trust",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      102,
+      "230075",
+      1
+    ],
+    "label": "기타",
+    "year": 2023,
+    "top_similarity": 0.4163,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "trap"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      103,
+      "230094",
+      1
+    ],
+    "label": "기타",
+    "year": 2023,
+    "top_similarity": 0.6573,
+    "top_label": "기타",
+    "band": "trust",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      105,
+      "230116",
+      1
+    ],
+    "label": "비조치",
+    "year": 2023,
+    "top_similarity": 0.9079,
+    "top_label": "비조치",
+    "band": "trust",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      106,
+      "230117",
+      1
+    ],
+    "label": "비조치",
+    "year": 2023,
+    "top_similarity": 0.9141,
+    "top_label": "비조치",
+    "band": "trust",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      12,
+      "230015",
+      1
+    ],
+    "label": "기타",
+    "year": 2023,
+    "top_similarity": 0.0514,
+    "top_label": "조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      13,
+      "230024",
+      1
+    ],
+    "label": "비조치",
+    "year": 2023,
+    "top_similarity": 0.3761,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      16,
+      "230041",
+      1
+    ],
+    "label": "비조치",
+    "year": 2023,
+    "top_similarity": 0.4592,
+    "top_label": "조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "trap"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      19,
+      "230050",
+      1
+    ],
+    "label": "조치",
+    "year": 2023,
+    "top_similarity": 0.0567,
+    "top_label": "조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      21,
+      "230055",
+      1
+    ],
+    "label": "조치",
+    "year": 2023,
+    "top_similarity": 0.0758,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      24,
+      "230063",
+      1
+    ],
+    "label": "비조치",
+    "year": 2023,
+    "top_similarity": 0.0516,
+    "top_label": "조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      27,
+      "230072",
+      1
+    ],
+    "label": "조치",
+    "year": 2023,
+    "top_similarity": 0.1432,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      29,
+      "230073",
+      1
+    ],
+    "label": "조치",
+    "year": 2023,
+    "top_similarity": 0.0624,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      31,
+      "230081",
+      1
+    ],
+    "label": "기타",
+    "year": 2023,
+    "top_similarity": 0.0493,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      32,
+      "230083",
+      1
+    ],
+    "label": "조치",
+    "year": 2023,
+    "top_similarity": 0.1333,
+    "top_label": "조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      33,
+      "230084",
+      1
+    ],
+    "label": "조치",
+    "year": 2023,
+    "top_similarity": 0.0707,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      35,
+      "230088",
+      1
+    ],
+    "label": "기타",
+    "year": 2023,
+    "top_similarity": 0.0806,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      38,
+      "230096",
+      1
+    ],
+    "label": "기타",
+    "year": 2023,
+    "top_similarity": 0.053,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      39,
+      "230106",
+      1
+    ],
+    "label": "비조치",
+    "year": 2023,
+    "top_similarity": 0.0322,
+    "top_label": "조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      4,
+      "230030",
+      1
+    ],
+    "label": "비조치",
+    "year": 2023,
+    "top_similarity": 0.0209,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      41,
+      "230111",
+      1
+    ],
+    "label": "조치",
+    "year": 2023,
+    "top_similarity": 0.0911,
+    "top_label": "조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      42,
+      "230118",
+      1
+    ],
+    "label": "기타",
+    "year": 2023,
+    "top_similarity": 0.104,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      45,
+      "230003",
+      1
+    ],
+    "label": "기타",
+    "year": 2023,
+    "top_similarity": 0.0306,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      49,
+      "230042",
+      1
+    ],
+    "label": "비조치",
+    "year": 2023,
+    "top_similarity": 0.6402,
+    "top_label": "비조치",
+    "band": "trust",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      5,
+      "230046",
+      1
+    ],
+    "label": "비조치",
+    "year": 2023,
+    "top_similarity": 0.0099,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      55,
+      "230067",
+      1
+    ],
+    "label": "기타",
+    "year": 2023,
+    "top_similarity": 0.4233,
+    "top_label": "기타",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      57,
+      "230068",
+      1
+    ],
+    "label": "비조치",
+    "year": 2023,
+    "top_similarity": 0.2285,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      59,
+      "230086",
+      1
+    ],
+    "label": "기타",
+    "year": 2023,
+    "top_similarity": 0.0768,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      62,
+      "230022",
+      1
+    ],
+    "label": "비조치",
+    "year": 2023,
+    "top_similarity": 0.024,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      64,
+      "230023",
+      1
+    ],
+    "label": "비조치",
+    "year": 2023,
+    "top_similarity": 0.024,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      67,
+      "230014",
+      1
+    ],
+    "label": "기타",
+    "year": 2023,
+    "top_similarity": 0.6375,
+    "top_label": "비조치",
+    "band": "trust",
+    "above_floor": true,
+    "partition": "trap"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      69,
+      "230002",
+      1
+    ],
+    "label": "조치",
+    "year": 2023,
+    "top_similarity": 0.0238,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      7,
+      "230056",
+      1
+    ],
+    "label": "기타",
+    "year": 2023,
+    "top_similarity": 0.0244,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      72,
+      "230016",
+      1
+    ],
+    "label": "비조치",
+    "year": 2023,
+    "top_similarity": 0.0303,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      73,
+      "230043",
+      1
+    ],
+    "label": "비조치",
+    "year": 2023,
+    "top_similarity": 0.0258,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      74,
+      "230061",
+      1
+    ],
+    "label": "비조치",
+    "year": 2023,
+    "top_similarity": 0.0234,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      77,
+      "230100",
+      1
+    ],
+    "label": "비조치",
+    "year": 2023,
+    "top_similarity": 0.0733,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      79,
+      "230115",
+      1
+    ],
+    "label": "비조치",
+    "year": 2023,
+    "top_similarity": 0.0291,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      81,
+      "230007",
+      1
+    ],
+    "label": "기타",
+    "year": 2023,
+    "top_similarity": 0.0305,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      83,
+      "230020",
+      1
+    ],
+    "label": "비조치",
+    "year": 2023,
+    "top_similarity": 0.5216,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      85,
+      "230032",
+      1
+    ],
+    "label": "비조치",
+    "year": 2023,
+    "top_similarity": 0.505,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      88,
+      "230091",
+      1
+    ],
+    "label": "비조치",
+    "year": 2023,
+    "top_similarity": 0.5216,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      89,
+      "230097",
+      1
+    ],
+    "label": "비조치",
+    "year": 2023,
+    "top_similarity": 0.505,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      93,
+      "230122",
+      1
+    ],
+    "label": "비조치",
+    "year": 2023,
+    "top_similarity": 0.5216,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      96,
+      "230018",
+      1
+    ],
+    "label": "비조치",
+    "year": 2023,
+    "top_similarity": 0.9419,
+    "top_label": "비조치",
+    "band": "trust",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      97,
+      "230027",
+      1
+    ],
+    "label": "기타",
+    "year": 2023,
+    "top_similarity": 0.6723,
+    "top_label": "기타",
+    "band": "trust",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2023년 비조치의견서 사례집(금융감독원).pdf",
+      99,
+      "230044",
+      1
+    ],
+    "label": "비조치",
+    "year": 2023,
+    "top_similarity": 0.0769,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      12,
+      "240080",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.0124,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      13,
+      "240083",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.0209,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      18,
+      "240002",
+      1
+    ],
+    "label": "기타",
+    "year": 2024,
+    "top_similarity": 0.1013,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      19,
+      "240004",
+      1
+    ],
+    "label": "기타",
+    "year": 2024,
+    "top_similarity": 0.0846,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      21,
+      "240012",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.0828,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      23,
+      "240014",
+      1
+    ],
+    "label": "조치",
+    "year": 2024,
+    "top_similarity": 0.0706,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      24,
+      "240019",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.1029,
+    "top_label": "조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      26,
+      "240033",
+      1
+    ],
+    "label": "기타",
+    "year": 2024,
+    "top_similarity": 0.0757,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      27,
+      "240035",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.1307,
+    "top_label": "조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      28,
+      "240036",
+      1
+    ],
+    "label": "조치",
+    "year": 2024,
+    "top_similarity": 0.093,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      29,
+      "240037",
+      1
+    ],
+    "label": "기타",
+    "year": 2024,
+    "top_similarity": 0.1304,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      31,
+      "240041",
+      1
+    ],
+    "label": "조치",
+    "year": 2024,
+    "top_similarity": 0.1903,
+    "top_label": "기타",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "trap"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      32,
+      "240042",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.12,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      34,
+      "240051",
+      1
+    ],
+    "label": "기타",
+    "year": 2024,
+    "top_similarity": 0.0948,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      35,
+      "240054",
+      1
+    ],
+    "label": "기타",
+    "year": 2024,
+    "top_similarity": 0.147,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      37,
+      "240066",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.1602,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      4,
+      "240008",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.0131,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      42,
+      "240074",
+      1
+    ],
+    "label": "기타",
+    "year": 2024,
+    "top_similarity": 0.0629,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      44,
+      "240075",
+      1
+    ],
+    "label": "기타",
+    "year": 2024,
+    "top_similarity": 0.1119,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      45,
+      "240076",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.0482,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      47,
+      "240003",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.0722,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      5,
+      "240015",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.0236,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      53,
+      "240038",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.4705,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      55,
+      "240088",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.4705,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      56,
+      "240089",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.8168,
+    "top_label": "비조치",
+    "band": "trust",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      58,
+      "240018",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.03,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      60,
+      "240046",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.1105,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      61,
+      "240047",
+      1
+    ],
+    "label": "기타",
+    "year": 2024,
+    "top_similarity": 0.1737,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "trap"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      62,
+      "240049",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.1105,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      63,
+      "240081",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.013,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      64,
+      "240093",
+      1
+    ],
+    "label": "기타",
+    "year": 2024,
+    "top_similarity": 0.1737,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "trap"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      65,
+      "240095",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.1105,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      67,
+      "240007",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.505,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      69,
+      "240025",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.505,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      7,
+      "240020",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.0254,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      71,
+      "240027",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.5216,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      72,
+      "240032",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.0604,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      74,
+      "240061",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.505,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      75,
+      "240062",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.5216,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      78,
+      "240099",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.1199,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      79,
+      "240100",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.0604,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      82,
+      "240006",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.6573,
+    "top_label": "기타",
+    "band": "trust",
+    "above_floor": true,
+    "partition": "trap"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      83,
+      "240016",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.435,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      84,
+      "240022",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.4717,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      85,
+      "240023",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.6697,
+    "top_label": "비조치",
+    "band": "trust",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      87,
+      "240055",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.6951,
+    "top_label": "비조치",
+    "band": "trust",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      89,
+      "240057",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.667,
+    "top_label": "비조치",
+    "band": "trust",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      9,
+      "240044",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.1199,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      91,
+      "240059",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.4676,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      92,
+      "240097",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.6089,
+    "top_label": "비조치",
+    "band": "trust",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      95,
+      "240085",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.0903,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2024년 비조치의견서 사례집(금융감독원).pdf",
+      96,
+      "240086",
+      1
+    ],
+    "label": "비조치",
+    "year": 2024,
+    "top_similarity": 0.0903,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      15,
+      "250005",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.1097,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      16,
+      "250007",
+      1
+    ],
+    "label": "기타",
+    "year": 2025,
+    "top_similarity": 0.2033,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "trap"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      17,
+      "250010",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.0559,
+    "top_label": "조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      19,
+      "250019",
+      1
+    ],
+    "label": "조치",
+    "year": 2025,
+    "top_similarity": 0.0848,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      20,
+      "250039",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.1362,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      21,
+      "250040",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.1181,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      24,
+      "250048",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.0367,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      25,
+      "250051",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.0367,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      26,
+      "250053",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.1181,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      28,
+      "250017",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.0364,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      32,
+      "250011",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.0283,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      33,
+      "250021",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.0291,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      34,
+      "250030",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.4705,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      35,
+      "250031",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.8168,
+    "top_label": "비조치",
+    "band": "trust",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      38,
+      "250062",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.4705,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      39,
+      "250063",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.8168,
+    "top_label": "비조치",
+    "band": "trust",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      4,
+      "25004",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.0256,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      41,
+      "250013",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.0898,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      43,
+      "250028",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.1737,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      44,
+      "250029",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.1105,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      45,
+      "250041",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.0429,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      46,
+      "250042",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.0522,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      48,
+      "250055",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.3819,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      49,
+      "250060",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.1737,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      50,
+      "250061",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.1105,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      53,
+      "250033",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.1199,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      54,
+      "250035",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.0604,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      55,
+      "250056",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.9238,
+    "top_label": "비조치",
+    "band": "trust",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      56,
+      "250057",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.1199,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      60,
+      "250015",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.2725,
+    "top_label": "비조치",
+    "band": "middle",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      61,
+      "250016",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.0712,
+    "top_label": "기타",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      64,
+      "250023",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.9334,
+    "top_label": "비조치",
+    "band": "trust",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      65,
+      "250024",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.9524,
+    "top_label": "비조치",
+    "band": "trust",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      68,
+      "250052",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.0855,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      8,
+      "250032",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.9238,
+    "top_label": "비조치",
+    "band": "trust",
+    "above_floor": true,
+    "partition": "agree"
+  },
+  {
+    "key": [
+      "2025년 비조치의견서 사례집(금융감독원).pdf",
+      9,
+      "250046",
+      1
+    ],
+    "label": "비조치",
+    "year": 2025,
+    "top_similarity": 0.0309,
+    "top_label": "비조치",
+    "band": "doubt",
+    "above_floor": false,
+    "partition": "unanchored"
+  }
+]

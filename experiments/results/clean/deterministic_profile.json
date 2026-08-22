@@ -1,0 +1,830 @@
+{
+  "inputs": {
+    "dev": "/workspace/defactorule/data/eval/nonaction_dev_clean.jsonl",
+    "test": "/workspace/defactorule/data/eval/nonaction_test_clean.jsonl",
+    "rules": "/workspace/defactorule/experiments/results/e6_rules_clean.json",
+    "risk": "/workspace/defactorule/experiments/results/trap_risk_clean.json",
+    "corpus_size": 256,
+    "floor": 0.15,
+    "trust": 0.6,
+    "thresholds_derived_from": "legacy dev — 이 단계에서 재유도하지 않았다"
+  },
+  "integrity": {
+    "n_clean_test": 168,
+    "n_clean_dev": 87,
+    "unique_keys_test": 168,
+    "unique_keys_dev": 87,
+    "duplicate_rows_test": 0,
+    "dev_test_overlap": 0,
+    "union_preserved": true,
+    "empty_fields": {},
+    "source_page_serial_collisions": 0,
+    "label_sources": {
+      "document_checkbox": 168
+    },
+    "masked_leaks_rows": 45,
+    "clean_test_seen_in_legacy_dev": 54,
+    "clean_dev_seen_in_legacy_dev": 31
+  },
+  "distribution": {
+    "clean_dev": {
+      "n": 87,
+      "by_label": {
+        "기타": 16,
+        "비조치": 63,
+        "조치": 8
+      },
+      "by_year": {
+        "2022": 16,
+        "2023": 28,
+        "2024": 27,
+        "2025": 16
+      },
+      "by_sector": {
+        "가상자산": 4,
+        "공통": 36,
+        "보험": 4,
+        "상호저축은행업": 8,
+        "여신전문금융업": 7,
+        "은행": 7,
+        "자본시장": 5,
+        "전자금융": 16
+      }
+    },
+    "clean_test": {
+      "n": 168,
+      "by_label": {
+        "기타": 33,
+        "비조치": 121,
+        "조치": 14
+      },
+      "by_year": {
+        "2022": 33,
+        "2023": 47,
+        "2024": 52,
+        "2025": 36
+      },
+      "by_sector": {
+        "가상자산": 7,
+        "공통": 57,
+        "보험": 19,
+        "상호저축은행업": 14,
+        "여신전문금융업": 10,
+        "은행": 9,
+        "자본시장": 13,
+        "전자금융": 39
+      }
+    }
+  },
+  "retrieval": {
+    "floor": 0.15,
+    "n": 168,
+    "above_floor": 60,
+    "above_floor_rate": 0.35714285714285715,
+    "above_floor_ci95": [
+      0.28862294698512736,
+      0.4320500448864568
+    ],
+    "bands": {
+      "trust": 21,
+      "middle": 39,
+      "doubt": 108
+    },
+    "partition": {
+      "agree": 48,
+      "trap": 12,
+      "unanchored": 108
+    },
+    "by_label": {
+      "기타": {
+        "above_floor": 12,
+        "agree": 4,
+        "n": 33,
+        "trap": 8,
+        "unanchored": 21
+      },
+      "비조치": {
+        "above_floor": 47,
+        "agree": 44,
+        "n": 121,
+        "trap": 3,
+        "unanchored": 74
+      },
+      "조치": {
+        "above_floor": 1,
+        "n": 14,
+        "trap": 1,
+        "unanchored": 13
+      }
+    },
+    "by_year": {
+      "2022": {
+        "above_floor": 9,
+        "n": 33
+      },
+      "2023": {
+        "above_floor": 18,
+        "n": 47
+      },
+      "2024": {
+        "above_floor": 20,
+        "n": 52
+      },
+      "2025": {
+        "above_floor": 13,
+        "n": 36
+      }
+    }
+  },
+  "rule_transfer_induction_semantics": {
+    "n_rules": 11,
+    "default_label": "기타",
+    "test_n": 168,
+    "fired": 150,
+    "coverage": 0.8928571428571429,
+    "correct_when_fired": 96,
+    "precision_when_fired": 0.64,
+    "precision_ci95": [
+      0.5605726755123628,
+      0.712435405526836
+    ],
+    "fell_to_default": 18,
+    "default_correct": 3,
+    "default_label_distribution": {
+      "기타": 3,
+      "비조치": 14,
+      "조치": 1
+    },
+    "rules_that_never_fire": [],
+    "whole_model_accuracy": 0.5892857142857143,
+    "per_rule": [
+      {
+        "order": 1,
+        "label": "비조치",
+        "description": "본문에 '에따른' 포함 AND 본문에 '제1항' 포함 -> 비조치",
+        "dev_support": 22,
+        "dev_precision": 1.0,
+        "test_support": 33,
+        "test_correct": 30,
+        "test_precision": 0.9090909090909091
+      },
+      {
+        "order": 2,
+        "label": "비조치",
+        "description": "본문에 '’24.' 포함 -> 비조치",
+        "dev_support": 10,
+        "dev_precision": 1.0,
+        "test_support": 12,
+        "test_correct": 12,
+        "test_precision": 1.0
+      },
+      {
+        "order": 3,
+        "label": "비조치",
+        "description": "본문에 '조치를' 포함 -> 비조치",
+        "dev_support": 9,
+        "dev_precision": 1.0,
+        "test_support": 4,
+        "test_correct": 4,
+        "test_precision": 1.0
+      },
+      {
+        "order": 4,
+        "label": "비조치",
+        "description": "본문에 '<별표' 포함 -> 비조치",
+        "dev_support": 7,
+        "dev_precision": 1.0,
+        "test_support": 23,
+        "test_correct": 15,
+        "test_precision": 0.6521739130434783
+      },
+      {
+        "order": 5,
+        "label": "비조치",
+        "description": "본문에 '□가상자산사업자가' 포함 -> 비조치",
+        "dev_support": 4,
+        "dev_precision": 1.0,
+        "test_support": 3,
+        "test_correct": 3,
+        "test_precision": 1.0
+      },
+      {
+        "order": 6,
+        "label": "기타",
+        "description": "본문에 '서비스' 포함 AND 본문에 '□금융회사' 포함 -> 기타",
+        "dev_support": 4,
+        "dev_precision": 1.0,
+        "test_support": 15,
+        "test_correct": 8,
+        "test_precision": 0.5333333333333333
+      },
+      {
+        "order": 7,
+        "label": "조치",
+        "description": "본문에 '위반인지' 포함 -> 조치",
+        "dev_support": 6,
+        "dev_precision": 1.0,
+        "test_support": 13,
+        "test_correct": 5,
+        "test_precision": 0.38461538461538464
+      },
+      {
+        "order": 8,
+        "label": "기타",
+        "description": "업권이 '공통' -> 기타",
+        "dev_support": 6,
+        "dev_precision": 1.0,
+        "test_support": 22,
+        "test_correct": 4,
+        "test_precision": 0.18181818181818182
+      },
+      {
+        "order": 9,
+        "label": "비조치",
+        "description": "본문에 '에따른' 포함 -> 비조치",
+        "dev_support": 5,
+        "dev_precision": 1.0,
+        "test_support": 12,
+        "test_correct": 11,
+        "test_precision": 0.9166666666666666
+      },
+      {
+        "order": 10,
+        "label": "기타",
+        "description": "본문에 '는경우' 포함 -> 기타",
+        "dev_support": 5,
+        "dev_precision": 0.8,
+        "test_support": 11,
+        "test_correct": 3,
+        "test_precision": 0.2727272727272727
+      },
+      {
+        "order": 11,
+        "label": "비조치",
+        "description": "본문에 '감독규정' 포함 -> 비조치",
+        "dev_support": 5,
+        "dev_precision": 0.8,
+        "test_support": 2,
+        "test_correct": 1,
+        "test_precision": 0.5
+      }
+    ]
+  },
+  "rule_transfer_router_semantics": {
+    "n_rules": 11,
+    "default_label": "기타",
+    "test_n": 168,
+    "fired": 138,
+    "coverage": 0.8214285714285714,
+    "correct_when_fired": 100,
+    "precision_when_fired": 0.7246376811594203,
+    "precision_ci95": [
+      0.6447888462840227,
+      0.7923184621501743
+    ],
+    "fell_to_default": 30,
+    "default_correct": 6,
+    "default_label_distribution": {
+      "기타": 6,
+      "비조치": 21,
+      "조치": 3
+    },
+    "rules_that_never_fire": [
+      8
+    ],
+    "whole_model_accuracy": 0.6309523809523809,
+    "per_rule": [
+      {
+        "order": 1,
+        "label": "비조치",
+        "description": "본문에 '에따른' 포함 AND 본문에 '제1항' 포함 -> 비조치",
+        "dev_support": 22,
+        "dev_precision": 1.0,
+        "test_support": 33,
+        "test_correct": 30,
+        "test_precision": 0.9090909090909091
+      },
+      {
+        "order": 2,
+        "label": "비조치",
+        "description": "본문에 '’24.' 포함 -> 비조치",
+        "dev_support": 10,
+        "dev_precision": 1.0,
+        "test_support": 12,
+        "test_correct": 12,
+        "test_precision": 1.0
+      },
+      {
+        "order": 3,
+        "label": "비조치",
+        "description": "본문에 '조치를' 포함 -> 비조치",
+        "dev_support": 9,
+        "dev_precision": 1.0,
+        "test_support": 4,
+        "test_correct": 4,
+        "test_precision": 1.0
+      },
+      {
+        "order": 4,
+        "label": "비조치",
+        "description": "본문에 '<별표' 포함 -> 비조치",
+        "dev_support": 7,
+        "dev_precision": 1.0,
+        "test_support": 23,
+        "test_correct": 15,
+        "test_precision": 0.6521739130434783
+      },
+      {
+        "order": 5,
+        "label": "비조치",
+        "description": "본문에 '□가상자산사업자가' 포함 -> 비조치",
+        "dev_support": 4,
+        "dev_precision": 1.0,
+        "test_support": 3,
+        "test_correct": 3,
+        "test_precision": 1.0
+      },
+      {
+        "order": 6,
+        "label": "기타",
+        "description": "본문에 '서비스' 포함 AND 본문에 '□금융회사' 포함 -> 기타",
+        "dev_support": 4,
+        "dev_precision": 1.0,
+        "test_support": 15,
+        "test_correct": 8,
+        "test_precision": 0.5333333333333333
+      },
+      {
+        "order": 7,
+        "label": "조치",
+        "description": "본문에 '위반인지' 포함 -> 조치",
+        "dev_support": 6,
+        "dev_precision": 1.0,
+        "test_support": 13,
+        "test_correct": 5,
+        "test_precision": 0.38461538461538464
+      },
+      {
+        "order": 8,
+        "label": "기타",
+        "description": "업권이 '공통' -> 기타",
+        "dev_support": 6,
+        "dev_precision": 1.0,
+        "test_support": 0,
+        "test_correct": 0,
+        "test_precision": null
+      },
+      {
+        "order": 9,
+        "label": "비조치",
+        "description": "본문에 '에따른' 포함 -> 비조치",
+        "dev_support": 5,
+        "dev_precision": 1.0,
+        "test_support": 18,
+        "test_correct": 17,
+        "test_precision": 0.9444444444444444
+      },
+      {
+        "order": 10,
+        "label": "기타",
+        "description": "본문에 '는경우' 포함 -> 기타",
+        "dev_support": 5,
+        "dev_precision": 0.8,
+        "test_support": 14,
+        "test_correct": 4,
+        "test_precision": 0.2857142857142857
+      },
+      {
+        "order": 11,
+        "label": "비조치",
+        "description": "본문에 '감독규정' 포함 -> 비조치",
+        "dev_support": 5,
+        "dev_precision": 0.8,
+        "test_support": 3,
+        "test_correct": 2,
+        "test_precision": 0.6666666666666666
+      }
+    ]
+  },
+  "router": {
+    "n": 168,
+    "routes": {
+      "R1": 59,
+      "R2": 21,
+      "R3": 40,
+      "R4": 0,
+      "R5": 27,
+      "R6": 2,
+      "R7": 0,
+      "R8": 19,
+      "R9": 0,
+      "R10": 0
+    },
+    "routes_other": {},
+    "paths": {
+      "A": 19,
+      "B": 58,
+      "C": 91
+    },
+    "abstention_reasons": {
+      "CONFLICTING_EVIDENCE": 61,
+      "NO_EVIDENCE": 21,
+      "SURFACE_ONLY": 9
+    },
+    "answered": 77,
+    "abstained": 91,
+    "coverage": 0.4583333333333333,
+    "correct": 64,
+    "wrong": 13,
+    "accuracy_on_answered": 0.8311688311688312,
+    "accuracy_ci95": [
+      0.7322690482024222,
+      0.8985942696933148
+    ],
+    "abstained_would_be_correct": 59,
+    "by_label": {
+      "기타": {
+        "abstained": 21,
+        "answered": 12,
+        "correct": 4,
+        "n": 33,
+        "would_be_correct": 8,
+        "wrong": 8
+      },
+      "비조치": {
+        "abstained": 57,
+        "answered": 64,
+        "correct": 60,
+        "n": 121,
+        "would_be_correct": 44,
+        "wrong": 4
+      },
+      "조치": {
+        "abstained": 13,
+        "answered": 1,
+        "n": 14,
+        "would_be_correct": 7,
+        "wrong": 1
+      }
+    },
+    "by_route_label": {
+      "R1": {
+        "기타": 14,
+        "비조치": 35,
+        "조치": 10
+      },
+      "R2": {
+        "기타": 4,
+        "비조치": 14,
+        "조치": 3
+      },
+      "R3": {
+        "기타": 7,
+        "비조치": 32,
+        "조치": 1
+      },
+      "R5": {
+        "기타": 5,
+        "비조치": 22
+      },
+      "R6": {
+        "기타": 1,
+        "비조치": 1
+      },
+      "R8": {
+        "기타": 2,
+        "비조치": 17
+      }
+    }
+  },
+  "trap_breakdown": {
+    "agree": {
+      "n": 48,
+      "correct": 32,
+      "wrong": 2,
+      "abstained": 14,
+      "accuracy_on_answered": 0.9411764705882353,
+      "accuracy_ci95": [
+        0.8090606311053629,
+        0.9837176869361576
+      ]
+    },
+    "trap": {
+      "n": 12,
+      "correct": 0,
+      "wrong": 3,
+      "abstained": 9,
+      "accuracy_on_answered": 0.0,
+      "accuracy_ci95": [
+        0.0,
+        0.5615060804490177
+      ]
+    },
+    "unanchored": {
+      "n": 108,
+      "correct": 32,
+      "wrong": 8,
+      "abstained": 68,
+      "accuracy_on_answered": 0.8,
+      "accuracy_ci95": [
+        0.6524239261814333,
+        0.8950013502683314
+      ]
+    }
+  },
+  "action_class": {
+    "n": 14,
+    "above_floor": 1,
+    "answered": 1,
+    "correct": 0,
+    "top_label_is_조치": 3,
+    "routes": {
+      "R1": 10,
+      "R2": 3,
+      "R3": 1
+    },
+    "cases": [
+      {
+        "key": [
+          "2022년 비조치의견서 사례집.pdf",
+          18,
+          "220039",
+          1
+        ],
+        "year": 2022,
+        "top_similarity": 0.0665,
+        "top_label": "기타",
+        "band": "doubt",
+        "partition": "unanchored",
+        "route_reason": "R1",
+        "path": "C",
+        "abstained": true,
+        "abstention_reason": "CONFLICTING_EVIDENCE",
+        "decision": null,
+        "provisional": "기타",
+        "correct": false
+      },
+      {
+        "key": [
+          "2022년 비조치의견서 사례집.pdf",
+          6,
+          "220003",
+          1
+        ],
+        "year": 2022,
+        "top_similarity": 0.0246,
+        "top_label": "기타",
+        "band": "doubt",
+        "partition": "unanchored",
+        "route_reason": "R2",
+        "path": "C",
+        "abstained": true,
+        "abstention_reason": "NO_EVIDENCE",
+        "decision": null,
+        "provisional": "기타",
+        "correct": false
+      },
+      {
+        "key": [
+          "2023년 비조치의견서 사례집(금융감독원).pdf",
+          19,
+          "230050",
+          1
+        ],
+        "year": 2023,
+        "top_similarity": 0.0567,
+        "top_label": "조치",
+        "band": "doubt",
+        "partition": "unanchored",
+        "route_reason": "R1",
+        "path": "C",
+        "abstained": true,
+        "abstention_reason": "CONFLICTING_EVIDENCE",
+        "decision": null,
+        "provisional": "조치",
+        "correct": false
+      },
+      {
+        "key": [
+          "2023년 비조치의견서 사례집(금융감독원).pdf",
+          21,
+          "230055",
+          1
+        ],
+        "year": 2023,
+        "top_similarity": 0.0758,
+        "top_label": "비조치",
+        "band": "doubt",
+        "partition": "unanchored",
+        "route_reason": "R3",
+        "path": "B",
+        "abstained": false,
+        "abstention_reason": null,
+        "decision": "기타",
+        "provisional": "기타",
+        "correct": false
+      },
+      {
+        "key": [
+          "2023년 비조치의견서 사례집(금융감독원).pdf",
+          27,
+          "230072",
+          1
+        ],
+        "year": 2023,
+        "top_similarity": 0.1432,
+        "top_label": "기타",
+        "band": "doubt",
+        "partition": "unanchored",
+        "route_reason": "R1",
+        "path": "C",
+        "abstained": true,
+        "abstention_reason": "CONFLICTING_EVIDENCE",
+        "decision": null,
+        "provisional": "기타",
+        "correct": false
+      },
+      {
+        "key": [
+          "2023년 비조치의견서 사례집(금융감독원).pdf",
+          29,
+          "230073",
+          1
+        ],
+        "year": 2023,
+        "top_similarity": 0.0624,
+        "top_label": "비조치",
+        "band": "doubt",
+        "partition": "unanchored",
+        "route_reason": "R1",
+        "path": "C",
+        "abstained": true,
+        "abstention_reason": "CONFLICTING_EVIDENCE",
+        "decision": null,
+        "provisional": "조치",
+        "correct": false
+      },
+      {
+        "key": [
+          "2023년 비조치의견서 사례집(금융감독원).pdf",
+          32,
+          "230083",
+          1
+        ],
+        "year": 2023,
+        "top_similarity": 0.1333,
+        "top_label": "조치",
+        "band": "doubt",
+        "partition": "unanchored",
+        "route_reason": "R1",
+        "path": "C",
+        "abstained": true,
+        "abstention_reason": "CONFLICTING_EVIDENCE",
+        "decision": null,
+        "provisional": "조치",
+        "correct": false
+      },
+      {
+        "key": [
+          "2023년 비조치의견서 사례집(금융감독원).pdf",
+          33,
+          "230084",
+          1
+        ],
+        "year": 2023,
+        "top_similarity": 0.0707,
+        "top_label": "기타",
+        "band": "doubt",
+        "partition": "unanchored",
+        "route_reason": "R1",
+        "path": "C",
+        "abstained": true,
+        "abstention_reason": "CONFLICTING_EVIDENCE",
+        "decision": null,
+        "provisional": "조치",
+        "correct": false
+      },
+      {
+        "key": [
+          "2023년 비조치의견서 사례집(금융감독원).pdf",
+          41,
+          "230111",
+          1
+        ],
+        "year": 2023,
+        "top_similarity": 0.0911,
+        "top_label": "조치",
+        "band": "doubt",
+        "partition": "unanchored",
+        "route_reason": "R2",
+        "path": "C",
+        "abstained": true,
+        "abstention_reason": "NO_EVIDENCE",
+        "decision": null,
+        "provisional": "조치",
+        "correct": false
+      },
+      {
+        "key": [
+          "2023년 비조치의견서 사례집(금융감독원).pdf",
+          69,
+          "230002",
+          1
+        ],
+        "year": 2023,
+        "top_similarity": 0.0238,
+        "top_label": "비조치",
+        "band": "doubt",
+        "partition": "unanchored",
+        "route_reason": "R2",
+        "path": "C",
+        "abstained": true,
+        "abstention_reason": "NO_EVIDENCE",
+        "decision": null,
+        "provisional": "비조치",
+        "correct": false
+      },
+      {
+        "key": [
+          "2024년 비조치의견서 사례집(금융감독원).pdf",
+          23,
+          "240014",
+          1
+        ],
+        "year": 2024,
+        "top_similarity": 0.0706,
+        "top_label": "기타",
+        "band": "doubt",
+        "partition": "unanchored",
+        "route_reason": "R1",
+        "path": "C",
+        "abstained": true,
+        "abstention_reason": "CONFLICTING_EVIDENCE",
+        "decision": null,
+        "provisional": "기타",
+        "correct": false
+      },
+      {
+        "key": [
+          "2024년 비조치의견서 사례집(금융감독원).pdf",
+          28,
+          "240036",
+          1
+        ],
+        "year": 2024,
+        "top_similarity": 0.093,
+        "top_label": "기타",
+        "band": "doubt",
+        "partition": "unanchored",
+        "route_reason": "R1",
+        "path": "C",
+        "abstained": true,
+        "abstention_reason": "CONFLICTING_EVIDENCE",
+        "decision": null,
+        "provisional": "조치",
+        "correct": false
+      },
+      {
+        "key": [
+          "2024년 비조치의견서 사례집(금융감독원).pdf",
+          31,
+          "240041",
+          1
+        ],
+        "year": 2024,
+        "top_similarity": 0.1903,
+        "top_label": "기타",
+        "band": "middle",
+        "partition": "trap",
+        "route_reason": "R1",
+        "path": "C",
+        "abstained": true,
+        "abstention_reason": "CONFLICTING_EVIDENCE",
+        "decision": null,
+        "provisional": "기타",
+        "correct": false
+      },
+      {
+        "key": [
+          "2025년 비조치의견서 사례집(금융감독원).pdf",
+          19,
+          "250019",
+          1
+        ],
+        "year": 2025,
+        "top_similarity": 0.0848,
+        "top_label": "기타",
+        "band": "doubt",
+        "partition": "unanchored",
+        "route_reason": "R1",
+        "path": "C",
+        "abstained": true,
+        "abstention_reason": "CONFLICTING_EVIDENCE",
+        "decision": null,
+        "provisional": "조치",
+        "correct": false
+      }
+    ]
+  },
+  "predictions": "/workspace/defactorule/experiments/results/clean/pred_agent_router.jsonl"
+}

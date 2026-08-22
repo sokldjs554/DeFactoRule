@@ -1,0 +1,36 @@
+{
+  "name": "clean-agent-router",
+  "gold_size": 168,
+  "matched": 168,
+  "coverage": 1.0,
+  "unknown": 0,
+  "errors": 0,
+  "accuracy_on_scored": 0.7321428571428571,
+  "macro_f1": 0.5633196721311476,
+  "macro_f1_ci95": [
+    0.46457352171637883,
+    0.6590940935203231
+  ],
+  "n_scored": 168,
+  "per_label": {
+    "비조치": {
+      "support": 121,
+      "precision": 0.8455284552845529,
+      "recall": 0.859504132231405,
+      "f1": 0.8524590163934428
+    },
+    "조치": {
+      "support": 14,
+      "precision": 0.3888888888888889,
+      "recall": 0.5,
+      "f1": 0.43750000000000006
+    },
+    "기타": {
+      "support": 33,
+      "precision": 0.4444444444444444,
+      "recall": 0.36363636363636365,
+      "f1": 0.39999999999999997
+    }
+  },
+  "ungrounded_evidence": 0
+}
