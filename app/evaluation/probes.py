@@ -1156,6 +1156,33 @@ def verdicts_go_through_the_validity_gate() -> Result:
     return True, f"부분 표본 -> {partial.verdict()} · 무효 사유 {len(partial.problems())}건"
 
 
+# ══ agent — E11b ═════════════════════════════════════════════════════
+def applicability_grounds_on_the_deciding_clause() -> Result:
+    """AG-13 — E11b 가 220049 에서 **겹치는 문장**을 근거로 들었다.
+
+    두 요청은 유사도 0.738 로 닮았고, 결론을 가른 것은 요청문에만 있는 한
+    구절이다 — "내부 업무용 시스템과는 연결되지 않음". 모델은 그 구절이 아니라
+    **양쪽에 똑같이 있는 문장**을 인용하고 `applies` 라고 답했다.
+
+    기록된 실측을 읽는다. 산출물이 없으면 통과로 치지 않는다 — 증거가 없는
+    것은 고쳐진 것이 아니다.
+    """
+    import json
+
+    path = ROOT / "experiments/results/e11b_5cases.json"
+    if not path.exists():
+        return False, "e11b_5cases.json 이 없습니다 — 열린 채로 둡니다"
+    records = json.loads(path.read_text(encoding="utf-8"))["records"]
+    case = next((r for r in records if r["case_id"] == "220049"), None)
+    if case is None:
+        return False, "220049 기록이 없습니다 — 열린 채로 둡니다"
+    return case["quote_a_has_deciding_phrase"], (
+        f"판정 {case['verdict']} (기대 {case['expected_verdict']}) · "
+        f"결정 구절을 근거로 잡았는가: {case['quote_a_has_deciding_phrase']} · "
+        f"인용한 것: {case['quote_a'][:40]!r}"
+    )
+
+
 def _is_probe(name: str, fn: object) -> bool:
     """probe 는 **인자 없이** 부를 수 있어야 한다.
 

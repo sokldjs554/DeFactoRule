@@ -63,6 +63,7 @@ TAXONOMY: dict[str, dict[str, str]] = {
         "prior-overcorrection": "사전 정보가 소수 클래스를 지운다",
         "unverified-premise": "재보지 않은 가정 위에 설계를 세운다",
         "evidence-hierarchy": "약한 근거가 강한 근거를 덮는다",
+        "surface-match-as-evidence": "두 글이 겹치는 부분을 근거로 들어 갈라지는 부분을 놓친다",
         "orphaned-wiring": "만들어 놓고 배선하지 않아 아무 일도 하지 않는다",
     },
     "infrastructure": {
