@@ -152,6 +152,7 @@ rule 은 **단독 결론 근거로 쓰지 않고 S6 의 대조 축으로만 쓴�
     C2  규칙끼리 반대 결론          (현재 R1)
     C3  명시 규정과 선례가 어긋남    ← 새로 생긴다. 규정이 우선한다
     C4  결정적 조건이 서로 반대를 가리킴  ← S5 가 생겨야 볼 수 있다
+    C5  같은 조건인데 시점에 따라 결론이 다름 ← §3.6 A4. `240023` 이 실례
 
 C3 는 지금 볼 수 없다. S2 가 없기 때문이다. **근거의 위계를 명시한다** —
 명시 규정 > 선례 > de facto rule. AG-12 에서 배운 것(약한 근거가 강한 근거를
@@ -181,7 +182,8 @@ C3 는 지금 볼 수 없다. S2 가 없기 때문이다. **근거의 위계를 
 | **실패 조건** | 차단 검사 불통과 → S7 로 되돌아가 기권 |
 | **진행 조건** | 차단 검사 전부 통과 |
 
-현재 V1~V6 에 **V7 을 더한다 — 결정적 조건 접지**(§9). E11a 에서 확인한
+현재 V1~V6 에 **V7 을 더한다 — 결정적 조건 접지**(§8). V7 은 하나가 아니라
+세 갈래(V7-a/b/c)이고, `applicability_basis` 에 따라 다른 것이 걸린다. E11a 에서 확인한
 불편한 사실도 함께 남긴다: 현재 배선에서 V1·V2·V3·V5 는 **구성상 참**이라
 아무것도 막지 못했다(값어치 0). V7 은 그 자리를 메우기 위한 검사이고,
 **만들자마자 값어치를 재서 0 이면 그렇게 적는다.**
@@ -363,28 +365,89 @@ Case A 에서 `applies` 의 근거는 인용이 아니라 **"차이가 없다" �
 ### 3.4 Diff Coverage Gate — 결정론적 판정 규칙
 
 **입력**: 요청 원문 `A`, 선례 원문 `B`, S5 의 LLM 출력.
+**첫 구현에서 의미 임베딩을 쓰지 않는다.** 아래는 전부 문자 연산이다.
+
+**0단계 — 정규화와 조각 나누기 (결정론)**
+
+    n(x)    다음을 순서대로 지운다. 인용 대조에 쓰는 함수와 **같은 것**을 쓴다
+              ① 불가시문자(ZWNJ·ZWSP·BOM)
+              ② 글머리 기호 (□ ○ ◦ ▪ ● · • ▶ ◆ ∙)
+              ③ 각주 표지 (인라인 * ＊, 원문자 ◯1 ◯2, 위첨자 숫자)
+              ④ 모든 공백
+            **글자 자체는 바꾸지 않는다** — 뜻이 바뀐 인용은 걸러져야 하므로.
+
+    seg(x)  n 을 적용하기 **전** 텍스트를 절 단위로 자른다
+              경계: 문장 종결(다. / 함. / ? / !) · 줄바꿈 · 열거 기호
+            각 조각은 (문자열, span) 을 갖는다. span 은 **n(x) 좌표**의 [시작, 끝)
+
+`n` 에 ③ 을 넣은 이유는 실측에서 나왔다. `220049` 와 선례 `220041` 의
+공통 문장이 한쪽은 `클라우드컴퓨팅시스템\n*에`, 다른 쪽은
+`클라우드컴퓨팅시스템에` 다. 각주 표지를 안 지우면 **공통 문장이 차이로
+잡히고**, 차집합이 부풀어 헛되이 `incomplete_analysis` 가 난다.
+
+**조각 동일성** — 차집합을 계산하려면 "같은 조각" 을 정의해야 한다.
+
+    same(p, q)  ⇔  n(p) = n(q)                          정확 일치
+                ∨  jaccard₄(n(p), n(q)) ≥ τ             문자 4-gram 자카드
+
+`τ` 는 **아직 정하지 않는다.** dev 에서 사람이 "같은 조각" 이라고 볼 쌍의
+분포를 보고 보정한다 — `DOUBT`/`TRUST` 를 dev leave-one-out 에서 뽑았던
+것과 같은 절차다. **τ 를 정하기 전에는 이 게이트를 켜지 않는다.** 문자
+4-gram 은 이 저장소가 이미 쓰는 표현이므로 새 기술이 아니다.
 
 **1단계 — 차집합 계산 (결정론)**
 
-    normalize(x)   불가시문자·글머리기호 제거, 공백 정규화 (인용 대조와 같은 함수)
-    seg(x)         normalize(x) 를 절 단위로 자른 조각 집합
-
-    D_A = seg(A) \ seg(B)        요청에만 있는 조각
-    D_B = seg(B) \ seg(A)        선례에만 있는 조각
+    D_A = { p ∈ seg(A) | ¬∃ q ∈ seg(B) : same(p, q) }    요청에만 있는 조각
+    D_B = { q ∈ seg(B) | ¬∃ p ∈ seg(A) : same(p, q) }    선례에만 있는 조각
 
 **2단계 — 메타데이터 제거 (결정론)**
 
     M = { d ∈ D_A ∪ D_B  |  d 가 §3.2 의 선언된 패턴에 걸린다 }
     S = (D_A ∪ D_B) \ M                                    ← **실질 차이**
 
-**3단계 — 커버리지 계산 (결정론)**
+**3단계 — 커버리지 계산 (결정론) · `covers` 의 정확한 정의**
 
-    F = only_in_request ∪ only_in_precedent ∪ potential_deciding_factors
-    covers(f, s)  ⇔  normalize(f.text) 가 s 를 포함하거나 s 에 포함된다
-                     (span 이 있으면 span 겹침으로 판정)
+먼저 factor 의 span 을 **결정론이 확정한다.** 모델이 준 오프셋을 믿지 않는다.
 
-    C = { s ∈ S  |  ∃ f ∈ F : covers(f, s) }               ← 덮인 실질 차이
+    locate(f)   n(f.text) 를 f.side 문서의 n() 안에서 찾는다
+                  0회   → f 는 접지 실패. **폐기**하고 아무것도 덮지 못한다 (V3)
+                  1회   → 그 구간이 f.span
+                  2회+  → 후보 전부를 들고 간다. trace 에 span_ambiguous 를 남기고
+                          아래 계산에서 **s 와 겹침이 가장 큰 것**을 쓴다
+
+세 조건이 **전부** 만족해야 덮은 것이다.
+
+    covers(f, s)  ⇔  side_ok(f, s)  ∧  inside(f,s) ≥ ⌈|n(s)| / 2⌉
+                                    ∧  outside(f,s) ≤ inside(f,s)
+
+    side_ok(f, s)      s ∈ D_A  →  f.side = request
+                       s ∈ D_B  →  f.side = precedent
+                       **f.side = both 인 factor 는 어떤 s 도 덮지 못한다.**
+                       s 는 정의상 한쪽에만 있는 조각이기 때문이다.
+
+    inside(f, s)       |f.span ∩ s.span|      겹치는 글자 수
+    outside(f, s)      |f.span| − inside      조각 **밖**에서 끌어온 글자 수
+
+세 조건이 각각 무엇을 막는지 적어 둔다.
+
+| 조건 | 막는 것 | 실측 근거 |
+|---|---|---|
+| `side_ok` | 요청 쪽 조건으로 선례 쪽 차이를 덮었다고 우기는 것 | — |
+| `inside ≥ 절반` | 두세 글자만 걸치고 "덮었다" 고 하는 것 | — |
+| `outside ≤ inside` | **요청문 전체를 통째로 인용해 모든 조각을 덮는 것** | `250055` 에서 모델이 인용을 요청문 거의 전체로 냈다(88자/89자) |
+
+한 조각을 여러 factor 가 나눠 덮을 수 있다. 그래서 절반 조건은 **합집합**으로,
+과다 인용 조건은 **factor 마다** 본다.
+
+    covered(s) ⇔ | ⋃_{f: side_ok(f,s)} (f.span ∩ s.span) | ≥ ⌈|n(s)| / 2⌉
+                 ∧ ∀f 그 합집합에 기여한 것: outside(f,s) ≤ inside(f,s)
+
+    C = { s ∈ S | covered(s) }                             ← 덮인 실질 차이
     U = S \ C                                              ← **미커버 실질 차이**
+
+**이 계약에서 데이터로 정하지 않은 값은 `1/2` 하나다.** 「절반 이상」은 자연스러운
+다수 기준이지 실측에서 나온 값이 아니다. `MAX_YEAR_GAP` 을 다룬 것과 같이
+**그 사실을 여기 적어 두고**, 켜고 난 뒤 `U` 의 분포를 보고 재검토한다.
 
 **4단계 — 미해결 판정 (결정론)**
 
@@ -393,12 +456,15 @@ Case A 에서 `applies` 의 근거는 인용이 아니라 **"차이가 없다" �
 
 **5단계 — basis 산출 (결정론, 위에서부터 먼저 맞는 줄이 이긴다)**
 
-    G1  shared_factors = ∅                    →  incomplete_analysis     (applies 금지)
-    G2  U ≠ ∅                                 →  incomplete_analysis     (applies 금지)
-    G3  R ≠ ∅                                 →  unresolved_difference   (applies 금지)
-    G4  ∃ f ∈ F : f.decisive = true           →  decisive_difference     (differs)
-    G5  S = ∅                                 →  identical_after_metadata (applies)
-    G6  그 외 (S ≠ ∅, 전부 커버·전부 설명됨)   →  no_decisive_difference   (applies)
+    G1  shared_factors = ∅                     →  incomplete_analysis      (applies 금지)
+    G2  U ≠ ∅                                  →  incomplete_analysis      (applies 금지)
+    G3  R ≠ ∅                                  →  unresolved_difference    (applies 금지)
+    G4  ∃ f : decisive_confirmed(f)  (§3.5)    →  decisive_difference      (differs)
+    G5  S = ∅  ∧  §3.6 의 A1~A4 통과           →  identical_after_metadata (applies)
+    G6  그 외 (S ≠ ∅, 전부 커버·전부 설명됨)    →  no_decisive_difference   (applies)
+
+**G4 는 모델의 주장이 아니라 §3.5 의 확정 절차를 통과한 것에만 발화한다.**
+**G5 는 `S = ∅` 만으로 발화하지 않는다** — §3.6 의 선례 적격성을 함께 본다.
 
 **한 줄로 적으면 지시하신 그대로다.**
 
@@ -407,27 +473,140 @@ Case A 에서 `applies` 의 근거는 인용이 아니라 **"차이가 없다" �
 > 않은가" 가 없으면 그 역시 금지한다 (G3).
 
 발화한 줄 번호(`G1`~`G6`)를 `execution_trace` 에 남긴다 — Router 의
-`route_reason` 과 같은 규율이다. "왜 막혔는가" 를 사람의 서술이 아니라
-데이터가 답해야 한다.
+`route_reason` 과 같은 규율이다.
 
 **게이트가 하지 않는 일도 적어 둔다.** 이 게이트는 **누락**을 잡지
 **오분류**를 잡지 못한다. 모델이 `only_in_request` 에 올려 놓고
 `decisive: false` + 그럴듯한 `why_not_decisive` 를 붙이면 G3·G4 를 지나
-`no_decisive_difference` 로 통과한다. 그것은 §14 에 한계로 적는다.
+`no_decisive_difference` 로 통과한다. §14 에 한계로 적었다.
 
-### 3.5 240023 과 220049 에 적용하면
+### 3.5 `decisive = true` 확정 계약
 
-**`240023` — Case A**
+모델은 `decisive` 를 **주장**할 뿐이다. 확정은 결정론이 한다. 여섯 조건 중
+**D1~D5 가 전부** 만족돼야 `decisive_confirmed` 다.
+
+    D1  실제 차이에 대응한다     ∃ s ∈ S : covers(f, s)
+                                 대응이 없으면 **원문에 없는 차이를 지어낸 것**이다.
+                                 이 경우 decisive 를 기각하고 trace 에
+                                 phantom_factor 로 남긴다.
+
+    D2  한쪽에서 나왔다          f.side ∈ { request, precedent }
+                                 `both` 는 정의상 decisive 가 될 수 없다.
+                                 **AG-13 이 정확히 이 자리다.**
+
+    D3  원문에 접지된다          locate(f) 가 1회 이상 (V3 와 같은 검사)
+
+    D4  축이 있다                f.axis 가 비어 있지 않다
+                                 축 이름이 없으면 "무엇이 갈렸는지" 를 말한 것이
+                                 아니라 문장을 하나 고른 것이다.
+
+    D5  축의 양쪽이 확인된다      value_in_request 와 value_in_precedent 가 모두
+                                 채워져 있다. **한쪽이 "없음" 인 것도 값이다** —
+                                 `220049` 가 바로 그 모양이다(선례에는 DMZ 연동
+                                 질의가 있고 요청에는 없다).
+
+    D6  applicability 연결       이 차이가 왜 결론을 가르는가의 **뒷받침**을 찾는다
+                                 (a) 명시 규정의 요건에 걸린다        → support = explicit_rule
+                                 (b) de facto rule 의 조건에 걸린다   → support = de_facto_rule
+                                 (c) 둘 다 아니다                     → support = unsupported
+
+**D6 은 확정 조건이 아니라 `support` 라벨이다.** 그 이유를 적어 둔다.
+
+지금 S2 는 조문 **원문**이 아니라 인용 색인이므로(§1 안 A) (a) 가 자주
+비어 있을 것이다. D6 을 필수로 걸면 대부분의 `differs` 가 막히고, 그것은
+**기권을 늘리는 방향**이다. 그래서 비대칭으로 둔다.
+
+    differs 를 낼 때    support = unsupported 여도 통과한다
+                        선례를 버리는 방향이므로 근거 요구를 낮춰도 안전하다
+    applies 를 낼 때    support 와 무관하게 §3.6 을 통과해야 한다
+                        답하는 방향이므로 요구를 낮추지 않는다
+
+`support` 분포는 **세어서 보고한다.** `unsupported` 비율이 높으면 그것은
+"S2 를 인용 색인으로 둔 선택(§1 안 A)이 부족하다" 는 신호이고, 안 B(법령
+원문 수집)로 갈 근거가 된다. 세지 않으면 그 판단을 할 수 없다.
+
+### 3.6 `S = ∅` 의 전제 — "차이가 없다" 와 "이 선례가 적절하다" 는 다르다
+
+`S = ∅` 은 **두 글이 메타데이터를 빼면 같다**는 텍스트 사실이다. 그것은
+**이 선례를 따라도 된다**는 뜻이 아니다. 둘을 섞으면 검색이 잘못 물어온
+문서를 "차이가 없으니 적용된다" 로 승인하게 된다.
+
+그래서 두 층으로 나눈다.
+
+    applicability_basis        텍스트 사실. S = ∅ 이면 identical_after_metadata
+    precedent_admissibility    선례가 근거로 쓸 만한가. **별개의 검사**
+
+`identical_after_metadata` 로 `applies` 를 내려면 **넷이 전부** 필요하다.
+
+    A1  S = ∅                       결정론이 재계산한다. 모델의 말이 아니다
+    A2  shared_factors ≠ ∅          공통 조건이 실제로 있다 (G1 과 같은 검사)
+    A3  선례가 문턱 위               precedent.score ≥ DOUBT — 기존 자산 그대로
+    A4  라벨 일관성                  같은 조건에서 `S = ∅` 인 다른 선례가
+                                     **반대 라벨을 갖지 않는다**
+
+**A2 를 굳이 넣은 이유:** `S = ∅` 인데 `shared_factors` 가 비어 있으면 분석이
+아무것도 하지 않은 것이다. 텍스트가 같다는 사실만으로 통과시키면 S5 를
+건너뛴 것과 같다.
+
+**A4 는 실측에서 나왔다.** `240023` 의 근거 구성을 보면 이렇다.
+
+    240057 (2024)  요청과 날짜·일련번호만 다른 같은 글   라벨 비조치
+    230094 (2023)  같은 글                              라벨 **기타**
+    230027 (2023)  같은 글                              라벨 **기타**
+
+**같은 요청이 해가 바뀌며 다른 결론을 받았다.** 이것은 "적용되는가" 의 문제가
+아니라 **기준이 바뀌었다**는 문제다. A4 가 없으면 `S = ∅` 하나로
+`applies → 비조치` 가 나가고, 규제 기준이 바뀌었다는 사실이 조용히 지워진다.
+
+A4 가 걸리면 `applies` 를 내지 않고 **S6 의 새 충돌 종류로 보낸다.**
+
+    C5  temporal_conflict   같은 조건인데 시점에 따라 결론이 다르다
+
+C5 의 처리는 기존 자산을 쓴다 — Router 의 최신성 규칙(R7·`MAX_YEAR_GAP`)이
+**요청 시점에 가장 가까운 선례**를 앞세우고, `confidence` 를 낮추며,
+`temporal_conflict` 를 trace 에 남긴다. 동률이면 `HUMAN_REVIEW` 다.
+근거가 강한데 서로 반대인 경우이므로 §7 의 이관 조건에 정확히 맞는다.
+
+**여기서 드러난 별개의 문제도 적어 둔다 — 미래 선례 누출.**
+`240023` 의 1등 선례 `240057` 은 요청보다 **나중**(’24.3.28 요청 / ’24.6.27
+선례)이다. dev/test 를 시점이 아니라 무작위로 나눴기 때문이고, 실제 업무에서는
+접수 시점에 존재하지 않는 선례다. **최종 Workflow 의 S3 는 요청 시점 이후의
+선례를 걸러야 한다.** 지금까지의 E1~E11b 수치는 그 필터 없이 잰 것이므로,
+필터를 켜면 달라질 수 있다. **얼마나 달라지는지는 재보지 않았다** — 세어
+보기 전에는 수치를 쓰지 않는다.
+
+### 3.7 240023 과 220049 에 적용하면
+
+**`240023` — Case A, 그러나 그것만으로 끝나지 않는다**
 
     D_A  ※ ’24.3.28. 여신금융협회 요청(일련번호 : 240023)
     D_B  ※ ’24.6.27. 여신금융협회 요청(일련번호 : 240057)
     M    둘 다 [날짜 표기 + 일련번호 + 요청 주체 표기 + ※ 상용구] 에 걸린다
     S    ∅
-    U    ∅ · R ∅ · shared_factors 다수 · decisive 없음
-    →    G5  identical_after_metadata  →  **applies 허용**
+    U    ∅ · R ∅ · shared_factors 다수 · decisive_confirmed 없음
 
-지금의 opposition guard 는 이 건을 막았고 **정답 하나를 잃었다.**
-이 설계에서는 통과한다.
+    §3.6 의 전제를 본다
+      A1  S = ∅                                          ✓
+      A2  shared_factors ≠ ∅                             ✓
+      A3  선례 유사도 0.918 ≥ DOUBT                       ✓
+      A4  같은 조건에서 S = ∅ 인 다른 선례의 라벨          ✗
+            240057 (2024) 비조치  ·  230094 (2023) 기타  ·  230027 (2023) 기타
+
+    →  A4 불통과. **G5 로 가지 않는다.**
+    →  S6 의 C5 temporal_conflict 발화
+    →  최신성 규칙이 요청 시점에 가장 가까운 선례를 앞세운다
+    →  confidence 를 낮추고 temporal_conflict 를 trace 에 남긴다
+
+**이 건에 대한 설계의 답이 앞 절과 달라졌다는 것을 그대로 적어 둔다.**
+§3.4 만 있을 때는 "G5 통과 → applies" 였다. §3.6 의 A4 를 세우고 나니
+그 답이 틀렸다 — **같은 요청이 2023년에는 `기타`, 2024년에는 `비조치` 를
+받았기 때문이다.** 이것을 `applies` 하나로 뭉개면 "규제 기준이 바뀌었다" 는
+사실이 지워진다.
+
+지금의 opposition guard 는 이 건을 반대 근거 2건으로 **뭉뚱그려 막았고**
+정답 하나를 잃었다. 이 설계에서도 막히기는 하지만 **막힌 이유가 다르고,
+그 이유가 기록된다** — `C5 temporal_conflict`. 그리고 최신성 규칙이 있으므로
+답에 도달할 길이 남아 있다. 그 길이 실제로 정답에 닿는지는 **재봐야 안다.**
 
 **`220049` — Case B**
 
@@ -445,7 +624,7 @@ Case A 에서 `applies` 의 근거는 인용이 아니라 **"차이가 없다" �
       only_in_precedent   F4 DMZ 중계서버 연동 질의
                              axis=내부망 연결 여부 · decisive=true
       →  G4  decisive_difference  →  **differs**
-      →  근거는 F3 (side=request, shared 아님) — §8 의 V7 통과
+      →  근거는 F3 (side=request) — §8 의 V7-a E1~E6 통과
 
     분석이 이것을 놓쳤다면 (= E11b 가 실제로 한 일)
       F 가 shared 조각만 담고 있다  →  U = S ≠ ∅
@@ -455,7 +634,7 @@ Case A 에서 `applies` 의 근거는 인용이 아니라 **"차이가 없다" �
 "틀린 `applies`" 가 아니라 **"분석 미완 → 기권"** 이 된다. 손실이지만
 오답보다 싸고, 무엇보다 `incomplete_analysis` 로 **세어진다.**
 
-### 3.6 이 단계의 계약
+### 3.8 이 단계의 계약
 
 | | |
 |---|---|
@@ -497,6 +676,7 @@ request
 | `metadata_differences` | 결정론이 §3.2 선언 목록으로 확정 | 목록에 없으면 실질 차이로 되돌린다 |
 | `unresolved_differences` | 게이트 4단계 (`U ∪ R`) | 비어야 `applies` 가능 |
 | `applicability_basis` | **항상** 산출된다 (G1~G6) | 비워 둘 수 없다 |
+| `precedent_admissibility` | S3 직후 · §3.6 의 A3·A4 | `applies` 는 `admissible` 일 때만 |
 | `conflicts` | S6 항상 | — |
 | `selected_evidence` | S7 이 고른 것 | S8 폐기분 제외 |
 | `validation` | S8 항상 | — |
@@ -622,10 +802,24 @@ AG-13 의 직접적 처방이다. 근거 하나의 계약을 이렇게 둔다.
 `applies` 와 `differs` 는 요구하는 것이 다르다. 하나로 쓰면 Case A 에서
 모순이 난다(차이가 없는데 결정적 근거를 내놓으라는 요구가 된다).
 
-    V7-a  basis = decisive_difference (differs)
-            → decisive=true 인 근거가 1개 이상
-            → 그 근거의 factor_side ≠ both
-            → 그 근거의 text 가 원문에 글자 그대로 있다        (기존 V3)
+    V7-a  basis = decisive_difference (differs)   — 여섯 조건 전부
+
+      E1  결론에 붙은 근거 중 decisive_confirmed 인 것이 **1개 이상**
+            §3.5 의 D1~D5 를 통과한 것만 센다. 모델의 decisive 주장이 아니다.
+      E2  그 근거의 factor_id 가 **실재하는 factor** 를 가리킨다
+            S5 출력에 없는 id 를 가리키면 폐기 (AG-11 계열 — 배선 안 된 참조)
+      E3  그 factor 의 side ∈ { request, precedent }
+            `both` 는 불통과. **AG-13 이 이 줄에서 잡힌다.**
+      E4  근거의 text 가 그 side 원문에 **글자 그대로** 있다   (기존 V3)
+            n() 정규화 후 대조. locate 가 0회면 폐기.
+      E5  ∃ s ∈ S : covers(factor, s)                        (§3.4 의 covers)
+            실제 차집합에 대응하지 않는 근거는 지어낸 차이다.
+      E6  **집합 수준 검사** — 결론에 붙은 근거 전체가 `both` 이면 불통과
+            { e ∈ selected_evidence | e.factor_side ≠ both } ≠ ∅
+            E3 이 근거 하나를 보는 반면 E6 은 근거 **목록**을 본다.
+            둘 다 두는 이유: E3 만 있으면 `both` 근거 열 개에 한쪽 근거
+            하나를 끼워 넣고 통과할 수 있다. E6 은 그것도 통과시키지만,
+            **`both` 만으로 이루어진 목록**은 확실히 막는다.
 
     V7-b  basis = no_decisive_difference (applies · Case B)
             → 실질 차이 조각 하나하나에 why_not_decisive 가 붙어 있다
@@ -699,6 +893,10 @@ E11b 가 낸 인용은 `factor_side = both` 이므로 `decisive` 가 될 수 없
     basis 분포          G1~G6 중 무엇이 몇 번 발화했는가
     incomplete_analysis 로 막힌 건수 · 그중 정답이 top-1 라벨과 같았던 비율
     unresolved_difference 로 막힌 건수 · 같은 비율
+    support 분포          explicit_rule / de_facto_rule / **unsupported**
+                          unsupported 비율이 높으면 S2 를 인용 색인으로 둔
+                          선택(§1 안 A)이 부족하다는 신호다
+    temporal_conflict     C5 가 발화한 건수
 
 뒤의 두 줄이 **Case C 를 기권으로 보낸 설계 결정의 대가**다(§3.3). 그 비율이
 높으면 이 선택은 회수 가능한 건을 버리고 있는 것이다 — H1 에 걸었던 것과
@@ -982,6 +1180,13 @@ EV-24, AG-12, AG-13.
 7. **메타데이터 패턴 목록이 좁으면 과잉 기권, 넓으면 AG-13 재발.** §3.2 의
    목록은 두 방향으로 다 틀릴 수 있고, 어느 쪽으로 틀렸는지는 `S = ∅` 로
    판정된 건과 `incomplete_analysis` 로 막힌 건을 같이 봐야 안다.
+8. **조각 동일성 문턱 `τ` 가 아직 없다.** 정하기 전에는 게이트를 켤 수 없다.
+   너무 낮으면 다른 조각을 같다고 보아 `S` 가 줄고(AG-13 재발), 너무 높으면
+   같은 조각을 다르다고 보아 `S` 가 부풀어 헛된 `incomplete_analysis` 가 난다.
+9. **미래 선례 누출이 지금 데이터에 있다.** `240023` 의 1등 선례는 요청보다
+   나중 건이다. dev/test 를 시점이 아니라 무작위로 나눴기 때문이고, 실제
+   업무에서는 존재할 수 없는 근거다. S3 에 시점 필터를 넣어야 하며, **넣으면
+   기존 수치가 달라질 수 있다.** 얼마나인지는 재보지 않았다.
 
 ---
 
