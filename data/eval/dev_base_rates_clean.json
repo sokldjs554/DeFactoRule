@@ -1,0 +1,95 @@
+{
+  "source": "clean_dev",
+  "n": 87,
+  "min_sector_n": 5,
+  "overall": {
+    "비조치": 0.7241379310344828,
+    "조치": 0.09195402298850575,
+    "기타": 0.1839080459770115
+  },
+  "sectors": {
+    "전자금융": {
+      "n": 16,
+      "reliable": true,
+      "rates": {
+        "비조치": 0.5,
+        "조치": 0.1875,
+        "기타": 0.3125
+      }
+    },
+    "은행": {
+      "n": 7,
+      "reliable": true,
+      "rates": {
+        "비조치": 0.7142857142857143,
+        "조치": 0.14285714285714285,
+        "기타": 0.14285714285714285
+      }
+    },
+    "자본시장": {
+      "n": 5,
+      "reliable": true,
+      "rates": {
+        "비조치": 0.8,
+        "조치": 0.0,
+        "기타": 0.2
+      }
+    },
+    "보험": {
+      "n": 4,
+      "reliable": false,
+      "rates": {
+        "비조치": 1.0,
+        "조치": 0.0,
+        "기타": 0.0
+      }
+    },
+    "상호저축은행업": {
+      "n": 8,
+      "reliable": true,
+      "rates": {
+        "비조치": 0.875,
+        "조치": 0.0,
+        "기타": 0.125
+      }
+    },
+    "여신전문금융업": {
+      "n": 7,
+      "reliable": true,
+      "rates": {
+        "비조치": 1.0,
+        "조치": 0.0,
+        "기타": 0.0
+      }
+    },
+    "공통": {
+      "n": 36,
+      "reliable": true,
+      "rates": {
+        "비조치": 0.6666666666666666,
+        "조치": 0.1111111111111111,
+        "기타": 0.2222222222222222
+      }
+    },
+    "가상자산": {
+      "n": 4,
+      "reliable": false,
+      "rates": {
+        "비조치": 1.0,
+        "조치": 0.0,
+        "기타": 0.0
+      }
+    }
+  },
+  "split": "clean",
+  "provenance": {
+    "schema_version": 1,
+    "method": "app.domain.base_rates.compute",
+    "method_version": "4857329245fbf764",
+    "input": "data/eval/nonaction_dev_clean.jsonl",
+    "input_sha256": "a10324aad180edcac41a563e0f0456a9bea3cbc5258f8f34a11f2d06c3469d77",
+    "row_key_digest": "c228ccc2b3cea21b401234d0cd6dd3e00ee9663d80a6a3469a05535fa5c7d6f7",
+    "n_rows_read": 87,
+    "test_files_read": []
+  }
+}
