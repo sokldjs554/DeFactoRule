@@ -350,7 +350,7 @@ python3 scripts/failure_report.py --layer extraction
 [최종 Agent Workflow 설계](docs/20-final-agent-workflow-design.md) ·
 [Temporal 정책 영향도](docs/21-temporal-policy-impact.md) ·
 [분할 누수 감사](docs/22-split-leakage-audit.md) ·
-[사안 무리 분할 설계](docs/23-group-split-design.md)
+[사안 무리 분할 — 설계와 실행](docs/23-group-split-design.md)
 
 ## 10. Limitations
 
