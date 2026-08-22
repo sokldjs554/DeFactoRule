@@ -348,7 +348,8 @@ python3 scripts/failure_report.py --layer extraction
 [E8~E11a Agent Workflow](docs/17-e8-e11-agent-workflow.md) ·
 [E11b 선정안](docs/18-e11b-case-selection.md) · [E11b 결과](docs/19-e11b-results.md) ·
 [최종 Agent Workflow 설계](docs/20-final-agent-workflow-design.md) ·
-[Temporal 정책 영향도](docs/21-temporal-policy-impact.md)
+[Temporal 정책 영향도](docs/21-temporal-policy-impact.md) ·
+[분할 누수 감사](docs/22-split-leakage-audit.md)
 
 ## 10. Limitations
 
