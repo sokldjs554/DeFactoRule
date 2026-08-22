@@ -240,77 +240,233 @@ E11b 의 applicability 는 두 요청문을 통째로 주고 "차이가 결론�
 ### 무엇으로 바꾸는가
 
 **"닮았는가" 를 묻지 않는다. "조건이 어떻게 갈리는가" 를 묻는다.** 출력은
-문장이 아니라 **조건 집합**이고, 조건마다 관계가 붙는다.
+문장이 아니라 **조건 집합**이고, 그 집합이 원문의 실제 차이를 덮는지는
+결정론이 검사한다.
 
-| 관계 | 뜻 |
-|---|---|
-| `shared` | 두 요청에 다 있다 |
-| `differs` | 둘 다 있는데 값이 다르다 |
-| `only_in_request` | **요청에만 있다** |
-| `only_in_precedent` | **선례에만 있다** |
-| `exception` | 한쪽이 예외 요건에 걸린다 |
-| `decisive` | 이 조건이 뒤집히면 결론이 바뀐다 (모델의 주장) |
+S5 는 반쪽 둘로 되어 있다. **이 경계가 이 단계의 전부다.**
 
-`only_in_request` / `only_in_precedent` 를 **일급 출력으로 강제**하는 것이
-설계의 요점이다. 이 칸이 있으면 모델은 "무엇이 빠졌는지" 를 말해야 하고,
-빈칸으로 두면 아래 결정론 게이트가 그것을 잡는다.
+    LLM 부분     조건을 찾아 관계별로 나누고, 무엇이 결정적인지 주장한다
+    결정론 부분   그 주장이 원문의 실제 차이를 덮는지 검사하고, basis 를 계산한다
 
-### Diff Coverage Gate — 결정론이 LLM 을 검사한다
+**LLM 은 `applicability_basis` 를 채우지 않는다.** basis 는 결정론이 §3.4 의
+규칙으로 산출한다. 모델이 스스로 "내 분석은 완전하다" 고 선언할 수 있으면
+AG-13 이 한 층 위에서 반복될 뿐이다.
 
-조건 목록을 LLM 이 만든다면 **S5 도 AG-13 과 같은 방식으로 실패할 수 있다.**
-그것을 막는 것은 프롬프트가 아니라 결정론적 대조다.
+### 3.1 S5 Output Contract
 
-```
-1. 결정론  두 요청문의 텍스트 차집합을 계산한다
-             (메타데이터 — 날짜·일련번호·각주 상용구 — 는 제외)
-2. 결정론  차집합에 실질 조각이 남아 있는가?
-3.   남아 있다  → LLM 이 낸 조건 중 only_in_* 이 그 조각을 덮는가?
-                  덮지 못하면 **분석 미완**이다. `applies` 를 낼 수 없다.
-4.   남아 있지 않다 → 두 요청은 실질적으로 같은 글이다. `applies` 가능.
-```
+| 필드 | 채우는 주체 | 허용 값 | **빈 목록의 뜻** |
+|---|---|---|---|
+| `shared_factors` | LLM | `factor[]` (side=`both`) | 공통 조건이 하나도 없다. **비정상 신호** — 문턱을 넘어 뽑힌 선례인데 공통 조건이 0이면 검색이 틀렸거나 분석이 실패했다. `applies` 금지 |
+| `only_in_request` | LLM | `factor[]` (side=`request`) | 요청에만 있는 조건이 없다는 **주장**. 결정론이 `D_A` 와 대조한다 |
+| `only_in_precedent` | LLM | `factor[]` (side=`precedent`) | 선례에만 있는 조건이 없다는 **주장**. 결정론이 `D_B` 와 대조한다 |
+| `potential_deciding_factors` | LLM | `factor[]` (다른 목록의 `id` 참조) | 결론을 가를 만한 조건이 없다는 주장. Case A 에서는 정상, Case B 에서는 각 차이마다 `why_not_decisive` 를 요구한다 |
+| `metadata_differences` | LLM 이 **제안**, 결정론이 **확정** | `segment[]` | 메타데이터 차이 없음. **모델의 분류는 구속력이 없다**(§3.2) |
+| `unresolved_differences` | **결정론** | `segment[]` | 판단 못 한 차이가 없다. 비어 있지 않으면 `applies` 금지 |
+| `applicability_basis` | **결정론** | 아래 5값 중 하나 | 비어 있을 수 없다 — 항상 계산된다 |
 
-이 게이트가 두 사건을 어떻게 가르는지가 설계의 시험이다.
+`applicability_basis` 의 허용 값은 정확히 다섯이다.
 
-| | 텍스트 차집합 | 게이트 판정 |
-|---|---|---|
-| `240023` (0.918) | 날짜·일련번호 줄뿐 → 메타데이터로 제외 → **빈 집합** | `applies` 허용 |
-| `220049` (0.738) | 요청의 *"내부 업무용 시스템과는 연결되지 않음"*, 선례의 DMZ 중계서버 질문 → **실질 조각 있음** | 조건 목록이 이것을 안 덮으면 **`applies` 불가** |
+    identical_after_metadata   메타데이터를 걷어내면 실질 차이가 없다        → applies
+    no_decisive_difference     실질 차이는 있으나 전부 결정적이지 않다        → applies
+    decisive_difference        결론을 가를 조건이 있다                      → differs
+    unresolved_difference      중요성을 판단하지 못한 차이가 남았다          → unclear
+    incomplete_analysis        원문의 실질 차이를 분석이 덮지 못했다          → unclear
 
-**유사도가 높다는 이유로 막지 않는다.** 막는 것은 "다른 부분이 실재하는데
-분석이 그것을 언급하지 않았다" 는 사실이다. 그래서 `240023` 같은 진짜
-중복은 통과하고 `220049` 는 걸린다 — 지금의 opposition guard 가 이 둘을
-구분하지 못하고 똑같이 막았던 자리다(이익 1 · 손해 1).
+**`unclear` 두 값을 굳이 나눈 이유:** 같은 기권이라도 원인이 다르다. 앞은
+"모델이 판단을 유보했다", 뒤는 "모델이 놓쳤다" 다. 둘을 한 값으로 뭉치면
+AG-13 계열의 실패를 수치로 셀 수 없다.
 
-### 220049 에서 이 단계가 무엇을 잡아야 하는가
+**`factor` 하나의 형태**
 
-```
-shared              금융회사가 SaaS 로 임직원 인사정보를 처리
-shared              전자금융감독규정 제14조의2 제3항·제8항 단서 적용 여부
-shared              인터넷용 PC·모바일기기로 클라우드 접속 시 제15조 제1항 제3호
-only_in_request     "내부 업무용 시스템과는 연결되지 않음"        ← decisive
-only_in_precedent   내부 업무용시스템을 DMZ 중계서버로 연동하는 경우  ← decisive
-```
+    id                    F1, F2, … (문서 안에서 유일)
+    text                  **원문 그대로** 옮긴 구절 — 결정론이 글자 단위로 대조
+    side                  request | precedent | both
+    span                  정규화 좌표 [시작, 끝] — 커버리지 계산의 단위
+    axis                  조건의 축 이름 ("내부망 연결 여부")
+    value_in_request      그 축에서 요청이 취하는 값 (없으면 null)
+    value_in_precedent    그 축에서 선례가 취하는 값 (없으면 null)
+    decisive              true | false  — **모델의 주장**이지 사실이 아니다
+    why_not_decisive      decisive=false 인 **실질 차이**에는 **필수**. 없으면 unresolved
 
-**두 `decisive` 는 같은 축의 앞뒷면이다** — 내부망 연결 여부. 선례가 `기타`
-가 된 이유가 그 축에 있고, 요청은 그 축에서 반대편에 서 있다. 그러므로
-`differs` 이고, 근거는 *"내부 업무용 시스템과는 연결되지 않음"* 이어야 한다.
+`why_not_decisive` 를 필수로 둔 것이 Case B 의 구멍을 막는다. 이것이 없으면
+모델은 모든 차이에 `decisive: false` 를 붙여 `applies` 로 빠져나갈 수 있다.
 
-E11b 는 위 표의 **처음 세 줄만 보고** `applies` 를 냈다.
+### 3.2 메타데이터는 **결정론이 정한다**
 
-### 이 단계의 계약
+`metadata_differences` 를 모델이 자유롭게 채울 수 있으면 Case B 는 Case A 로
+무너진다 — 결정적 조건을 "메타데이터" 라고 부르면 그만이기 때문이다.
+
+그래서 메타데이터는 **선언된 패턴 목록**으로만 인정한다.
+
+    날짜 표기            ’24.3.28. · 2024. 3. 28. · 24년 3월
+    일련번호             (일련번호 : 240023) · 일련번호 240057
+    요청 주체 표기        여신금융협회 요청 · 은행연합회 요청
+    문서 상용구           ※ 로 시작하는 출처 표시 · 페이지 머리말
+    조판 잔재            글머리 기호 · 제어문자 · 반복 공백
+
+이 목록은 **코드에 있고 회귀 테스트가 붙는다.** 목록에 없으면 메타데이터가
+아니다. 모델이 메타데이터라고 제안해도 목록에 안 걸리면 실질 차이로 남는다.
+
+*(현재 자산 재사용: 인용 대조에 쓰는 정규화가 이미 조판 잔재를 걷어낸다.
+같은 정규화를 여기서도 쓴다 — 두 곳이 다르면 좌표가 어긋난다.)*
+
+### 3.3 세 가지 경우
+
+**Case A — 실질적 차이 없음**
+
+메타데이터를 걷어내면 차집합이 빈다. `240023` 이 여기다(날짜·일련번호 줄만
+다르다).
+
+    only_in_request / only_in_precedent   해당 조각은 metadata_differences 로 분류
+    potential_deciding_factors            **비어 있을 수 있다** — 정상이다
+    applicability_basis                   identical_after_metadata
+    판정                                  applies **허용**
+
+Case A 에서 `applies` 의 근거는 인용이 아니라 **"차이가 없다" 는 결정론적
+사실**이다. 그러므로 인용을 요구하지 않는다(§8 에서 다시 다룬다).
+
+**Case B — 실질적 차이 존재**
+
+`220049` 의 *"내부 업무용 시스템과는 연결되지 않음"* 이 여기다.
+
+    반드시 only_in_request 또는 only_in_precedent 에 포함되어야 한다
+    potential_deciding_factors 의 후보로 올라가야 한다
+    그 차이가 분석에 없으면 → incomplete_analysis → **applies 금지**
+
+분석에 포함됐다면 두 갈래다.
+
+    decisive: true  가 하나라도 있다        → decisive_difference → differs
+    전부 decisive: false 이고
+      각각 why_not_decisive 가 있다        → no_decisive_difference → applies 허용
+      why_not_decisive 가 없는 것이 있다    → 그 조각은 unresolved 로 내려간다
+
+**Case C — 텍스트 차이는 있으나 중요성이 불명확**
+
+    메타데이터로 임의 분류하지 않는다      §3.2 의 목록에 없으면 메타데이터가 아니다
+    potential_deciding_factors 에 올리거나 unresolved_differences 로 남긴다
+    applicability_basis                   unresolved_difference
+    판정                                  **applies 금지** → unclear (기권 유지)
+
+**설계 결정: Case C 에서 `applies` 를 허용하지 않는다.**
+
+이유는 비대칭이다. 회수는 기권을 없애는 방향이고, 틀리면 오답이 나간다.
+반면 기권을 유지하면 잃는 것은 커버리지뿐이다. 흔들릴 때 막는 쪽으로 두는
+것은 이 저장소가 이미 쓰고 있는 원칙이다(`applies` 가 아닌 값은 무엇이든
+기권 유지 — fail-closed).
+
+**대가도 적는다.** 이 선택은 과잉 기권을 늘린다. 지금도 기권 78건 중 답했으면
+맞았을 것이 50건이다. Case C 를 기권으로 보내면 그 수가 더 는다. **그러므로
+`unresolved_difference` 로 막힌 건수와 그중 정답이 무엇이었는지를 반드시
+따로 세어 보고한다** — 세지 않으면 이 선택이 옳았는지 알 수 없다. 이것은
+가정이지 측정이 아니다.
+
+### 3.4 Diff Coverage Gate — 결정론적 판정 규칙
+
+**입력**: 요청 원문 `A`, 선례 원문 `B`, S5 의 LLM 출력.
+
+**1단계 — 차집합 계산 (결정론)**
+
+    normalize(x)   불가시문자·글머리기호 제거, 공백 정규화 (인용 대조와 같은 함수)
+    seg(x)         normalize(x) 를 절 단위로 자른 조각 집합
+
+    D_A = seg(A) \ seg(B)        요청에만 있는 조각
+    D_B = seg(B) \ seg(A)        선례에만 있는 조각
+
+**2단계 — 메타데이터 제거 (결정론)**
+
+    M = { d ∈ D_A ∪ D_B  |  d 가 §3.2 의 선언된 패턴에 걸린다 }
+    S = (D_A ∪ D_B) \ M                                    ← **실질 차이**
+
+**3단계 — 커버리지 계산 (결정론)**
+
+    F = only_in_request ∪ only_in_precedent ∪ potential_deciding_factors
+    covers(f, s)  ⇔  normalize(f.text) 가 s 를 포함하거나 s 에 포함된다
+                     (span 이 있으면 span 겹침으로 판정)
+
+    C = { s ∈ S  |  ∃ f ∈ F : covers(f, s) }               ← 덮인 실질 차이
+    U = S \ C                                              ← **미커버 실질 차이**
+
+**4단계 — 미해결 판정 (결정론)**
+
+    R = { s ∈ C  |  s 를 덮은 f 가 decisive=false 인데 why_not_decisive 가 없다 }
+    unresolved_differences = U ∪ R
+
+**5단계 — basis 산출 (결정론, 위에서부터 먼저 맞는 줄이 이긴다)**
+
+    G1  shared_factors = ∅                    →  incomplete_analysis     (applies 금지)
+    G2  U ≠ ∅                                 →  incomplete_analysis     (applies 금지)
+    G3  R ≠ ∅                                 →  unresolved_difference   (applies 금지)
+    G4  ∃ f ∈ F : f.decisive = true           →  decisive_difference     (differs)
+    G5  S = ∅                                 →  identical_after_metadata (applies)
+    G6  그 외 (S ≠ ∅, 전부 커버·전부 설명됨)   →  no_decisive_difference   (applies)
+
+**한 줄로 적으면 지시하신 그대로다.**
+
+> **텍스트 차집합에 존재하는 비-metadata 차이가 S5 의 분석 결과에 하나도
+> 대응되지 않으면 `applies` 를 금지한다** (G2). 대응은 됐으나 "왜 결정적이지
+> 않은가" 가 없으면 그 역시 금지한다 (G3).
+
+발화한 줄 번호(`G1`~`G6`)를 `execution_trace` 에 남긴다 — Router 의
+`route_reason` 과 같은 규율이다. "왜 막혔는가" 를 사람의 서술이 아니라
+데이터가 답해야 한다.
+
+**게이트가 하지 않는 일도 적어 둔다.** 이 게이트는 **누락**을 잡지
+**오분류**를 잡지 못한다. 모델이 `only_in_request` 에 올려 놓고
+`decisive: false` + 그럴듯한 `why_not_decisive` 를 붙이면 G3·G4 를 지나
+`no_decisive_difference` 로 통과한다. 그것은 §14 에 한계로 적는다.
+
+### 3.5 240023 과 220049 에 적용하면
+
+**`240023` — Case A**
+
+    D_A  ※ ’24.3.28. 여신금융협회 요청(일련번호 : 240023)
+    D_B  ※ ’24.6.27. 여신금융협회 요청(일련번호 : 240057)
+    M    둘 다 [날짜 표기 + 일련번호 + 요청 주체 표기 + ※ 상용구] 에 걸린다
+    S    ∅
+    U    ∅ · R ∅ · shared_factors 다수 · decisive 없음
+    →    G5  identical_after_metadata  →  **applies 허용**
+
+지금의 opposition guard 는 이 건을 막았고 **정답 하나를 잃었다.**
+이 설계에서는 통과한다.
+
+**`220049` — Case B**
+
+    D_A  "* 금융회사의 내부 업무용 시스템과는 연결되지 않음"
+         "* 임직원의 고유식별정보 또는 개인신용정보 일부가 포함"
+    D_B  "금융회사가 내부 임직원의 인사정보가 저장된 내부 업무용시스템을
+          DMZ 영역의 중계서버(프록시)를 통해 클라우드컴퓨팅시스템에 연동할 경우…"
+         "* 임직원의 주민등록번호, 연봉, 근태, 인사평가 등"
+    M    ∅  (§3.2 의 어느 패턴에도 안 걸린다)
+    S    위 네 조각
+
+    분석이 이것을 덮었다면
+      only_in_request     F3 "내부 업무용 시스템과는 연결되지 않음"
+                             axis=내부망 연결 여부 · decisive=true
+      only_in_precedent   F4 DMZ 중계서버 연동 질의
+                             axis=내부망 연결 여부 · decisive=true
+      →  G4  decisive_difference  →  **differs**
+      →  근거는 F3 (side=request, shared 아님) — §8 의 V7 통과
+
+    분석이 이것을 놓쳤다면 (= E11b 가 실제로 한 일)
+      F 가 shared 조각만 담고 있다  →  U = S ≠ ∅
+      →  G2  incomplete_analysis  →  **applies 금지** → unclear
+
+**두 번째 갈래가 요점이다.** 모델이 E11b 와 똑같이 실패해도 결과가
+"틀린 `applies`" 가 아니라 **"분석 미완 → 기권"** 이 된다. 손실이지만
+오답보다 싸고, 무엇보다 `incomplete_analysis` 로 **세어진다.**
+
+### 3.6 이 단계의 계약
 
 | | |
 |---|---|
-| **Input** | `structured_request`, 선례 후보 1건의 구조화된 요청, (S2 의 조문) |
-| **Output** | `deciding_factors[]` (위 스키마) + `applicability` 후보 판정 |
-| **주체** | **LLM**(조건 후보 생성) + **결정론**(Diff Coverage Gate · 스키마 검증 · 인용 대조) |
-| **실패 조건** | 스키마 위반 · 인용이 원문에 없음 · **차집합 미커버** · `decisive` 가 0인데 `differs` |
-| **진행 조건** | 게이트 통과 AND 모든 인용이 원문에 접지 |
+| **Input** | `structured_request`, 선례 후보 1건의 구조화된 요청, 양쪽 원문, (S2 의 조문) |
+| **Output** | §3.1 의 7필드 |
+| **주체** | **LLM**(조건 후보·decisive 주장) + **결정론**(차집합·메타데이터 분류·커버리지·basis) |
+| **실패 조건** | 스키마 위반 · `factor.text` 가 원문에 없음 · G1·G2·G3 발화 |
+| **진행 조건** | basis 가 산출됨 (항상). `applies` 로 진행하려면 basis ∈ {identical_after_metadata, no_decisive_difference} |
 
 **선례의 결론은 프롬프트에 넣지 않는다.** E11b 의 이 설계는 옳았고 그대로
 가져간다 — 넣으면 결론에서 거꾸로 판단하는 순환이 생긴다.
-
----
 
 ## 4. 상태 머신
 
@@ -321,7 +477,8 @@ request
        ├─ S3 ─► precedent_candidates 0건 허용
        └─ S4 ─► de_facto_rule_candidates
             └─ S5 ─► deciding_factors      게이트 통과 시에만
-                     applicability          게이트 실패 시 `incomplete`
+                     applicability_basis    결정론이 G1~G6 로 산출 (LLM 아님)
+                     unresolved_differences 게이트가 남긴 미해결 조각
                  └─ S6 ─► conflicts
                       └─ S7 ─► selected_evidence + 경로
                            └─ S8 ─► validation
@@ -336,8 +493,10 @@ request
 | `explicit_rules` | 조문 정규화 성공 | — |
 | `precedent_candidates` | 유사도 ≥ `DOUBT` | S8 에서 폐기된 근거는 제외 |
 | `de_facto_rule_candidates` | 클래스별 지지도 문턱 통과 | 규칙 충돌 시 사용 불가 표시 |
-| `deciding_factors` | S5 게이트 통과 | 인용 미접지 항목은 개별 폐기 |
-| `applicability` | `deciding_factors` 존재 | 게이트 실패 시 `incomplete` 로 고정 |
+| `deciding_factors` | S5 의 LLM 부분이 채운다 | `text` 가 원문에 없는 항목은 개별 폐기 |
+| `metadata_differences` | 결정론이 §3.2 선언 목록으로 확정 | 목록에 없으면 실질 차이로 되돌린다 |
+| `unresolved_differences` | 게이트 4단계 (`U ∪ R`) | 비어야 `applies` 가능 |
+| `applicability_basis` | **항상** 산출된다 (G1~G6) | 비워 둘 수 없다 |
 | `conflicts` | S6 항상 | — |
 | `selected_evidence` | S7 이 고른 것 | S8 폐기분 제외 |
 | `validation` | S8 항상 | — |
@@ -367,7 +526,10 @@ request
 | 유사도·문턱 | **결정론** | `DOUBT` 0.15 / `TRUST` 0.60 — dev LOO 에서 나온 값 |
 | 근거 필터링 | **결정론** | |
 | 충돌 검출 | **결정론** | |
+| **텍스트 차집합 계산** | **결정론** | 무엇이 다른지는 세는 일이지 읽는 일이 아니다 |
+| **메타데이터 분류** | **결정론** | 모델이 정하면 결정적 조건을 '메타데이터' 라 부르고 빠져나간다(§3.2) |
 | **Diff Coverage Gate** | **결정론** | LLM 의 누락을 LLM 이 검사할 수 없다 |
+| **`applicability_basis` 산출** | **결정론** | 모델이 "내 분석은 완전하다" 고 선언하면 AG-13 이 한 층 위에서 반복된다 |
 | 상태 전이 | **결정론** | |
 | 스키마 검증 | **결정론** | |
 | 기권 게이트 | **결정론** | |
@@ -445,31 +607,42 @@ AG-13 의 직접적 처방이다. 근거 하나의 계약을 이렇게 둔다.
 | `source` | 문서·일련번호·조문 | 결정론 |
 | `kind` | `explicit_rule` / `precedent` / `de_facto_rule` | 결정론 |
 | `role` | `supporting` / `contradicting` / `contextual` | LLM 후보 → 결정론 확정 |
-| `factor_id` | 이 근거가 붙은 결정적 조건 | 결정론 (S5 출력과 대조) |
-| `factor_relation` | `shared` / `differs` / `only_in_*` / `exception` | S5 에서 옴 |
+| `factor_id` | 이 근거가 붙은 S5 의 조건 id | 결정론 (S5 출력과 대조) |
+| `factor_side` | `request` / `precedent` / `both` | S5 에서 옴 |
 | `decisive` | 이 근거가 결론을 뒤집을 수 있는가 | **결정론 (아래 규칙)** |
 | `relevance` | 요청 조건과의 겹침 정도 | 결정론 |
 
-**핵심 규칙 — `shared` 관계의 근거는 `decisive` 가 될 수 없다.**
+**핵심 규칙 — `side = both` 인 조건에 붙은 근거는 `decisive` 가 될 수 없다.**
 
 두 요청에 똑같이 있는 문장은 둘을 가르지 못한다. 정의상 그렇다. 그러므로
-`factor_relation == shared` 인 근거에 `decisive: true` 를 붙일 수 없고,
-`applies` 결론은 **`decisive` 근거를 하나 이상 요구**한다.
+`factor_side == both` 인 근거에 `decisive: true` 를 붙일 수 없다.
 
-이 한 줄이 `220049` 를 잡는다. E11b 가 인용한 문장은 `shared` 이므로
-`decisive` 가 될 수 없고, 따라서 그 근거만으로 `applies` 를 낼 수 없다.
+### V7 — 결정적 조건 접지 검사
 
-이것이 **V7 — 결정적 조건 접지 검사**다.
+`applies` 와 `differs` 는 요구하는 것이 다르다. 하나로 쓰면 Case A 에서
+모순이 난다(차이가 없는데 결정적 근거를 내놓으라는 요구가 된다).
 
-    V7  결론에 붙은 근거 중 decisive 가 1개 이상인가
-        그 decisive 근거의 factor_relation 이 shared 가 아닌가
-        그 근거의 text 가 원문에 글자 그대로 있는가   (기존 V3)
+    V7-a  basis = decisive_difference (differs)
+            → decisive=true 인 근거가 1개 이상
+            → 그 근거의 factor_side ≠ both
+            → 그 근거의 text 가 원문에 글자 그대로 있다        (기존 V3)
 
-세 조건이 전부 만족해야 결론이 나간다. 하나라도 어긋나면 S7 로 되돌아가
-기권한다. **"인용은 맞지만 결정적이지 않다" 가 `V3 통과 · V7 불통과` 로
-표현된다** — 지금은 이 상태를 나타낼 자리가 없다.
+    V7-b  basis = no_decisive_difference (applies · Case B)
+            → 실질 차이 조각 하나하나에 why_not_decisive 가 붙어 있다
+            → 그 설명이 가리키는 factor 가 실재한다
 
----
+    V7-c  basis = identical_after_metadata (applies · Case A)
+            → 인용을 요구하지 않는다
+            → 대신 **S = ∅ 임을 결정론이 재계산해 확인한다**
+              (모델의 말이 아니라 차집합이 근거다)
+
+세 갈래 중 해당하는 것이 만족돼야 결론이 나간다. 어긋나면 S7 로 되돌아가
+기권한다.
+
+**"인용은 맞지만 결정적이지 않다" 가 이렇게 표현된다** — `220049` 에서
+E11b 가 낸 인용은 `factor_side = both` 이므로 `decisive` 가 될 수 없고,
+따라서 **V3 통과 · V7-a 불통과**다. 지금은 이 상태를 나타낼 자리가 없어서
+그 실패가 지표에 잡히지 않았다.
 
 ## 9. 평가 설계
 
@@ -495,16 +668,16 @@ AG-13 의 직접적 처방이다. 근거 하나의 계약을 이렇게 둔다.
 
 ### 새로 필요한 지표 둘, 그리고 왜 필요한가
 
-**★ Diff Coverage Rate** — 두 요청의 실질 텍스트 차집합 중, S5 의
-`only_in_*` 조건이 덮은 비율.
+**★ Diff Coverage Rate** — `|C| / |S|`. 즉 실질 차이 조각 `S` 중 S5 의
+조건이 덮은 것 `C` 의 비율 (§3.4 의 기호 그대로).
 
 *왜 필요한가:* 이것이 없으면 AG-13 을 **수치로 감시할 수 없다.** E11b 에서
 그 실패를 발견한 것은 제가 `220049` 한 건에 대해 결정 구절을 미리 지정해
 뒀기 때문이고, 그런 수작업은 확장되지 않는다. 차집합은 결정론적으로 계산
 되므로 모든 건에서 자동으로 잰다.
 
-**★ Deciding-Factor Grounding Rate** — 결론에 붙은 근거 중, `shared` 가
-아닌 조건에 접지된 것의 비율.
+**★ Deciding-Factor Grounding Rate** — `differs` 결론에 붙은 근거 중
+`factor_side ≠ both` 인 것의 비율 (V7-a 통과율).
 
 *왜 필요한가:* 기존 인용 접지율(V3)은 `220049` 에서 **100% 통과했다.**
 인용은 전부 원문에 있었기 때문이다. 즉 기존 지표는 AG-13 을 보지 못한다.
@@ -517,6 +690,19 @@ AG-13 의 직접적 처방이다. 근거 하나의 계약을 이렇게 둔다.
 - 기권은 `provisional` + `abstained` 로 내보낸다 (EV-24).
 - 표본이 다르면 나란히 놓지 않는다 (`mismatched-sample` 패턴 가드).
 - **실행하지 않은 수치는 쓰지 않는다.**
+
+### 게이트 자체를 감시하는 수치
+
+게이트를 만들면 **게이트가 얼마나 막았는지**를 세야 한다. 안 세면 과잉
+기권이 조용히 늘어난다.
+
+    basis 분포          G1~G6 중 무엇이 몇 번 발화했는가
+    incomplete_analysis 로 막힌 건수 · 그중 정답이 top-1 라벨과 같았던 비율
+    unresolved_difference 로 막힌 건수 · 같은 비율
+
+뒤의 두 줄이 **Case C 를 기권으로 보낸 설계 결정의 대가**다(§3.3). 그 비율이
+높으면 이 선택은 회수 가능한 건을 버리고 있는 것이다 — H1 에 걸었던 것과
+같은 형태의 반증 조건을 미리 걸어 둔다.
 
 ---
 
@@ -542,12 +728,13 @@ AG-13 의 직접적 처방이다. 근거 하나의 계약을 이렇게 둔다.
 유사도 0.738  →  선례 후보 검색 (+ 조문 겹침으로 재순위)
               →  S1 이 양쪽을 조건 단위로 구조화
               →  S5 가 조건을 관계별로 분해
-                   shared            SaaS 인사정보 처리 · 제14조의2 · 제15조
-                   only_in_request   "내부 업무용 시스템과는 연결되지 않음"
-                   only_in_precedent DMZ 중계서버 연동 질의
-              →  결정론 Diff Coverage Gate: 차집합이 덮였는가 → 예
-              →  decisive 조건이 반대 축을 가리킴 → differs
-              →  근거 = only_in_request 구절 (shared 가 아니므로 V7 통과)
+                   shared_factors     SaaS 인사정보 처리 · 제14조의2 · 제15조
+                   only_in_request    "내부 업무용 시스템과는 연결되지 않음"
+                   only_in_precedent  DMZ 중계서버 연동 질의
+              →  결정론 게이트: M = ∅ · S = 네 조각 · U = ∅ · R = ∅
+              →  G4 발화 (decisive=true 존재) → basis = decisive_difference
+              →  differs
+              →  근거 = F3 (factor_side = request ≠ both) → V7-a 통과
               →  선례를 버리고 다른 근거로 진행 · **불필요한 기권 없이**
 ```
 
@@ -788,6 +975,13 @@ EV-24, AG-12, AG-13.
    으로 가장 높았다. 조건 대조가 이 범주를 갈라 줄지는 알 수 없다.
 5. **opposition guard 를 떼면 나빠질 수 있다.** E11b 에서 그것이 오답 하나를
    막았다. S5 가 그 일을 대신한다는 것은 **가정이지 측정이 아니다.**
+6. **`why_not_decisive` 가 통과 경로가 될 수 있다.** 모델이 실질 차이를
+   `only_in_*` 에 올려 놓고 그럴듯한 설명과 함께 `decisive: false` 를 붙이면
+   G3·G4 를 지나 `no_decisive_difference` 로 `applies` 가 나간다. 게이트는
+   **누락을 잡지 오분류를 잡지 못한다.** 이 경로로 나간 건수를 따로 세야 한다.
+7. **메타데이터 패턴 목록이 좁으면 과잉 기권, 넓으면 AG-13 재발.** §3.2 의
+   목록은 두 방향으로 다 틀릴 수 있고, 어느 쪽으로 틀렸는지는 `S = ∅` 로
+   판정된 건과 `incomplete_analysis` 로 막힌 건을 같이 봐야 안다.
 
 ---
 
