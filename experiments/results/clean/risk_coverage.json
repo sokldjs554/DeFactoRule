@@ -1,0 +1,122 @@
+{
+  "n": 168,
+  "aurc": {
+    "neighbor": 0.2879251700680272,
+    "keyword": 0.29967403628117917,
+    "agent-router": 0.24727891156462584
+  },
+  "curves": {
+    "neighbor": [
+      {
+        "min_confidence_rank": 3,
+        "coverage": 0.125,
+        "n": 21,
+        "risk": 0.09523809523809523,
+        "accuracy": 0.9047619047619048,
+        "macro_f1": 0.8055555555555556
+      },
+      {
+        "min_confidence_rank": 2,
+        "coverage": 0.35714285714285715,
+        "n": 60,
+        "risk": 0.2,
+        "accuracy": 0.8,
+        "macro_f1": 0.43664717348927873
+      },
+      {
+        "min_confidence_rank": 1,
+        "coverage": 1.0,
+        "n": 168,
+        "risk": 0.35714285714285715,
+        "accuracy": 0.6428571428571428,
+        "macro_f1": 0.45428704566635597
+      }
+    ],
+    "keyword": [
+      {
+        "min_confidence_rank": 3,
+        "coverage": 0.10119047619047619,
+        "n": 17,
+        "risk": 0.5294117647058824,
+        "accuracy": 0.47058823529411764,
+        "macro_f1": 0.4090909090909091
+      },
+      {
+        "min_confidence_rank": 1,
+        "coverage": 1.0,
+        "n": 168,
+        "risk": 0.27380952380952384,
+        "accuracy": 0.7261904761904762,
+        "macro_f1": 0.45445449974861735
+      }
+    ],
+    "agent-router": [
+      {
+        "min_confidence_rank": 3,
+        "coverage": 0.08333333333333333,
+        "n": 14,
+        "risk": 0.07142857142857142,
+        "accuracy": 0.9285714285714286,
+        "macro_f1": 0.4814814814814815
+      },
+      {
+        "min_confidence_rank": 2,
+        "coverage": 0.11904761904761904,
+        "n": 20,
+        "risk": 0.15,
+        "accuracy": 0.85,
+        "macro_f1": 0.45945945945945943
+      },
+      {
+        "min_confidence_rank": 1,
+        "coverage": 1.0,
+        "n": 168,
+        "risk": 0.26785714285714285,
+        "accuracy": 0.7321428571428572,
+        "macro_f1": 0.5633196721311476
+      }
+    ]
+  },
+  "correction": "holm-bonferroni",
+  "comparisons": [
+    {
+      "a": "neighbor",
+      "b": "keyword",
+      "diff": -0.011748866213151965,
+      "ci95": [
+        -0.0877357652100389,
+        0.06879444959802103
+      ],
+      "p_approx": 0.7989999999999999,
+      "p_holm": 0.7989999999999999,
+      "significant_holm": false,
+      "significant_raw": false
+    },
+    {
+      "a": "neighbor",
+      "b": "agent-router",
+      "diff": 0.04064625850340137,
+      "ci95": [
+        -0.017738247873547164,
+        0.10284413817938076
+      ],
+      "p_approx": 0.182,
+      "p_holm": 0.486,
+      "significant_holm": false,
+      "significant_raw": false
+    },
+    {
+      "a": "keyword",
+      "b": "agent-router",
+      "diff": 0.05239512471655333,
+      "ci95": [
+        -0.020421790511076288,
+        0.12157501889644745
+      ],
+      "p_approx": 0.162,
+      "p_holm": 0.486,
+      "significant_holm": false,
+      "significant_raw": false
+    }
+  ]
+}
