@@ -80,5 +80,16 @@
         "기타": 0.0
       }
     }
+  },
+  "split": "legacy",
+  "provenance": {
+    "schema_version": 1,
+    "method": "app.domain.base_rates.compute",
+    "method_version": "4857329245fbf764",
+    "input": "data/eval/nonaction_dev.jsonl",
+    "input_sha256": "5e9aea7e71901ae9655b178a7ba8cad8bbb374b671cfed47c2d7fb2cadcb9878",
+    "row_key_digest": "21fe581e111e3e72ae63f433978df4ca33dd50e14e778124c1192d2eab6272db",
+    "n_rows_read": 85,
+    "test_files_read": []
   }
 }
