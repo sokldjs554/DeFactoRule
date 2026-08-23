@@ -353,7 +353,8 @@ python3 scripts/failure_report.py --layer extraction
 [사안 무리 분할 — 설계와 실행](docs/23-group-split-design.md) ·
 [clean split 결정론 평가](docs/24-clean-deterministic-evaluation.md) ·
 [clean 평가 규약 감사](docs/25-clean-protocol-audit.md) ·
-[기저율 출처 정정](docs/26-clean-base-rate-provenance.md)
+[기저율 출처 정정](docs/26-clean-base-rate-provenance.md) ·
+[clean 실측 선정안](docs/27-clean-llm-case-selection.md)
 
 ## 10. Limitations
 
