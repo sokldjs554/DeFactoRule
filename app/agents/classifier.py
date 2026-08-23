@@ -36,6 +36,7 @@ import sys
 from pathlib import Path
 
 from app.core.paths import DEV_BASE_RATES
+from app.domain.base_rate_asset import ProvenanceError, load_validated
 from app.domain.base_rates import describe_overall, describe_sector
 from app.domain.labels import GUIDELINE, NON_ACTIONS, VERDICTS
 from app.infrastructure.anthropic_client import (
@@ -44,6 +45,9 @@ from app.infrastructure.anthropic_client import (
     FatalApiError,
 )
 
+# 기본값은 legacy 표다 — 기존 명령이 예전과 똑같이 돌아야 한다. 어느 표를 쓸지는
+# `--base-rates` 로 고른다. 상수 하나만 두면 legacy 실행과 clean 실행을 구분할
+# 방법이 없고, 그러면 결과를 보고 "어느 기저율이었나" 를 되짚을 수 없다.
 BASE_RATES_PATH = DEV_BASE_RATES
 
 # API 경계의 정의처는 app/infrastructure/anthropic_client.py 하나다.
@@ -244,7 +248,83 @@ def classify_one(client, row: dict, task: dict) -> dict:
     }
 
 
-def main() -> None:
+def select_targets(args, task: dict) -> list[dict]:
+    """입력에서 실제로 부를 행을 고른다. 실행과 dry-run 이 **같은 것을 본다.**"""
+    rows = [
+        json.loads(line)
+        for line in Path(args.input).read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    source_field = task["source_field"]
+    targets = [r for r in rows if (r.get(source_field) or "").strip()]
+    if args.task.startswith("nonaction") and task.get("context") == "sector":
+        missing = sum(1 for r in targets if not r.get("sector"))
+        if missing:
+            print(f"  ⚠ 업권 정보가 없는 {missing}건은 전체 기저율로 대체됩니다.")
+    if args.task == "verdict":
+        # 법령해석 쌍 파일에는 두 문서 종류가 섞여 있다
+        targets = [r for r in targets if r.get("doc_type") == args.doc_type]
+    if args.limit:
+        targets = targets[: args.limit]
+    if not targets:
+        sys.exit(f"입력에서 '{source_field}' 필드를 가진 행을 찾지 못했습니다: {args.input}")
+    return targets
+
+
+def write_manifest(args, task: dict, asset: dict | None, n_targets: int) -> Path:
+    """이 실행이 **어느 기저율 표를 썼는지** 예측 파일 옆에 남긴다.
+
+    예측 레코드에 끼워 넣지 않는다 — 채점 하네스가 읽는 형을 바꾸지 않기
+    위해서다. 나중에 E7~E11b 결과를 보고 "이 수치는 어느 표에서 나왔나" 를
+    되짚으려면 이 파일 하나면 된다.
+    """
+    out = Path(args.output)
+    path = out.with_name(out.name + ".manifest.json")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({
+        "task": args.task,
+        "model": MODEL,
+        "input": args.input,
+        "output": args.output,
+        "limit": args.limit,
+        "context": task.get("context"),
+        "n_targets": n_targets,
+        "dry_run": bool(getattr(args, "dry_run", False)),
+        "base_rates_asset": asset,
+    }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return path
+
+
+def dry_run(args, task: dict, asset: dict | None) -> None:
+    """**모델을 부르지 않는다.** 프롬프트에 실릴 것까지만 만들어 보여 준다.
+
+    `anthropic` 을 임포트하기 전에 끝난다 — 자격증명도 네트워크도 쓰지 않는다.
+    """
+    targets = select_targets(args, task)
+    path = write_manifest(args, task, asset, len(targets))
+    table = task.get("base_rates")
+
+    print(f"\ndry-run — 모델을 부르지 않았습니다. 대상 {len(targets)}건")
+    if table is None:
+        print("  이 과제는 기저율을 쓰지 않습니다 (context 없음).")
+    else:
+        print("  프롬프트에 실릴 문장:")
+        print(f"    [전체]   {describe_overall(table)}")
+        seen = []
+        for row in targets:
+            sector = row.get("sector")
+            if sector and sector not in seen:
+                seen.append(sector)
+        for sector in seen[:3]:
+            print(f"    [{sector}] {describe_sector(table, sector)}")
+        sample = targets[0]
+        tail = build_prompt(sample, task).splitlines()[-1]
+        print(f"\n  첫 건({sample.get('serial')})의 프롬프트 마지막 줄:\n    {tail}")
+    print(f"\n-> {path}")
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """인자 정의를 `main` 밖에 둔다 — 기본값을 **호출 없이** 확인할 수 있어야 한다."""
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--input", required=True)
     ap.add_argument("--output", required=True)
@@ -261,21 +341,42 @@ def main() -> None:
         action="store_true",
         help="출력 파일에 이미 성공으로 남은 건은 건너뛴다. 실패분만 다시 부를 때 쓴다.",
     )
-    args = ap.parse_args()
+    ap.add_argument(
+        "--base-rates",
+        default=str(BASE_RATES_PATH),
+        help="기저율 표. 기본값은 legacy 표이므로 기존 명령은 그대로 돈다. "
+             "clean 평가에서는 data/eval/dev_base_rates_clean.json 을 준다.",
+    )
+    ap.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="**모델을 부르지 않는다.** 기저율 표를 검증해 실행 기록을 남기고, "
+             "프롬프트에 무엇이 실리는지 보여 준 뒤 멈춘다.",
+    )
+    return ap
+
+
+def main() -> None:
+    args = build_parser().parse_args()
 
     task = dict(TASKS[args.task])
     if task["system"] is None:
         task["system"] = SYSTEM
+    asset = None
     if task.get("context"):
-        if not BASE_RATES_PATH.exists():
-            sys.exit(
-                f"기저율 파일이 없습니다: {BASE_RATES_PATH}\n"
-                "python3 scripts/base_rates.py --dev data/eval/nonaction_dev.jsonl "
-                "--output data/eval/dev_base_rates.json"
-            )
-        task["base_rates"] = json.loads(BASE_RATES_PATH.read_text(encoding="utf-8"))
-        if task["base_rates"].get("source") != "dev":
-            sys.exit("기저율이 dev 에서 나온 것이 아닙니다. 정답 누출 위험.")
+        # 이름표가 아니라 지문을 본다. 표가 적어 둔 입력 파일에서 행 지문과
+        # 분포를 **다시 만들어** 대조하므로, `source` 문자열만 맞춘 표는
+        # 여기서 걸린다. dev 가 둘인 지금 옛 가드로는 아무것도 못 막는다.
+        try:
+            task["base_rates"], asset = load_validated(Path(args.base_rates))
+        except ProvenanceError as exc:
+            sys.exit(str(exc))
+        print(f"기저율 {asset['split']}/{asset['source']} n={asset['n']} "
+              f"· 행 지문 {asset['row_key_digest'][:16]}… · {asset['path']}")
+
+    if args.dry_run:
+        dry_run(args, task, asset)
+        return
 
     try:
         import anthropic
@@ -309,29 +410,13 @@ def main() -> None:
             )
         print(f"  ⚠ 사전 점검에서 예상치 못한 오류: {type(exc).__name__} {exc.status_code}")
 
-    rows = [
-        json.loads(line)
-        for line in Path(args.input).read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
-    source_field = task["source_field"]
-    targets = [r for r in rows if (r.get(source_field) or "").strip()]
-    if args.task.startswith("nonaction") and task.get("context") == "sector":
-        missing = sum(1 for r in targets if not r.get("sector"))
-        if missing:
-            print(f"  ⚠ 업권 정보가 없는 {missing}건은 전체 기저율로 대체됩니다.")
-    if args.task == "verdict":
-        # 법령해석 쌍 파일에는 두 문서 종류가 섞여 있다
-        targets = [r for r in targets if r.get("doc_type") == args.doc_type]
-    if args.limit:
-        targets = targets[: args.limit]
-    if not targets:
-        sys.exit(f"입력에서 '{source_field}' 필드를 가진 행을 찾지 못했습니다: {args.input}")
+    targets = select_targets(args, task)
 
     from collections import Counter
 
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)
+    print(f"실행 기록 -> {write_manifest(args, task, asset, len(targets))}")
 
     done: dict[tuple, dict] = {}
     if args.resume and out.exists():

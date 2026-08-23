@@ -9,13 +9,20 @@ dev 안에 있었다.** 그러므로 "dev 에서 나왔다" 는 더 이상 안�
 """
 
 import json
+from pathlib import Path
 
 import pytest
 
 from app.core.io import key_of, load_jsonl
 from app.core.paths import DEV_BASE_RATES, EVAL
+from app.domain.base_rate_asset import (
+    load_validated,
+    method_version,
+    row_key_digest,
+    validate,
+    verify,
+)
 from app.domain.base_rates import compute
-from app.evaluation.base_rate_asset import method_version, row_key_digest, verify
 
 CLEAN_TABLE = EVAL / "dev_base_rates_clean.json"
 CLEAN_DEV = EVAL / "nonaction_dev_clean.jsonl"
@@ -71,10 +78,16 @@ class TestLegacyTableIsStillLegacy:
     def test_it_does_not_reproduce_from_clean_dev(self):
         assert table(DEV_BASE_RATES)["overall"] != compute(rows(CLEAN_DEV))["overall"]
 
-    def test_the_old_guard_cannot_tell_the_two_apart(self):
-        """왜 이 파일이 필요한지 — 옛 검사는 legacy 표를 그대로 통과시킨다."""
-        assert table(DEV_BASE_RATES).get("source") == "dev"      # 옛 검사 통과
-        assert "split" not in table(DEV_BASE_RATES)              # 그런데 split 이 없다
+    def test_it_now_declares_its_own_split_and_validates(self):
+        """출처를 다시 찍었다. 값은 그대로이고 이름표와 지문만 붙었다."""
+        got = table(DEV_BASE_RATES)
+        assert (got["source"], got["split"]) == ("dev", "legacy")
+        assert got["provenance"]["row_key_digest"] == row_key_digest(rows(LEGACY_DEV))
+        assert validate(got) == []
+
+    def test_the_two_assets_do_not_share_a_fingerprint(self):
+        assert (table(DEV_BASE_RATES)["provenance"]["row_key_digest"]
+                != table(CLEAN_TABLE)["provenance"]["row_key_digest"])
 
 
 class TestVerifyCatchesTampering:
@@ -97,18 +110,39 @@ class TestVerifyCatchesTampering:
         assert verify(forged, rows(CLEAN_DEV), "clean", "clean_dev")
 
 
-class TestClassifierWiringIsNotReadyYet:
-    """**현재 상태를 못 박아 둔다.** 고친 것이 아니라 확인한 것이다.
+class TestClassifierWiring:
+    """`--base-rates` 로 어느 표를 쓸지 고를 수 있고, 기본값은 legacy 다."""
 
-    `classifier.py` 는 `BASE_RATES_PATH` 를 모듈 상수로 들고 있고 인자가 없다.
-    그리고 `source != "dev"` 면 종료한다 — clean 표의 `source` 는 `clean_dev`
-    이므로 지금 배선으로는 **읽히지도, 통과하지도 않는다.**
-    """
-
-    def test_the_path_is_a_module_constant_with_no_way_to_choose(self):
+    def test_the_default_is_still_the_legacy_asset(self):
         from app.agents import classifier
 
         assert classifier.BASE_RATES_PATH == DEV_BASE_RATES
 
-    def test_the_existing_guard_would_reject_the_clean_table(self):
-        assert table(CLEAN_TABLE).get("source") != "dev"
+    def test_the_flag_defaults_to_the_legacy_path(self):
+        from app.agents.classifier import build_parser
+
+        args = build_parser().parse_args(["--input", "a", "--output", "b"])
+        assert Path(args.base_rates) == DEV_BASE_RATES
+        assert args.dry_run is False
+
+    def test_the_flag_can_choose_the_clean_asset(self):
+        from app.agents.classifier import build_parser
+
+        args = build_parser().parse_args(
+            ["--input", "a", "--output", "b", "--base-rates", str(CLEAN_TABLE)])
+        assert Path(args.base_rates) == CLEAN_TABLE
+
+    @pytest.mark.parametrize("path,identity", [
+        (DEV_BASE_RATES, ("dev", "legacy")),
+        (CLEAN_TABLE, ("clean_dev", "clean")),
+    ])
+    def test_both_assets_load_through_the_validating_reader(self, path, identity):
+        got, record = load_validated(path)
+        assert (got["source"], got["split"]) == identity
+        assert record["row_key_digest"] == got["provenance"]["row_key_digest"]
+        assert record["n"] == got["n"]
+
+    def test_the_record_carries_everything_needed_to_reproduce(self):
+        _, record = load_validated(CLEAN_TABLE)
+        assert set(record) == {"path", "source", "split", "n", "row_key_digest",
+                               "method_version", "input", "input_sha256"}

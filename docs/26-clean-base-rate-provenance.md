@@ -1,13 +1,15 @@
-# 기저율 표의 출처를 다시 세운다 (Phase B-2a.6)
+# 기저율 표의 출처를 다시 세운다 (Phase B-2a.6 · B-2b prerequisite wiring)
 
-`docs/25 §D.1` 이 B-2b 의 유일한 선결 조건으로 지목한 것을 처리했다.
+`docs/25 §D.1` 이 B-2b 의 유일한 선결 조건으로 지목한 것을 처리하고(§1~§4),
+이어서 분류기 배선까지 이었다(§5~§7). **모델은 아직 부르지 않았다.**
 
     만든 것   data/eval/dev_base_rates_clean.json      (clean dev 87건)
     건드리지 않은 것  data/eval/dev_base_rates.json     (legacy dev 85건)
     구현     app/evaluation/base_rate_asset.py · scripts/base_rate_asset.py
     검사     tests/regression/test_base_rate_provenance.py (15개)
 
-**API 0회 · production 코드 0줄 변경 · 프롬프트 문구 변경 0 · 문턱 변경 0.**
+**API 0회 · 프롬프트 문구 변경 0 · 문턱 변경 0 · Router 변경 0.**
+production 코드는 `classifier.py` 배선만 바뀌었고, **기본값 실행은 예전과 같다.**
 
 ---
 
@@ -106,34 +108,121 @@ clean 4건으로 내려가 프롬프트에서 빠진다.**
     legacy 표는 여전히 legacy dev 로만 재현되고 clean dev 로는 안 된다   ✅
     이름표만 바꾼 표는 거부된다 (split · source · n · 분포 · 지문)       ✅
 
-## 5. `classifier.py` 배선 — **확인만 했고 고치지 않았다**
+## 5. `classifier.py` 배선 (Phase B-2b prerequisite wiring)
 
-    app/agents/classifier.py:47   BASE_RATES_PATH = DEV_BASE_RATES
-    app/agents/classifier.py:276  task["base_rates"] = json.loads(BASE_RATES_PATH…)
-    app/agents/classifier.py:277  if task["base_rates"].get("source") != "dev": sys.exit(…)
+`docs/25 §D.1` 이 미뤄 둔 (가)+(나)를 함께 적용했다. **모델은 부르지 않았다.**
 
-세 줄이 말하는 것은 이렇다.
+### 5.1 무엇이 바뀌었나
 
-1. **경로가 모듈 상수다.** CLI 인자가 없으므로 legacy 실행과 clean 실행을
-   구분할 방법이 지금은 없다.
-2. **가드가 `source == "dev"` 를 요구한다.** clean 표의 `source` 는
-   `clean_dev` 이므로 **지금 배선으로는 통과하지 못한다.**
+    --base-rates <path>   기본값은 legacy 표. 주지 않으면 기존 명령이 그대로 돈다
+    --dry-run             기저율 표를 검증하고 프롬프트에 실릴 것까지만 만든 뒤 멈춘다
+                          `anthropic` 을 임포트하기 전에 끝난다 — 네트워크·자격증명 0
 
-즉 파일을 만들어 둔 것만으로는 B-2b 가 clean 표를 쓸 수 없다. 이 사실을
-회귀 테스트로 못 박아 두었다(`TestClassifierWiringIsNotReadyYet`) — 고친
-것이 아니라 **확인한 것**이다.
+    build_parser()        인자 정의를 main 밖으로 뺐다. 기본값을 **부르지 않고**
+                          확인할 수 있어야 테스트가 배선을 검사할 수 있다
+    select_targets()      실행과 dry-run 이 같은 행을 보게 한다 (로직 이동, 변경 없음)
+    write_manifest()      예측 파일 옆에 `*.manifest.json` 을 남긴다
 
-필요한 최소 배선은 이렇다. **이번 단계에서 하지 않았고, 결정을 요청한다.**
+옛 가드 두 줄은 `load_validated()` 한 줄로 바뀌었다. **읽기와 검사를 한 함수에
+묶은 것이 요점이다** — 예전 가드가 `source == "dev"` 한 줄로 남아 있던 이유는
+검사가 호출부에 흩어져 있었기 때문이다.
 
-    (가) `--base-rates` 인자를 두어 실행마다 파일을 고르게 한다
-    (나) 가드를 `source in {"dev", "clean_dev"}` 로 넓히되,
-         `split` 과 `row_key_digest` 를 함께 확인하도록 바꾼다
-    (다) 실행 결과 파일에 어느 기저율 표를 썼는지 기록한다
+### 5.2 검증은 이름표가 아니라 지문을 본다
 
-(나)를 (가) 없이 하면 가드만 헐거워지고 얻는 것이 없다. **둘은 함께 가야 한다.**
+`validate()` 가 보는 것.
 
-## 6. 이번 단계에서 하지 않은 것
+| 검사 | 어떻게 |
+|---|---|
+| `source`·`split` 짝 | `{("dev","legacy"), ("clean_dev","clean")}` 에 있는가 |
+| **split ↔ 입력 파일 결속** | `legacy` 는 `nonaction_dev.jsonl`, `clean` 은 `nonaction_dev_clean.jsonl` 에서만 나올 수 있다 |
+| `method` · `method_version` | 지금 도는 `base_rates.compute` 원문의 해시와 같은가 |
+| `input` | 파일이 실재하는가 · 이름에 `test` 가 있으면 거부 |
+| `input_sha256` | 그 파일을 다시 해시해 대조 |
+| `row_key_digest` | 그 파일의 행 키를 다시 정렬해 해시해 대조 |
+| `n` · `n_rows_read` | 그 파일의 행 수와 같은가 |
+| `overall` · `sectors` · `min_sector_n` | 그 파일로 **다시 계산**해 대조 |
 
-    LLM 호출 0 · E7~E11b 0 · Router 변경 0 · 문턱 변경 0
-    sector matcher 수정 0 · 프롬프트 문구 변경 0 · Temporal 0 · S5 0
-    legacy 기저율 파일 변경 0 · clean test 열람 0
+**split ↔ 입력 파일 결속은 회귀 테스트가 찾아낸 구멍이다.** 그것이 없으면
+"legacy dev 로 만들었는데 `split: clean` 이라고 적은 표" 가 통과한다 —
+내부적으로는 지문도 분포도 전부 앞뒤가 맞기 때문이다. 이름표를 **행 집합에
+묶어야** 비로소 막힌다.
+
+### 5.3 legacy 표에 출처를 다시 찍었다
+
+`split == legacy` 를 검증하려면 legacy 표에도 이름표와 지문이 있어야 한다.
+그래서 **값은 한 글자도 바꾸지 않고 출처만 붙였다**(`--restamp`).
+
+    추가된 키   provenance · split          사라진 키  없음
+    기존 키     source · n · min_sector_n · overall · sectors — **값 전부 동일**
+
+`--restamp` 는 옛 표와 분포가 다르면 **쓰지 않고 죽는다.** 재각인이 조용한
+재계산으로 바뀌는 것을 막는 장치다.
+
+### 5.4 실행 기록
+
+예측 레코드의 형은 건드리지 않았다 — 채점 하네스가 읽는 필드가 바뀌면 옛
+예측 파일과 새 것을 나란히 놓을 수 없다. 대신 옆에 한 장을 남긴다.
+
+    <output>.manifest.json
+      task · model · input · output · limit · context · n_targets · dry_run
+      base_rates_asset { path · source · split · n · row_key_digest ·
+                         method_version · input · input_sha256 }
+
+이 파일 하나면 "이 수치는 어느 기저율 표에서 나왔나" 를 되짚을 수 있다.
+
+## 6. dry-run 검증 결과 — **API 0회**
+
+### legacy 경로 (인자를 주지 않는다)
+
+```
+$ python3 scripts/classify_llm.py --task nonaction_sector     --input data/eval/nonaction_test.jsonl --output …/legacy_pred.jsonl     --limit 5 --dry-run
+
+기저율 legacy/dev n=85 · 행 지문 21fe581e111e3e72… · data/eval/dev_base_rates.json
+  [전체]   … 과거 유사 사례 85건에서 결론 분포는 비조치 68%, 조치 9%, 기타 22% …
+  [전자금융] … 같은 분야 과거 사례 18건에서 … 비조치 50%, 조치 17%, 기타 33% …
+```
+
+### clean 경로
+
+```
+$ … --base-rates data/eval/dev_base_rates_clean.json --dry-run
+
+기저율 clean/clean_dev n=87 · 행 지문 c228ccc2b3cea21b… · data/eval/dev_base_rates_clean.json
+  [전체]   … 과거 유사 사례 87건에서 결론 분포는 비조치 72%, 조치 9%, 기타 18% …
+  [전자금융] … 같은 분야 과거 사례 16건에서 … 비조치 50%, 조치 19%, 기타 31% …
+```
+
+**clean 표의 값이 프롬프트 문장으로 그대로 옮겨졌다.** 87건 · 비조치 72% ·
+전자금융 16건 50/19/31 — `dev_base_rates_clean.json` 에 적힌 것과 같다.
+
+### 위조 표는 실행 경로에서 거부된다 (dry-run 이 아니라 실제 실행)
+
+```
+$ … --base-rates forged.json          # clean 표의 source 를 "dev" 로 고친 것
+…/forged.json 의 출처를 확인하지 못했습니다:
+  - source/split 짝이 허용 목록에 없다: ('dev', 'clean') …
+exit=1        출력 파일 생성 안 됨 · anthropic 임포트 전에 종료
+```
+
+## 7. 거부되어야 하는 것 — 전부 거부된다
+
+`tests/unit/test_base_rate_validation.py` 16개 · `tests/regression/…` 20개.
+
+    legacy 표에 split=clean 조작                    거부 (split ↔ 파일 결속)
+    clean 표에 source=dev 조작                      거부 (짝 목록)
+    둘 다 legacy 로 조작                            거부 (split ↔ 파일 결속)
+    row_key_digest 불일치                           거부
+    input_sha256 불일치                             거부
+    method_version 불일치                           거부
+    provenance 블록 없음                            거부
+    n 불일치                                        거부
+    input 을 다른 dev 파일로 바꿔치기                거부 (지문 둘이 동시에 어긋난다)
+    legacy dev 로 만들고 clean 이라 주장             거부
+    clean test 로 만든 표 (빌더 가드 우회)           거부 ("test 파일에서 만든 표다")
+    load_validated 는 나쁜 표를 돌려주지 않는다      ProvenanceError
+
+## 8. 이번 단계에서 하지 않은 것
+
+    LLM/API 호출 0 · E7~E11b 0 · 프롬프트 문구 변경 0 · 문턱 변경 0
+    Router 변경 0 · sector matcher 0 · E6 규칙 0 · Temporal 0 · S5 0 · UI 0
+    legacy 기저율의 **분포 값** 변경 0 (출처 메타데이터만 추가)
