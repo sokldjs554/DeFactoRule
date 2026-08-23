@@ -42,25 +42,59 @@ from app.agents.applicability import (
     schema,
 )
 
-# 사전 등록한 5건. docs/18-e11b-case-selection.md 와 같아야 한다.
-#   (일련번호, 범주, 기대 판정, 대조용 경로, 대조용 1등 선례, 대조용 반대 근거 수)
-PLAN: list[dict] = [
-    {"serial": "250055", "kind": "① 명백히 적용", "expect": "applies",
-     "route": "R5", "top": "250050", "n_opposing": 0},
-    {"serial": "240047", "kind": "② 표면 유사·비적용", "expect": "differs",
-     "route": "R1", "top": "240046", "n_opposing": 0},
-    {"serial": "230110", "kind": "③ 모호·부분 적용", "expect": "unclear",
-     "route": "R5", "top": "220041", "n_opposing": 0},
-    {"serial": "240023", "kind": "④ 충돌 선례 · H1 반증", "expect": "applies",
-     "route": "R6", "top": "240057", "n_opposing": 2},
-    {"serial": "220049", "kind": "⑤ 최고 난이도", "expect": "differs",
-     "route": "R6", "top": "220041", "n_opposing": 1},
-]
-
-MAX_CALLS = 5
-
 # ⑤ 220049 의 결론을 가른 구절. 판정이 맞아도 근거가 여기 없으면 운이다.
 DECIDING_PHRASE = "내부 업무용 시스템과는 연결되지 않음"
+
+# 사전 등록한 5건. docs/18-e11b-case-selection.md 와 같아야 한다.
+#   (일련번호, 범주, 기대 판정, 대조용 경로, 대조용 1등 선례, 대조용 반대 근거 수)
+PLAN_LEGACY: list[dict] = [
+    {"serial": "250055", "kind": "① 명백히 적용", "expect": "applies",
+     "route": "R5", "top": "250050", "n_opposing": 0, "deciding": DECIDING_PHRASE},
+    {"serial": "240047", "kind": "② 표면 유사·비적용", "expect": "differs",
+     "route": "R1", "top": "240046", "n_opposing": 0, "deciding": DECIDING_PHRASE},
+    {"serial": "230110", "kind": "③ 모호·부분 적용", "expect": "unclear",
+     "route": "R5", "top": "220041", "n_opposing": 0, "deciding": DECIDING_PHRASE},
+    {"serial": "240023", "kind": "④ 충돌 선례 · H1 반증", "expect": "applies",
+     "route": "R6", "top": "240057", "n_opposing": 2, "deciding": DECIDING_PHRASE},
+    {"serial": "220049", "kind": "⑤ 최고 난이도", "expect": "differs",
+     "route": "R6", "top": "220041", "n_opposing": 1, "deciding": DECIDING_PHRASE},
+]
+
+# clean split 위의 5건. docs/27-clean-llm-case-selection.md 와 같아야 한다.
+# `deciding` 는 **그 건에서 결론을 가르는 말**이다. 건마다 다르므로 상수 하나로
+# 두지 않는다 — legacy 는 ⑤ 하나만 뜻이 있었는데 다섯에 같은 값을 찍고 있었다.
+PLAN_CLEAN: list[dict] = [
+    {"serial": "230032", "kind": "① 명백히 적용", "expect": "applies",
+     "route": "R5", "top": "230019", "n_opposing": 0, "deciding": "상향"},
+    {"serial": "240006", "kind": "② 표면 유사·비적용", "expect": "differs",
+     "route": "R6", "top": "230095", "n_opposing": 3, "deciding": "별표"},
+    {"serial": "230067", "kind": "③ 모호·부분 적용", "expect": "unclear",
+     "route": "R5", "top": "220046", "n_opposing": 0, "deciding": "제1호"},
+    {"serial": "240022", "kind": "④ 반대 근거 충돌 · H1", "expect": "differs",
+     "route": "R1", "top": "240024", "n_opposing": 2, "deciding": "정상"},
+    {"serial": "230041", "kind": "⑤ AG-13 결정적 차이", "expect": "differs",
+     "route": "R1", "top": "230058", "n_opposing": 0,
+     "deciding": "스트리밍 방식은 아님"},
+]
+
+# 어느 분할 위에서 도는가. **자산을 한 곳에서 고른다** — dev·test·규칙·보정표가
+# 따로 놀면 "무엇을 쟀는가" 를 나중에 되짚을 수 없다.
+BUNDLES: dict[str, dict] = {
+    "legacy": {
+        "plan": PLAN_LEGACY, "dev": "nonaction_dev.jsonl",
+        "test": "nonaction_test.jsonl", "rules": "e6_rules.json",
+        "risk": "trap_risk.json", "doc": "docs/18-e11b-case-selection.md",
+        "experiment": "E11b", "out": "e11b_5cases.json",
+    },
+    "clean": {
+        "plan": PLAN_CLEAN, "dev": "nonaction_dev_clean.jsonl",
+        "test": "nonaction_test_clean.jsonl", "rules": "e6_rules_clean.json",
+        "risk": "trap_risk_clean.json", "doc": "docs/27-clean-llm-case-selection.md",
+        "experiment": "B-2b", "out": "clean/b2b_5cases.json",
+    },
+}
+
+MAX_CALLS = 5
 
 
 class CallBudget:
@@ -78,34 +112,41 @@ class CallBudget:
         self.used += 1
 
 
-def build_world():
-    """실측 상태를 만든다. E11b 이전 단계와 **같은 배선**이어야 한다."""
+def build_world(bundle: dict):
+    """실측 상태를 만든다. 이전 단계와 **같은 배선**이어야 한다.
+
+    `fallback` 은 dev 의 최빈 라벨이다. 번들이 바뀌면 이것도 함께 바뀌어야
+    하는데, 예전에는 기본값 `비조치` 가 그대로 쓰이고 있었다.
+    """
+    from collections import Counter
+
     from app.agents.workflow import VARIANTS, Workflow
     from app.core.io import load_jsonl
     from app.core.paths import EVAL, PROCESSED, RESULTS
     from app.retrieval.lexical import LexicalRetriever
 
-    dev = [r for r in load_jsonl(EVAL / "nonaction_dev.jsonl") if r.get("label")]
-    test = [r for r in load_jsonl(EVAL / "nonaction_test.jsonl") if r.get("label")]
+    dev = [r for r in load_jsonl(EVAL / bundle["dev"]) if r.get("label")]
+    test = [r for r in load_jsonl(EVAL / bundle["test"]) if r.get("label")]
     cases = load_jsonl(PROCESSED / "cases_nonaction.jsonl")
     corpus = [c["fields"].get("요청대상행위") or c["fields"].get("질의요지") or ""
               for c in cases]
-    rules = json.loads((RESULTS / "e6_rules.json").read_text(encoding="utf-8"))["rules"]
-    risk = json.loads((RESULTS / "trap_risk.json").read_text(encoding="utf-8"))
+    rules = json.loads((RESULTS / bundle["rules"]).read_text(encoding="utf-8"))["rules"]
+    risk = json.loads((RESULTS / bundle["risk"]).read_text(encoding="utf-8"))
+    fallback = Counter(r["label"] for r in dev).most_common(1)[0][0]
 
     flow = Workflow(LexicalRetriever().fit(dev, [t for t in corpus if t]), dev,
-                    rules, risk, policy=VARIANTS["router"])
+                    rules, risk, policy=VARIANTS["router"], fallback=fallback)
     by_key = {(r["source"], str(r["serial"])): r for r in dev}
     return flow, dev, test, by_key
 
 
-def resolve(flow, test, by_key):
+def resolve(flow, test, by_key, plan: list[dict]):
     """사전 등록한 5건을 실제 상태에 붙이고, **어긋나면 이름을 댄다.**"""
     index = {str(row["serial"]): i for i, row in enumerate(test)}
     resolved: list[dict] = []
     drift: list[str] = []
 
-    for item in PLAN:
+    for item in plan:
         serial = item["serial"]
         if serial not in index:
             drift.append(f"{serial}: test 에 없습니다")
@@ -135,18 +176,27 @@ def resolve(flow, test, by_key):
     return resolved, drift
 
 
-def preview(resolved, drift) -> None:
+def preview(resolved, drift, bundle: dict) -> None:
     """부르기 전에 무엇을 부를지 보여 준다. **여기서는 돈이 들지 않는다.**"""
     from app.agents.applicability import estimate_cost
 
-    print(f"E11b 실측 계획 — {len(resolved)}건, 각 1회, 재시도 없음\n")
+    print(f"{bundle['experiment']} 실측 계획 — {len(resolved)}건, 각 1회, 재시도 없음")
+    print(f"  선정안 {bundle['doc']}")
+    print(f"  자산  dev {bundle['dev']} · test {bundle['test']} · "
+          f"{bundle['rules']} · {bundle['risk']}\n")
     for item in resolved:
         plan, state, top = item["plan"], item["state"], item["top"]
         print(f"  {plan['serial']}  {plan['kind']}")
         print(f"    정답 {item['row']['label']} · 경로 {state.route_reason}"
               f"/{state.abstention_reason.value} · 기대 {plan['expect']}")
         print(f"    1등 선례 {top.serial} · {top.label} · {top.score:.3f}"
-              f" · 반대 근거 {len(item['opposing'])}건")
+              f" · 반대 근거 {len(item['opposing'])}건 · 잠정 {state.provisional}")
+        deciding = plan.get("deciding")
+        if deciding:
+            key = deciding.replace(" ", "")
+            in_a = key in item["row"]["request"].replace(" ", "")
+            in_b = key in item["precedent_request"].replace(" ", "")
+            print(f"    결정어 '{deciding}' — A {in_a} · B {in_b}")
         print(f"    프롬프트 {len(item['prompt'])}자")
     total = sum(len(i["prompt"]) for i in resolved) / max(len(resolved), 1)
     print(f"\n추정 비용 약 ${estimate_cost(len(resolved), int(total)):.3f}"
@@ -185,6 +235,27 @@ def run_one(client, item, budget: CallBudget) -> dict:
     if verdict is not None:
         recovered, _ = apply_verdict(state, verdict)
 
+    # AG-13 의 정의를 그대로 잰다 — **겹치는 부분을 근거로 들었는가.**
+    # 인용이 선례에도 글자 그대로 있으면 그것은 갈리는 축이 아니다.
+    def squeeze(text):
+        return (text or "").replace(" ", "").replace("\n", "")
+
+    deciding = plan.get("deciding") or ""
+    quote_a, quote_b = data.get("quote_a"), data.get("quote_b")
+    a_text, b_text = squeeze(row["request"]), squeeze(item["precedent_request"])
+    probes = {
+        "deciding_phrase": deciding,
+        "deciding_phrase_in_request": squeeze(deciding) in a_text,
+        "deciding_phrase_in_precedent": squeeze(deciding) in b_text,
+        "quote_a_has_deciding_phrase": squeeze(deciding) in squeeze(quote_a),
+        "quote_b_has_deciding_phrase": squeeze(deciding) in squeeze(quote_b),
+        # 이것이 True 면 모델은 **두 글이 겹치는 부분**을 근거로 든 것이다
+        "quote_a_also_in_precedent": bool(quote_a) and squeeze(quote_a) in b_text,
+        "quote_b_also_in_request": bool(quote_b) and squeeze(quote_b) in a_text,
+    }
+    guard_blocked = bool(
+        verdict == "applies" and item["opposing"] and recovered is False)
+
     return {
         "case_id": plan["serial"],
         "kind": plan["kind"],
@@ -196,12 +267,11 @@ def run_one(client, item, budget: CallBudget) -> dict:
         "api_error": result.get("error"),
         "api_error_detail": result.get("error_detail"),
         "verdict": verdict,
-        "quote_a": data.get("quote_a"),
-        "quote_b": data.get("quote_b"),
+        "quote_a": quote_a,
+        "quote_b": quote_b,
         "quotes_ungrounded": grounding,
-        "quote_a_has_deciding_phrase": (
-            DECIDING_PHRASE.replace(" ", "") in (data.get("quote_a") or "").replace(" ", "")
-        ),
+        **probes,
+        "guard_blocked": guard_blocked,
         # 근거
         "top_precedent": {
             "serial": str(item["top"].serial), "label": item["top"].label,
@@ -241,14 +311,20 @@ def main() -> None:
     from app.core.paths import RESULTS
 
     ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--plan", choices=sorted(BUNDLES), default="legacy",
+                    help="어느 분할 위에서 도는가. 기본값은 legacy — "
+                         "기존 E11b 재현 명령이 그대로 돈다.")
     ap.add_argument("--go", action="store_true",
                     help="실제로 호출한다. 없으면 계획만 보여 준다.")
-    ap.add_argument("--output", default=str(RESULTS / "e11b_5cases.json"))
+    ap.add_argument("--output")
     args = ap.parse_args()
 
-    flow, _dev, test, by_key = build_world()
-    resolved, drift = resolve(flow, test, by_key)
-    preview(resolved, drift)
+    bundle = BUNDLES[args.plan]
+    output_path = args.output or str(RESULTS / bundle["out"])
+
+    flow, _dev, test, by_key = build_world(bundle)
+    resolved, drift = resolve(flow, test, by_key, bundle["plan"])
+    preview(resolved, drift, bundle)
 
     if drift:
         raise SystemExit(
@@ -267,7 +343,7 @@ def main() -> None:
     client = connect()
     budget = CallBudget()
     records: list[dict] = []
-    output = pathlib.Path(args.output)
+    output = pathlib.Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)
 
     print(f"\n{'':-<70}")
@@ -281,29 +357,30 @@ def main() -> None:
             break
         records.append(record)
         # 부른 것은 **곧바로** 남긴다. 뒤에서 죽어도 돈 쓴 결과는 지킨다.
-        output.write_text(json.dumps(_bundle(records, budget), ensure_ascii=False,
-                                     indent=1), encoding="utf-8")
+        output.write_text(json.dumps(_bundle(records, budget, bundle),
+                                     ensure_ascii=False, indent=1), encoding="utf-8")
         mark = "✓" if record["verdict"] == record["expected_verdict"] else "·"
         print(f"  {mark} {serial}  {item['plan']['kind']}  "
               f"판정 {record['verdict'] or record['api_error']}"
               f" (기대 {record['expected_verdict']}) · 회수 {record['recovered']}"
               f" · {record['latency_seconds']}s")
 
-    bundle = _bundle(records, budget)
-    output.write_text(json.dumps(bundle, ensure_ascii=False, indent=1), encoding="utf-8")
+    payload = _bundle(records, budget, bundle)
+    output.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"{'':-<70}")
-    print(f"호출 {budget.used}회 · 실제 비용 ${bundle['actual_cost']:.4f}")
+    print(f"호출 {budget.used}회 · 실제 비용 ${payload['actual_cost']:.4f}")
     print(f"-> {output}")
 
 
-def _bundle(records: list[dict], budget: CallBudget) -> dict:
+def _bundle(records: list[dict], budget: CallBudget, bundle: dict) -> dict:
     from app.infrastructure.anthropic_client import MODEL, PRICE_IN, PRICE_OUT
 
     cost = sum((r.get("input_tokens") or 0) / 1e6 * PRICE_IN
                + (r.get("output_tokens") or 0) / 1e6 * PRICE_OUT for r in records)
     return {
-        "experiment": "E11b",
-        "plan_document": "docs/18-e11b-case-selection.md",
+        "experiment": bundle["experiment"],
+        "plan_document": bundle["doc"],
+        "assets": {k: bundle[k] for k in ("dev", "test", "rules", "risk")},
         "model": MODEL,
         "calls_made": budget.used,
         "call_limit": budget.limit,
