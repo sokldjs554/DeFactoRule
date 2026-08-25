@@ -4,8 +4,9 @@
 요청/선례의 실제 텍스트 차이를 빠뜨렸는지, 근거가 원문에 접지되는지, 그리고
 `applies`를 허용해도 되는지 보수적으로 계산한다.
 
-첫 구현에서는 의미 유사도를 쓰지 않는다. 설계서의 4-gram τ는 아직 보정되지
-않았으므로 gate를 켜기 전까지 **정확 조각 일치만** 사용한다.
+PDF 줄바꿈이나 문장 전체를 difference로 오인하지 않도록, 대조용 정규화 문자열의
+실제 변경 구간을 문자 단위로 정렬해 coverage를 계산한다. 의미 유사도 threshold는
+도입하지 않는다.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ import math
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 from typing import Literal
 
 from app.core.text import normalize_for_match
@@ -27,7 +29,6 @@ Basis = Literal[
     "incomplete_analysis",
 ]
 
-_SEGMENT_SPLIT = re.compile(r"(?<=[다함?!])\.|\n+|[□○◦▪●•▶◆∙]+")
 _METADATA_PATTERNS = [
     re.compile(r"(?:[’']?\d{2,4}[.년]\s*\d{1,2}[.월]\s*\d{0,2}일?\.?)"),
     re.compile(r"일련번호\s*[:：]?\s*\d+"),
@@ -69,39 +70,32 @@ class GateResult:
     decisive_confirmed_ids: tuple[str, ...]
 
 
-def _segments(text: str, side: Literal["request", "precedent"]) -> list[Segment]:
-    """문장/줄 단위 조각과 normalize_for_match 원문 좌표를 만든다."""
-    raw_parts = [p.strip() for p in _SEGMENT_SPLIT.split(text or "") if p.strip()]
-    haystack = normalize_for_match(text)
-    out: list[Segment] = []
-    search_from = 0
-    for part in raw_parts:
-        norm = normalize_for_match(part)
-        if not norm:
-            continue
-        start = haystack.find(norm, search_from)
-        if start < 0:
-            # 좌표를 지어내지 않는다. 음수 span은 어떤 factor도 덮지 못한다.
-            out.append(Segment(part, norm, side, (-1, -1)))
-            continue
-        end = start + len(norm)
-        out.append(Segment(part, norm, side, (start, end)))
-        search_from = end
-    return out
-
-
 def _is_metadata(segment: Segment) -> bool:
     return any(pattern.search(segment.text) for pattern in _METADATA_PATTERNS)
 
 
-def _exact_difference(a: list[Segment], b: list[Segment]) -> tuple[list[Segment], list[Segment]]:
-    """τ 미보정 상태의 안전한 첫 구현: normalize된 조각의 정확 일치만 제거."""
-    b_values = {s.normalized for s in b}
-    a_values = {s.normalized for s in a}
-    return (
-        [s for s in a if s.normalized not in b_values],
-        [s for s in b if s.normalized not in a_values],
-    )
+def _diff_regions(request: str, precedent: str) -> tuple[list[Segment], list[Segment]]:
+    """공백/조판을 제거한 두 원문에서 실제로 달라진 문자 구간만 반환한다.
+
+    기존 문장 단위 exact-difference는 PDF 줄바꿈이나 한 절의 변경 때문에 긴 문장
+    전체를 difference로 만들었다. 여기서는 `normalize_for_match` 후 동일 부분열을
+    정렬하므로 줄바꿈은 사라지고, 실제 insert/delete/replace 구간만 남는다.
+    """
+    a = normalize_for_match(request)
+    b = normalize_for_match(precedent)
+    matcher = SequenceMatcher(None, a, b, autojunk=False)
+    da: list[Segment] = []
+    db: list[Segment] = []
+    for tag, a1, a2, b1, b2 in matcher.get_opcodes():
+        if tag == "equal":
+            continue
+        if a1 < a2:
+            value = a[a1:a2]
+            da.append(Segment(value, value, "request", (a1, a2)))
+        if b1 < b2:
+            value = b[b1:b2]
+            db.append(Segment(value, value, "precedent", (b1, b2)))
+    return da, db
 
 
 def _locate(text: str, factor: Factor) -> list[tuple[int, int]]:
@@ -136,15 +130,15 @@ def _inside(span: tuple[int, int], segment: Segment) -> int:
 
 
 def _covers(factor: Factor, factor_spans: list[tuple[int, int]], segment: Segment) -> bool:
+    """factor가 실제 diff 구간의 절반 이상을 직접 인용하면 coverage로 인정한다.
+
+    factor는 설명 가능한 조건절이므로 diff 주변의 공통 문맥을 함께 인용할 수 있다.
+    따라서 factor 바깥 길이로 벌점을 주지 않고, 실제 diff 자체를 얼마나 덮는지만 본다.
+    """
     if factor.side == "both" or factor.side != segment.side:
         return False
     required = math.ceil(len(segment.normalized) / 2)
-    for span in factor_spans:
-        inside = _inside(span, segment)
-        outside = (span[1] - span[0]) - inside
-        if inside >= required and outside <= inside:
-            return True
-    return False
+    return any(_inside(span, segment) >= required for span in factor_spans)
 
 
 def evaluate_diff_coverage(
@@ -161,9 +155,7 @@ def evaluate_diff_coverage(
     A1~A4 자체를 계산하지 않으므로 호출자가 `precedent_admissible=True`를
     명시한 경우에만 G5가 `applies` 성격의 basis를 낸다.
     """
-    request_segments = _segments(request, "request")
-    precedent_segments = _segments(precedent, "precedent")
-    da, db = _exact_difference(request_segments, precedent_segments)
+    da, db = _diff_regions(request, precedent)
     substantive = [s for s in da + db if not _is_metadata(s)]
 
     shared = list(shared_factors)
