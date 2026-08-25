@@ -123,6 +123,15 @@ def _check_account(client) -> None:
         print(f"  ⚠ 사전 점검에서 예상치 못한 오류: {type(exc).__name__} {exc.status_code}")
 
 
+def _usage(response) -> dict:
+    """200 응답이면 파싱 실패/거절이어도 과금 토큰을 잃지 않는다."""
+    usage = getattr(response, "usage", None)
+    return {
+        "input_tokens": getattr(usage, "input_tokens", None),
+        "output_tokens": getattr(usage, "output_tokens", None),
+    }
+
+
 def call_structured(
     client,
     system: str,
@@ -165,26 +174,37 @@ def call_structured(
     except anthropic.APIConnectionError as exc:
         return {"error": f"connection: {exc}", "prompt_chars": len(prompt)}
 
+    usage = _usage(response)
     if response.stop_reason == "refusal":
-        return {"error": "refusal"}
+        return {"error": "refusal", **usage}
 
     text = next((b.text for b in response.content if b.type == "text"), "")
     try:
         parsed = json.loads(text)
     except json.JSONDecodeError:
-        return {"error": "unparseable_output", "raw": text[:400]}
+        return {"error": "unparseable_output", "raw": text[:400], **usage}
 
-    return {
-        "data": parsed,
-        "input_tokens": response.usage.input_tokens,
-        "output_tokens": response.usage.output_tokens,
-    }
+    return {"data": parsed, **usage}
 
 
 def estimate_cost(records: list[dict]) -> float:
-    """성공한 호출들의 추정 비용."""
-    ok = [r for r in records if "input_tokens" in r]
+    """토큰 수가 실제 숫자로 남은 호출만 합산한다.
+
+    HTTP/API 오류처럼 usage가 없는 레코드는 0으로 취급한다. 반대로 200 응답 뒤
+    refusal/unparseable_output이 난 경우에는 call_structured가 usage를 보존하므로
+    비용에서 빠지지 않는다.
+    """
+    input_tokens = [
+        value
+        for record in records
+        if isinstance((value := record.get("input_tokens")), int)
+    ]
+    output_tokens = [
+        value
+        for record in records
+        if isinstance((value := record.get("output_tokens")), int)
+    ]
     return (
-        sum(r["input_tokens"] for r in ok) / 1e6 * PRICE_IN
-        + sum(r["output_tokens"] for r in ok) / 1e6 * PRICE_OUT
+        sum(input_tokens) / 1e6 * PRICE_IN
+        + sum(output_tokens) / 1e6 * PRICE_OUT
     )
