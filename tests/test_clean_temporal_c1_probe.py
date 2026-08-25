@@ -5,8 +5,8 @@ from collections import Counter
 from pathlib import Path
 
 from app.core.io import load_jsonl
-from app.evaluation.confusable import cosine, idf_table, weighted_vector
 from app.domain.similarity import SIMILARITY_FLOOR
+from app.evaluation.confusable import cosine, idf_table, weighted_vector
 
 DEV = Path("data/eval/nonaction_dev_clean.jsonl")
 TEST = Path("data/eval/nonaction_test_clean.jsonl")
@@ -40,8 +40,9 @@ def test_clean_temporal_c1_probe() -> None:
     idf = idf_table(texts)
     dvecs = [weighted_vector(r["request"], idf) for r in dev]
 
-    ranked: dict[str, list[list[tuple[int, float]]]] = {p: [] for p in ("none", "serial", "strict")}
-    eligible_counts: dict[str, list[int]] = {p: [] for p in ranked}
+    policies = ("none", "serial", "strict")
+    ranked: dict[str, list[list[tuple[int, float]]]] = {p: [] for p in policies}
+    eligible_counts: dict[str, list[int]] = {p: [] for p in policies}
     discarded_pairs = Counter()
     top5_removed = Counter()
     top5_removed_above = Counter()
@@ -56,9 +57,15 @@ def test_clean_temporal_c1_probe() -> None:
             ranked[policy].append(sorted(allowed, key=lambda x: (-x[1], x[0]))[:TOP_K])
             if policy != "none":
                 discarded_pairs[policy] += len(dev) - len(allowed)
-                removed = [(i, s) for i, s in nofilter if not eligible(policy, dev[i], row)]
+                removed = [
+                    (i, s)
+                    for i, s in nofilter
+                    if not eligible(policy, dev[i], row)
+                ]
                 top5_removed[policy] += len(removed)
-                top5_removed_above[policy] += sum(s >= SIMILARITY_FLOOR for _, s in removed)
+                top5_removed_above[policy] += sum(
+                    s >= SIMILARITY_FLOOR for _, s in removed
+                )
 
     def summarize(policy: str) -> dict:
         agree = trap = unanchored = 0
@@ -94,7 +101,6 @@ def test_clean_temporal_c1_probe() -> None:
         }
 
     summary = {p: summarize(p) for p in ranked}
-    # Existing B-2a clean deterministic profile is our drift check.
     assert summary["none"]["anchored"] == 60
     assert summary["none"]["agree"] == 48
     assert summary["none"]["trap"] == 12
@@ -112,7 +118,11 @@ def test_clean_temporal_c1_probe() -> None:
             for policy in ("serial", "strict"):
                 if not eligible(policy, dev[nf[0][0]], row):
                     future_top1[policy] += 1
-                removed = [(i, s) for i, s in nf if not eligible(policy, dev[i], row)]
+                removed = [
+                    (i, s)
+                    for i, s in nf
+                    if not eligible(policy, dev[i], row)
+                ]
                 if removed:
                     future_top5_any[policy] += 1
                 if any(s >= SIMILARITY_FLOOR for _, s in removed):
@@ -166,5 +176,5 @@ def test_clean_temporal_c1_probe() -> None:
         "b2b": b2b,
     }
 
-    # Intentionally surface the probe result in CI logs; this branch is never merged.
-    raise AssertionError("C1_TEMPORAL_RESULT=" + json.dumps(result, ensure_ascii=False, sort_keys=True))
+    payload = json.dumps(result, ensure_ascii=False, sort_keys=True)
+    raise AssertionError("C1_TEMPORAL_RESULT=" + payload)
