@@ -199,8 +199,8 @@ def _load_checkpoint() -> list[dict]:
         return []
     try:
         payload = json.loads(CHECKPOINT.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        raise SystemExit(f"checkpoint를 읽을 수 없습니다: {CHECKPOINT}")
+    except (json.JSONDecodeError, OSError) as exc:
+        raise SystemExit(f"checkpoint를 읽을 수 없습니다: {CHECKPOINT}") from exc
     records = payload.get("records", [])
     if not isinstance(records, list):
         raise SystemExit(f"checkpoint 형식이 잘못됐습니다: {CHECKPOINT}")
