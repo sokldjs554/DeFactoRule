@@ -1,10 +1,23 @@
 """Repository-wide pytest guards that do not add standalone test cases."""
 
+import inspect
+
 from app.agents.deciding_factor import Factor, evaluate_diff_coverage
+from app.agents.deciding_factor_prompt import build_prompt, schema
+from app.infrastructure.schema_rules import check_output_schema
 
 
 def pytest_sessionstart(session) -> None:  # noqa: ARG001
     """C-4 deciding-factor gate 핵심 계약을 매 test session 시작 시 검증한다."""
+    # S5 모델은 결론/basis를 정할 수 없고 두 요청문만 입력받는다.
+    s5_schema = schema()
+    assert not check_output_schema(s5_schema)
+    assert "applicability_basis" not in s5_schema["properties"]
+    assert "verdict" not in s5_schema["properties"]
+    assert set(inspect.signature(build_prompt).parameters) == {"request", "precedent_request"}
+    prompt = build_prompt("요청 A", "선례 B")
+    assert "요청 A" in prompt and "선례 B" in prompt
+
     # AG-13 / clean 230041형: 공통 조건과 양쪽의 결정적 차이를 절 단위로 나눈다.
     request = (
         "외부 시스템에서 자료를 전달받음.\n"
