@@ -4,6 +4,7 @@ import inspect
 
 from app.agents.deciding_factor import Factor, evaluate_diff_coverage
 from app.agents.deciding_factor_prompt import build_prompt, schema
+from app.agents.deciding_factor_run import resolve as resolve_s5_plan
 from app.infrastructure.schema_rules import check_output_schema
 
 
@@ -17,6 +18,11 @@ def pytest_sessionstart(session) -> None:  # noqa: ARG001
     assert set(inspect.signature(build_prompt).parameters) == {"request", "precedent_request"}
     prompt = build_prompt("요청 A", "선례 B")
     assert "요청 A" in prompt and "선례 B" in prompt
+
+    # 고정 5건의 temporal 검색 상태가 바뀌면 실제 호출 전에 CI에서 멈춘다.
+    resolved, drift = resolve_s5_plan()
+    assert len(resolved) == 5
+    assert not drift, f"C-4 S5 실행 계획 drift: {drift}"
 
     # AG-13 / clean 230041형: 공통 조건과 양쪽의 결정적 차이를 절 단위로 나눈다.
     request = (
