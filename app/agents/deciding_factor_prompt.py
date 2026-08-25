@@ -8,7 +8,9 @@ from __future__ import annotations
 
 from app.core.text import clean_for_prompt
 
-MAX_TOKENS = 1400
+# C-4 1차 실측에서 250055/240022가 정확히 1400 output tokens에서 잘렸다.
+# S5는 결론 생성이 아니라 구조 추출이므로 effort=low와 함께 여유 있는 상한을 둔다.
+MAX_TOKENS = 2200
 
 SYSTEM = """\
 당신은 금융규제 요청 두 건을 비교해 **조건 단위 차이**를 구조화합니다.
@@ -22,7 +24,9 @@ SYSTEM = """\
 5. decisive=false라면 왜 판단을 가르지 않는지 why_not_decisive를 반드시 적습니다.
 
 중요:
-- factor의 text는 원문에서 **그대로** 옮긴 충분한 길이의 절이어야 합니다.
+- factor의 text는 원문에서 **그대로 복사한 충분한 길이의 절**이어야 합니다.
+- `...`, `…`, 괄호 속 생략, 요약문처럼 원문을 줄여 쓰지 마십시오.
+- 원문에 없는 연결어·동의어·재서술을 factor.text에 넣지 마십시오.
 - 공통 문장을 결정적 차이라고 표시하지 마십시오.
 - 차이를 빠뜨리지 마십시오. 결정론적 코드가 원문의 실제 차집합과 대조합니다.
 - 날짜/일련번호/요청기관/문서 머리말 같은 메타데이터는 metadata_candidates에만
