@@ -10,10 +10,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
 import re
-from typing import Iterable, Literal
+from collections.abc import Iterable
+from dataclasses import dataclass
+from typing import Literal
 
 from app.core.text import normalize_for_match
 
@@ -151,7 +152,12 @@ def evaluate_diff_coverage(
     grounded: dict[str, list[tuple[int, int]]] = {}
     rejected: list[str] = []
     for factor in factors:
-        source = request if factor.side == "request" else precedent if factor.side == "precedent" else ""
+        if factor.side == "request":
+            source = request
+        elif factor.side == "precedent":
+            source = precedent
+        else:
+            source = ""
         spans = _locate(source, factor) if source else []
         if spans:
             grounded[factor.id] = spans
@@ -163,17 +169,26 @@ def evaluate_diff_coverage(
     decisive_confirmed: list[str] = []
 
     for segment in substantive:
-        covering = [f for f in factors if f.id in grounded and _covers(f, grounded[f.id], segment)]
+        covering = [
+            factor
+            for factor in factors
+            if factor.id in grounded and _covers(factor, grounded[factor.id], segment)
+        ]
         if not covering:
             uncovered.append(segment)
             continue
-        if any((not f.decisive) and not (f.why_not_decisive or "").strip() for f in covering):
+        if any(
+            (not factor.decisive) and not (factor.why_not_decisive or "").strip()
+            for factor in covering
+        ):
             unresolved.append(segment)
 
     for factor in factors:
         if not factor.decisive or factor.id not in grounded:
             continue
-        covers_real_difference = any(_covers(factor, grounded[factor.id], s) for s in substantive)
+        covers_real_difference = any(
+            _covers(factor, grounded[factor.id], segment) for segment in substantive
+        )
         if (
             covers_real_difference
             and factor.side in {"request", "precedent"}
