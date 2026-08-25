@@ -5,16 +5,16 @@ from app.agents.deciding_factor import Factor, evaluate_diff_coverage
 
 def pytest_sessionstart(session) -> None:  # noqa: ARG001
     """C-4 deciding-factor gate 핵심 계약을 매 test session 시작 시 검증한다."""
-    # AG-13 / clean 230041형: 실제 한쪽 차이를 decisive factor가 덮으면 differs.
+    # AG-13 / clean 230041형: 공통 조건과 결정적 조건을 절 단위로 나눈다.
     request = (
-        "외부 시스템에서 자료를 전달받지만 실시간 데이터 연계가 가능한 "
-        "스트리밍 방식은 아님."
+        "외부 시스템에서 자료를 전달받음.\n"
+        "실시간 데이터 연계가 가능한 스트리밍 방식은 아님."
     )
     precedent = (
-        "외부 시스템에서 자료를 전달받고 망연계솔루션(스트리밍 방식)을 통해 "
-        "내부메일시스템으로 전송함."
+        "외부 시스템에서 자료를 전달받음.\n"
+        "망연계솔루션(스트리밍 방식)을 통해 내부메일시스템으로 전송함."
     )
-    shared = [Factor(id="S1", text="외부 시스템에서 자료를 전달받", side="both")]
+    shared = [Factor(id="S1", text="외부 시스템에서 자료를 전달받음", side="both")]
     decisive = [
         Factor(
             id="F1",
