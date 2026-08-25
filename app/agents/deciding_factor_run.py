@@ -2,6 +2,7 @@
 
 기본 실행은 dry-run이다. `--go`를 명시해야만 Anthropic API를 호출한다.
 재시도/대체모델은 없고 정확히 이 파일의 PLAN 5건만 호출할 수 있다.
+각 호출 직후 checkpoint를 저장해 후처리 실패가 API 결과를 잃게 하지 않는다.
 """
 
 from __future__ import annotations
@@ -20,7 +21,6 @@ from app.core.paths import EVAL, PROCESSED, RESULTS
 from app.domain.similarity import DOUBT
 from app.retrieval.lexical import LexicalRetriever
 
-# C-4 temporal clean 사정거리 19건에서 역할별로 고정한 5건.
 PLAN = [
     {"serial": "250055", "kind": "적용 후보", "top": "250050", "route": "R5",
      "opposing": 0, "expect": "no_decisive_difference"},
@@ -35,11 +35,12 @@ PLAN = [
 ]
 MAX_CALLS = 5
 OUT = RESULTS / "clean" / "c4_s5_5cases.json"
+CHECKPOINT = RESULTS / "clean" / "c4_s5_5cases.checkpoint.json"
 
 
 class CallBudget:
-    def __init__(self) -> None:
-        self.used = 0
+    def __init__(self, used: int = 0) -> None:
+        self.used = used
 
     def spend(self) -> None:
         if self.used >= MAX_CALLS:
@@ -153,7 +154,6 @@ def _evaluate(data: dict, request: str, precedent: str):
         for key in ("only_in_request", "only_in_precedent")
         for x in data.get(key, [])
     ]
-    # 첫 실측에서는 A1~A4 admissibility를 별도 구현하지 않았으므로 G5는 fail-closed.
     return evaluate_diff_coverage(request, precedent, shared, differences)
 
 
@@ -194,9 +194,35 @@ def run_one(client, item: dict, budget: CallBudget) -> dict:
     }
 
 
+def _load_checkpoint() -> list[dict]:
+    if not CHECKPOINT.exists():
+        return []
+    try:
+        payload = json.loads(CHECKPOINT.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        raise SystemExit(f"checkpoint를 읽을 수 없습니다: {CHECKPOINT}")
+    records = payload.get("records", [])
+    if not isinstance(records, list):
+        raise SystemExit(f"checkpoint 형식이 잘못됐습니다: {CHECKPOINT}")
+    return records
+
+
+def _save_checkpoint(records: list[dict]) -> None:
+    CHECKPOINT.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "experiment": "C-4 S5 deciding-factor gate qualitative audit",
+        "records": records,
+        "completed_serials": [r.get("serial") for r in records],
+    }
+    CHECKPOINT.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--go", action="store_true", help="고정 5건을 실제로 각 1회 호출")
+    ap.add_argument("--go", action="store_true", help="미완료 고정 케이스만 실제 호출")
     args = ap.parse_args()
 
     resolved, drift = resolve()
@@ -208,19 +234,42 @@ def main() -> None:
 
     from app.infrastructure.anthropic_client import connect, estimate_cost
 
-    client = connect()
-    budget = CallBudget()
-    records = [run_one(client, item, budget) for item in resolved]
-    OUT.parent.mkdir(parents=True, exist_ok=True)
+    records = _load_checkpoint()
+    completed = {str(record.get("serial")) for record in records}
+    allowed = {item["plan"]["serial"] for item in resolved}
+    unknown = completed - allowed
+    if unknown:
+        raise SystemExit(f"checkpoint에 PLAN 밖 serial이 있습니다: {sorted(unknown)}")
+
+    pending = [item for item in resolved if item["plan"]["serial"] not in completed]
+    if not pending:
+        print(f"\n이미 5건 checkpoint 완료 — API 추가 호출 0회\n-> {CHECKPOINT}")
+    else:
+        print(f"\ncheckpoint 완료 {len(records)}건 · 이번 실행 예정 {len(pending)}건")
+        client = connect()
+        budget = CallBudget(used=len(records))
+        for item in pending:
+            record = run_one(client, item, budget)
+            records.append(record)
+            _save_checkpoint(records)
+            print(
+                f"  ✓ {record['serial']} 저장 · basis {record['basis']} · "
+                f"error {record['error'] or 'none'}"
+            )
+
     payload = {
         "experiment": "C-4 S5 deciding-factor gate qualitative audit",
-        "api_calls": budget.used,
+        "api_calls": len(records),
         "retry": 0,
         "records": records,
         "estimated_cost_usd": estimate_cost(records),
     }
+    OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"\nAPI calls {budget.used} · retry 0 · cost ${payload['estimated_cost_usd']:.4f}")
+    print(
+        f"\nrecords {len(records)} · 추가 retry 0 · "
+        f"cost ${payload['estimated_cost_usd']:.4f}"
+    )
     print(f"-> {OUT}")
 
 
