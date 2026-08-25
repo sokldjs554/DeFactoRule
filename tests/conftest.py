@@ -18,7 +18,7 @@ def pytest_sessionstart(session) -> None:  # noqa: ARG001
     decisive = [
         Factor(
             id="F1",
-            text="스트리밍 방식은 아님",
+            text="실시간 데이터 연계가 가능한 스트리밍 방식은 아님",
             side="request",
             axis="스트리밍 방식 여부",
             value_in_request="아님",
