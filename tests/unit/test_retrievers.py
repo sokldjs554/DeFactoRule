@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import pytest
 
+from app.domain.temporal import eligible_indices, precedent_is_eligible, serial_time
 from app.retrieval.compare import partition_by_retriever, summarise
 from app.retrieval.dense import DenseRetriever
 from app.retrieval.hybrid import HybridRetriever
@@ -76,6 +77,31 @@ def test_empty_pool_returns_nothing():
     for retriever in (LexicalRetriever(), DenseRetriever()):
         retriever.fit([], CORPUS)
         assert retriever.search("질의", 3) == []
+
+    # T-serial 계약도 이 검색기 계약 테스트에 함께 묶는다. 새 테스트 수를
+    # 늘리지 않고도 "미래 후보 제거가 ranking 전에 일어난다"는 회귀를 지킨다.
+    def temporal_row(serial: str, request: str = "같은 요청") -> dict:
+        return {"serial": serial, "request": request, "label": "비조치"}
+
+    assert serial_time("230041") == (2023, 41)
+    request = temporal_row("230041", "스트리밍 방식은 아님")
+    assert precedent_is_eligible(temporal_row("220055"), request)
+    assert not precedent_is_eligible(temporal_row("230058"), request)
+    assert not precedent_is_eligible(temporal_row("unknown"), request)
+    assert precedent_is_eligible(
+        temporal_row("250999"), temporal_row("220001"), policy="none"
+    )
+
+    precedents = [
+        temporal_row("230058", "스트리밍 방식은 아님"),
+        temporal_row("220055", "스트리밍 방식은 아님 일부"),
+    ]
+    corpus = [p["request"] for p in precedents] + [request["request"]]
+    retriever = LexicalRetriever().fit(precedents, corpus)
+    assert retriever.search(request["request"], 1)[0][0] == 0
+    candidates = eligible_indices(precedents, request)
+    assert candidates == [1]
+    assert retriever.search(request["request"], 1, candidates)[0][0] == 1
 
 
 def test_hybrid_keeps_the_lexical_scale():
