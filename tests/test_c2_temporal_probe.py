@@ -38,6 +38,19 @@ def _score(rows: list[dict], states: list) -> dict:
     }
 
 
+def _outcome(row: dict, state) -> str:
+    if state.abstained:
+        return "abstain"
+    return "correct" if state.decision == row["label"] else "wrong"
+
+
+def _top(state):
+    evidence = state.retrieved_evidence[0] if state.retrieved_evidence else None
+    if evidence is None:
+        return None
+    return [evidence.serial, evidence.label, round(evidence.score, 4)]
+
+
 def test_c2_clean_temporal_probe() -> None:
     dev = [r for r in load_jsonl(DEV) if r.get("label")]
     test = [r for r in load_jsonl(TEST) if r.get("label")]
@@ -47,8 +60,7 @@ def test_c2_clean_temporal_probe() -> None:
         for c in cases
     ]
     corpus = [t for t in corpus if t]
-    rules_payload = json.loads(RULES.read_text(encoding="utf-8"))
-    rules = rules_payload["rules"]
+    rules = json.loads(RULES.read_text(encoding="utf-8"))["rules"]
     risk = json.loads(RISK.read_text(encoding="utf-8"))
     fallback = Counter(r["label"] for r in dev).most_common(1)[0][0]
 
@@ -59,39 +71,47 @@ def test_c2_clean_temporal_probe() -> None:
         "router-temporal", LexicalRetriever, dev, rules, risk, test, corpus, fallback
     )
 
-    changed = []
+    transitions = Counter()
+    outcome_changes = []
+    top_changed = 0
     b2b = {}
     for row, before, after in zip(test, baseline, temporal):
         serial = str(row["serial"])
-        before_top = before.retrieved_evidence[0] if before.retrieved_evidence else None
-        after_top = after.retrieved_evidence[0] if after.retrieved_evidence else None
-        snapshot = {
-            "gold": row["label"],
-            "before_top": (
-                [before_top.serial, before_top.label, round(before_top.score, 4)]
-                if before_top
-                else None
-            ),
-            "after_top": (
-                [after_top.serial, after_top.label, round(after_top.score, 4)]
-                if after_top
-                else None
-            ),
-            "before": [before.route.value, before.decision, before.abstained],
-            "after": [after.route.value, after.decision, after.abstained],
-        }
-        top_changed = snapshot["before_top"] != snapshot["after_top"]
-        route_changed = snapshot["before"] != snapshot["after"]
-        if top_changed or route_changed:
-            changed.append({"serial": serial, **snapshot})
+        before_outcome = _outcome(row, before)
+        after_outcome = _outcome(row, after)
+        transitions[f"{before_outcome}->{after_outcome}"] += 1
+        if _top(before) != _top(after):
+            top_changed += 1
+        if before_outcome != after_outcome:
+            outcome_changes.append({
+                "serial": serial,
+                "gold": row["label"],
+                "before_outcome": before_outcome,
+                "after_outcome": after_outcome,
+                "before_route": before.route.value,
+                "after_route": after.route.value,
+                "before_reason": before.route_reason,
+                "after_reason": after.route_reason,
+                "before_top": _top(before),
+                "after_top": _top(after),
+            })
         if serial in B2B:
-            b2b[serial] = snapshot
+            b2b[serial] = {
+                "gold": row["label"],
+                "before_outcome": before_outcome,
+                "after_outcome": after_outcome,
+                "before_route": before.route.value,
+                "after_route": after.route.value,
+                "before_top": _top(before),
+                "after_top": _top(after),
+            }
 
     payload = {
         "router": _score(test, baseline),
         "router_temporal": _score(test, temporal),
-        "changed_cases": len(changed),
-        "changed": changed,
+        "top1_changed": top_changed,
+        "outcome_transitions": dict(transitions),
+        "outcome_changes": outcome_changes,
         "b2b": b2b,
     }
     raise AssertionError(
