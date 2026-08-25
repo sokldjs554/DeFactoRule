@@ -134,13 +134,14 @@ class Workflow:
             )
         top = hits[0][1] if hits else 0.0
         state.precedent_score = top
+        eligible_count = len(candidates) if candidates is not None else len(self.precedents)
         state.step(
             "retrieve",
             f"선례 {len(hits)}건",
             top_similarity=round(top, 4),
             retriever=self.retriever.name,
             temporal_policy=self.policy.temporal_policy,
-            eligible_candidates=(len(candidates) if candidates is not None else len(self.precedents)),
+            eligible_candidates=eligible_count,
         )
 
     def _match_rules(self, state: AgentState) -> None:
