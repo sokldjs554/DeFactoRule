@@ -22,9 +22,19 @@ class LexicalRetriever:
         self._vectors = [weighted_vector(p["request"], self._idf) for p in precedents]
         return self
 
-    def search(self, request: str, k: int = 5) -> list[tuple[int, float]]:
+    def search(
+        self,
+        request: str,
+        k: int = 5,
+        candidate_indices: list[int] | None = None,
+    ) -> list[tuple[int, float]]:
         query = weighted_vector(request, self._idf)
-        scored = [(i, cosine(query, v)) for i, v in enumerate(self._vectors)]
+        indices = (
+            range(len(self._vectors))
+            if candidate_indices is None
+            else candidate_indices
+        )
+        scored = [(i, cosine(query, self._vectors[i])) for i in indices]
         # 동점은 앞선 선례가 이긴다 — 난수 없이 재현된다
         scored.sort(key=lambda pair: (-pair[1], pair[0]))
         return scored[:k]
