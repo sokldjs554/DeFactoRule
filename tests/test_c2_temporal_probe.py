@@ -80,7 +80,9 @@ def test_c2_clean_temporal_probe() -> None:
             "before": [before.route.value, before.decision, before.abstained],
             "after": [after.route.value, after.decision, after.abstained],
         }
-        if snapshot["before_top"] != snapshot["after_top"] or snapshot["before"] != snapshot["after"]:
+        top_changed = snapshot["before_top"] != snapshot["after_top"]
+        route_changed = snapshot["before"] != snapshot["after"]
+        if top_changed or route_changed:
             changed.append({"serial": serial, **snapshot})
         if serial in B2B:
             b2b[serial] = snapshot
