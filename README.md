@@ -52,7 +52,7 @@
 | 평가 결과만 보고 규칙을 고친다 | dev/test 경계, provenance, regression guard를 먼저 고정하고 test 피드백 튜닝을 금지한다 |
 | 성공 사례만 보여준다 | 실패한 가설·과잉 기권·temporal proxy·OCR confidence 한계까지 frozen artifact에 남긴다 |
 
-초기 7개 판정기 비교에서는 **F1 7/21 · AURC 10/21 유의**였다. 그러나 최종 Agent의 목적은 그 legacy 실험을 이겼다고 주장하는 것이 아니다. 최종 단계에서는 데이터 누수와 미래 선례를 제거한 clean protocol 아래에서 **잘못된 선례 적용을 막는 안전한 workflow**를 고정했다.
+초기 7개 판정기 비교에서는 F1 7/21 · **AURC 10/21 유의**였다. 그러나 최종 Agent의 목적은 그 legacy 실험을 이겼다고 주장하는 것이 아니다. 최종 단계에서는 데이터 누수와 미래 선례를 제거한 clean protocol 아래에서 **잘못된 선례 적용을 막는 안전한 workflow**를 고정했다.
 
 ## 4. System Overview
 
@@ -342,7 +342,7 @@ C-4에서는 temporal 적용 후 선정한 5건을 별도 qualitative audit했�
 | E4 | 기저율을 프롬프트에 넣으면 개선되는가 | 가설 기각 |
 | E5 | 최근접 선례만 따르면 되는가 | `neighbor` TRAP 0.000 |
 | E6 | dev에서 역추출한 규칙이 test로 전이되는가 | 소수 클래스 규칙의 취약성 확인 |
-| E7 | 7개 모델 전수 비교 | **F1 7/21 · AURC 10/21 유의** |
+| E7 | 7개 모델 전수 비교 | F1 7/21 · **AURC 10/21 유의** |
 | E8~E11a | Router/기권/Validator ablation | 함정 오류 감소와 coverage 비용 확인 |
 | E11b | LLM applicability만으로 표면선례 문제를 해결하는가 | AG-13 발견, 단독 해결 실패 |
 | C-1 | 미래 선례를 제거하면 retrieval이 얼마나 변하는가 | T-serial 선택; strict-year는 지나치게 파괴적 |
