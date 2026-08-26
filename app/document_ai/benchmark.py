@@ -1,6 +1,6 @@
 """Reproducible synthetic scanned-document benchmark built from clean financial requests.
 
-The benchmark intentionally evaluates more than OCR character accuracy.  It measures
+The benchmark intentionally evaluates more than OCR character accuracy. It measures
 field-level exact extraction, document-level exactness, and whether the fail-closed
 validator actually routes ground-truth extraction errors to review.
 """
@@ -16,7 +16,11 @@ from app.core.io import load_jsonl
 from app.core.paths import EVAL
 from app.document_ai.extraction import extract_fields
 from app.document_ai.ocr import TesseractOCR
-from app.document_ai.validation import validate_extraction
+from app.document_ai.validation import (
+    OCR_LOW_CONFIDENCE_FRACTION_CEILING,
+    OCR_MEAN_CONFIDENCE_FLOOR,
+    validate_extraction,
+)
 
 BENCHMARK_N = 60
 BENCHMARK_SOURCE = EVAL / "nonaction_test_clean.jsonl"
@@ -88,7 +92,7 @@ def _select_rows(rows: Iterable[dict], n: int) -> list[dict]:
     if len(eligible) < n:
         raise RuntimeError(f"benchmark needs {n} eligible rows, found {len(eligible)}")
 
-    # Do not cherry-pick the easiest first N rows.  Spread deterministically across
+    # Do not cherry-pick the easiest first N rows. Spread deterministically across
     # the eligible clean split so the benchmark samples the corpus more broadly.
     indices = [int(i * len(eligible) / n) for i in range(n)]
     return [eligible[index] for index in indices]
@@ -180,6 +184,8 @@ def evaluate_document_ai(n: int = BENCHMARK_N) -> dict:
     for profile in PROFILES:
         char_errors: list[float] = []
         request_errors: list[float] = []
+        ocr_confidences: list[float] = []
+        low_confidence_fractions: list[float] = []
         tp = fp = fn = field_exact = 0
         document_exact = 0
         valid = 0
@@ -201,12 +207,21 @@ def evaluate_document_ai(n: int = BENCHMARK_N) -> dict:
             )
             output = ocr.recognize(image)
             fields = extract_fields(output.text)
-            report = validate_extraction(output.text, fields)
+            report = validate_extraction(
+                output.text,
+                fields,
+                ocr_mean_confidence=output.mean_confidence,
+                ocr_low_confidence_fraction=output.low_confidence_fraction,
+            )
             expected = _expected_fields(row)
             actual = _actual_fields(fields)
 
             char_errors.append(_cer(truth, output.text))
             request_errors.append(_cer(expected["request"], actual["request"]))
+            if output.mean_confidence is not None:
+                ocr_confidences.append(output.mean_confidence)
+            if output.low_confidence_fraction is not None:
+                low_confidence_fractions.append(output.low_confidence_fraction)
 
             row_tp, row_fp, row_fn, row_exact = _prf_counts(expected, actual)
             tp += row_tp
@@ -245,6 +260,10 @@ def evaluate_document_ai(n: int = BENCHMARK_N) -> dict:
                 "mean_cer_no_space": mean(char_errors),
                 "mean_request_cer_no_space": mean_request_cer,
                 "mean_request_char_accuracy": max(0.0, 1.0 - mean_request_cer),
+                "mean_ocr_word_confidence": mean(ocr_confidences) if ocr_confidences else None,
+                "mean_low_confidence_token_fraction": (
+                    mean(low_confidence_fractions) if low_confidence_fractions else None
+                ),
                 "field_precision_exact": precision,
                 "field_recall_exact": recall,
                 "field_f1_exact": f1,
@@ -262,7 +281,7 @@ def evaluate_document_ai(n: int = BENCHMARK_N) -> dict:
         )
 
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "benchmark": "synthetic_scanned_financial_requests",
         "source": str(BENCHMARK_SOURCE.relative_to(EVAL.parent.parent)),
         "selection": (
@@ -271,13 +290,20 @@ def evaluate_document_ai(n: int = BENCHMARK_N) -> dict:
         ),
         "n_documents": n,
         "fields": list(FIELD_NAMES),
+        "ocr_quality_gate": {
+            "mean_confidence_floor": OCR_MEAN_CONFIDENCE_FLOOR,
+            "low_confidence_fraction_ceiling": OCR_LOW_CONFIDENCE_FRACTION_CEILING,
+            "low_confidence_token_threshold": 60.0,
+            "policy": "review when mean confidence < floor OR low-confidence fraction > ceiling",
+            "preregistered_before_post_gate_benchmark": True,
+        },
         "profiles": profile_results,
         "ocr_engine": ocr.version(),
         "ocr_language": ocr.language,
         "note": (
             "Synthetic rasterization/degradation benchmark; not a claim about real scanned "
             "customer documents. No LLM calls are used. Exact field/document metrics compare "
-            "against ground truth; validator review metrics show how often structural/grounding "
-            "checks catch those extraction errors."
+            "against ground truth; review metrics show how often structural, grounding, and "
+            "predeclared OCR-confidence checks catch those extraction errors."
         ),
     }
