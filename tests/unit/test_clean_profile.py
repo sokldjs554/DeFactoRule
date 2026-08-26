@@ -7,6 +7,7 @@
 """
 
 import json
+from pathlib import Path
 
 from app.agents.calibration import band_of as calibration_band
 from app.core.paths import RESULTS
@@ -124,6 +125,14 @@ class TestIntegrity:
         )
         assert asset == committed_asset
         assert freeze == committed_freeze
+
+        agent_cli = (Path(__file__).parents[2] / "scripts" / "agent.py").read_text(
+            encoding="utf-8"
+        )
+        historical_block = agent_cli.split("HISTORICAL_EXPERIMENT_VARIANTS = (", 1)[1]
+        historical_block = historical_block.split(")", 1)[0]
+        assert '"router-temporal"' not in historical_block
+        assert historical_block.count('"') == 10
 
 
 class TestCounts:
