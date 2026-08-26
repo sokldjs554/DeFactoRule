@@ -62,27 +62,28 @@ class TesseractOCR:
             if confidence >= 0:
                 confidences.append(confidence)
 
-        text = "\n".join(" ".join(words) for _, words in sorted(lines.items())).strip()
+        reconstructed = "\n".join(
+            " ".join(words) for _, words in sorted(lines.items())
+        ).strip()
         if not confidences:
-            return text, None, None
+            return reconstructed, None, None
         low = sum(value < 60.0 for value in confidences)
-        return text, mean(confidences), low / len(confidences)
+        return reconstructed, mean(confidences), low / len(confidences)
 
-    def recognize(self, image_bytes: bytes) -> OcrOutput:
-        exe = shutil.which(self.executable)
-        if not exe:
-            raise OcrEngineUnavailable(f"OCR executable not found: {self.executable}")
+    def _run(self, exe: str, image_bytes: bytes, output_format: str | None = None) -> bytes:
+        command = [
+            exe,
+            "stdin",
+            "stdout",
+            "-l",
+            self.language,
+            "--psm",
+            str(self.psm),
+        ]
+        if output_format:
+            command.append(output_format)
         proc = subprocess.run(
-            [
-                exe,
-                "stdin",
-                "stdout",
-                "-l",
-                self.language,
-                "--psm",
-                str(self.psm),
-                "tsv",
-            ],
+            command,
             input=image_bytes,
             capture_output=True,
             check=False,
@@ -92,11 +93,22 @@ class TesseractOCR:
             raise OcrEngineUnavailable(
                 f"tesseract failed (lang={self.language}, psm={self.psm}): {detail[:500]}"
             )
-        text, mean_confidence, low_confidence_fraction = self._parse_tsv(
-            proc.stdout.decode("utf-8", errors="replace")
+        return proc.stdout
+
+    def recognize(self, image_bytes: bytes) -> OcrOutput:
+        exe = shutil.which(self.executable)
+        if not exe:
+            raise OcrEngineUnavailable(f"OCR executable not found: {self.executable}")
+
+        # Preserve Tesseract's native plain-text layout for downstream parsing.
+        # TSV is a separate observation channel used only for confidence signals.
+        text_payload = self._run(exe, image_bytes)
+        tsv_payload = self._run(exe, image_bytes, "tsv")
+        _, mean_confidence, low_confidence_fraction = self._parse_tsv(
+            tsv_payload.decode("utf-8", errors="replace")
         )
         return OcrOutput(
-            text=text,
+            text=text_payload.decode("utf-8", errors="replace").strip(),
             engine=f"{self.version()} lang={self.language} psm={self.psm}",
             mean_confidence=mean_confidence,
             low_confidence_fraction=low_confidence_fraction,
