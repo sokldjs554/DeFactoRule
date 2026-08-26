@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from statistics import mean
-from typing import Iterable, List, Tuple
 
 import pymupdf
 
@@ -47,7 +47,7 @@ def _cer(reference: str, hypothesis: str) -> float:
     return _distance(reference, hypothesis) / len(reference)
 
 
-def _select_rows(rows: Iterable[dict], n: int) -> List[dict]:
+def _select_rows(rows: Iterable[dict], n: int) -> list[dict]:
     selected = []
     for row in rows:
         request = str(row.get("request") or "")
@@ -90,7 +90,7 @@ def _render(text: str, dpi: int, image_format: str, quality: int = 45) -> bytes:
     return pix.tobytes("png")
 
 
-def _scalar_accuracy(expected: dict, actual) -> Tuple[int, int]:
+def _scalar_accuracy(expected: dict, actual) -> tuple[int, int]:
     pairs = (
         (str(expected["serial"]), actual.serial),
         (str(expected.get("sector") or ""), actual.sector),
@@ -105,8 +105,8 @@ def evaluate_document_ai(n: int = BENCHMARK_N) -> dict:
     ocr = TesseractOCR(language="kor", psm=6)
     profile_results = []
     for profile in PROFILES:
-        char_errors: List[float] = []
-        request_errors: List[float] = []
+        char_errors: list[float] = []
+        request_errors: list[float] = []
         scalar_correct = scalar_total = 0
         valid = 0
         review = 0
