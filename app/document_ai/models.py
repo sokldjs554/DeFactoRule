@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 
 @dataclass(frozen=True)
@@ -16,7 +15,7 @@ class PageText:
 class DocumentText:
     mode: str  # native | ocr
     engine: str
-    pages: List[PageText]
+    pages: list[PageText]
     text_health: float
 
     @property
@@ -26,18 +25,18 @@ class DocumentText:
 
 @dataclass(frozen=True)
 class ExtractedDocument:
-    serial: Optional[str]
-    sector: Optional[str]
-    decision: Optional[str]
-    request: Optional[str]
-    quotes: Dict[str, str] = field(default_factory=dict)
+    serial: str | None
+    sector: str | None
+    decision: str | None
+    request: str | None
+    quotes: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
 class ValidationReport:
     valid: bool
     review_required: bool
-    issues: List[str]
+    issues: list[str]
 
 
 @dataclass(frozen=True)
