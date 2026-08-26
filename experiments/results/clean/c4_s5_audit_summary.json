@@ -1,0 +1,106 @@
+{
+  "phase": "C-4 S5 deciding-factor qualitative audit",
+  "scope": "temporal clean preregistered 5-case audit",
+  "aggregate_metric_use": false,
+  "final_mode": "fail-closed safety veto",
+  "accepted_runs": {
+    "primary_5case_cost_usd": 0.2070,
+    "truncation_retry_2case_cost_usd": 0.0743,
+    "accepted_run_subtotal_usd": 0.2813,
+    "note": "An earlier crashed call batch occurred before checkpoint persistence was fixed; its cost/result is not included because the completed outputs were not recoverable."
+  },
+  "cases": [
+    {
+      "serial": "250055",
+      "kind": "application candidate",
+      "gold": "비조치",
+      "top_precedent": "250050",
+      "top_label": "비조치",
+      "route": "R5",
+      "opposing": 0,
+      "preregistered_expectation": "no_decisive_difference",
+      "initial_error": "unparseable_output at 1400 output tokens",
+      "final_basis": "decisive_difference",
+      "final_rule": "G4",
+      "decisive_confirmed_ids": ["p1", "r1", "r2"],
+      "uncovered_difference_count": 0,
+      "retry_output_tokens": 694,
+      "interpretation": "The preregistered recovery expectation was not confirmed. This prevents treating S5 as a validated automatic recovery mechanism."
+    },
+    {
+      "serial": "240006",
+      "kind": "high-similarity conflict",
+      "gold": "비조치",
+      "top_precedent": "230095",
+      "top_label": "기타",
+      "route": "R9",
+      "opposing": 3,
+      "preregistered_expectation": "decisive_difference",
+      "final_basis": "decisive_difference",
+      "final_rule": "G4",
+      "decisive_confirmed_ids": ["P1", "P2", "R1"],
+      "uncovered_difference_count": 0,
+      "interpretation": "Grounded deciding differences block blind transfer from a lexically similar precedent."
+    },
+    {
+      "serial": "230067",
+      "kind": "ambiguous or partial applicability",
+      "gold": "기타",
+      "top_precedent": "220046",
+      "top_label": "기타",
+      "route": "R5",
+      "opposing": 0,
+      "preregistered_expectation": "incomplete_or_difference",
+      "final_basis": "decisive_difference",
+      "final_rule": "G4",
+      "decisive_confirmed_ids": ["P1", "P2", "P3", "R1", "R2"],
+      "uncovered_difference_count": 3,
+      "interpretation": "A grounded decisive difference is sufficient for safe rejection even though recovery completeness is not established."
+    },
+    {
+      "serial": "240022",
+      "kind": "wrong top precedent with opposing evidence",
+      "gold": "비조치",
+      "top_precedent": "230028",
+      "top_label": "기타",
+      "route": "R1",
+      "opposing": 1,
+      "preregistered_expectation": "decisive_difference",
+      "initial_error": "unparseable_output at 1400 output tokens",
+      "final_basis": "decisive_difference",
+      "final_rule": "G4",
+      "decisive_confirmed_ids": ["p1", "p2", "r1", "r2"],
+      "uncovered_difference_count": 10,
+      "retry_output_tokens": 1343,
+      "interpretation": "The safety-veto path succeeds; uncovered differences do not invalidate a grounded decisive reason to reject precedent transfer."
+    },
+    {
+      "serial": "220070",
+      "kind": "wrong top precedent with zero opposing evidence",
+      "gold": "기타",
+      "top_precedent": "220036",
+      "top_label": "비조치",
+      "route": "R1",
+      "opposing": 0,
+      "preregistered_expectation": "decisive_difference",
+      "final_basis": "decisive_difference",
+      "final_rule": "G4",
+      "decisive_confirmed_ids": ["p1", "r1", "r2"],
+      "uncovered_difference_count": 2,
+      "interpretation": "The gate catches a surface-match risk even without an opposing-precedent guard."
+    }
+  ],
+  "conclusion": {
+    "adopted": true,
+    "role": "fail-closed safety veto on precedent applicability",
+    "automatic_recovery_validated": false,
+    "safe_recovery_established": false,
+    "claim_boundary": "The audit supports using grounded decisive differences to block precedent transfer. It does not establish that the system can safely recover abstentions when no decisive difference is found."
+  },
+  "limitations": [
+    "Only five preregistered qualitative cases were audited.",
+    "LLM outputs are stochastic; this audit does not establish class-wide elimination of AG-13-type failures.",
+    "The unclear/recovery path remains weakly evidenced.",
+    "S5 is not included in the frozen 168-row aggregate Router metrics."
+  ]
+}
