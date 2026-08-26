@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
 
 class RAGRequest(BaseModel):
     request_text: str = Field(..., min_length=1, max_length=20000)
-    request_serial: str | None = Field(
+    request_serial: Optional[str] = Field(
         None,
         description=(
             "YYNNN chronology proxy. temporal_policy=serial이면 필수이며, "
@@ -27,14 +27,14 @@ class RAGRequest(BaseModel):
 class RAGEvidence(BaseModel):
     evidence_id: str
     source: str
-    page: int | None = None
+    page: Optional[int] = None
     serial: str
-    pair_index: int | None = None
-    sector: str | None = None
+    pair_index: Optional[int] = None
+    sector: Optional[str] = None
     request: str
-    outcome: str | None = None
+    outcome: Optional[str] = None
     score: float
-    shared_quote: str | None = None
+    shared_quote: Optional[str] = None
 
 
 class RAGClaim(BaseModel):
@@ -45,26 +45,26 @@ class RAGClaim(BaseModel):
 
 class RAGMemo(BaseModel):
     summary: str
-    claims: list[RAGClaim]
+    claims: List[RAGClaim]
     uncertainty: str
     handoff_recommended: bool
 
 
 class RAGValidation(BaseModel):
     valid: bool
-    invalid_citations: list[str] = Field(default_factory=list)
-    ungrounded_quotes: list[str] = Field(default_factory=list)
-    reason: str | None = None
+    invalid_citations: List[str] = Field(default_factory=list)
+    ungrounded_quotes: List[str] = Field(default_factory=list)
+    reason: Optional[str] = None
 
 
 class RAGResponse(BaseModel):
     retriever: str
     temporal_policy: str
     evidence_count: int
-    evidence: list[RAGEvidence]
-    memo: RAGMemo | None = None
-    validation: RAGValidation | None = None
+    evidence: List[RAGEvidence]
+    memo: Optional[RAGMemo] = None
+    validation: Optional[RAGValidation] = None
     abstained: bool = False
-    abstain_reason: str | None = None
-    input_tokens: int | None = None
-    output_tokens: int | None = None
+    abstain_reason: Optional[str] = None
+    input_tokens: Optional[int] = None
+    output_tokens: Optional[int] = None
