@@ -78,11 +78,20 @@ def main() -> None:
 
         output = ocr.recognize(image)
         fields = extract_fields(output.text)
-        validation = validate_extraction(output.text, fields)
+        validation = validate_extraction(
+            output.text,
+            fields,
+            ocr_mean_confidence=output.mean_confidence,
+            ocr_low_confidence_fraction=output.low_confidence_fraction,
+        )
         payload = {
             "profile": profile["name"],
             "render": profile,
             "expected": expected,
+            "ocr_quality": {
+                "mean_confidence": output.mean_confidence,
+                "low_confidence_fraction": output.low_confidence_fraction,
+            },
             "ocr_text": output.text,
             "actual": _actual_fields(fields),
             "quotes": fields.quotes,
