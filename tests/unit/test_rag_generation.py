@@ -59,6 +59,17 @@ def _retriever() -> EvidenceRetriever:
     )
 
 
+def _request() -> RAGRequest:
+    # Generation is only allowed when retrieval survives the calibrated 0.15
+    # relevance floor.  Use a clearly relevant synthetic request so these tests
+    # exercise generation/grounding rather than the no-evidence path.
+    return RAGRequest(
+        request_text="금융회사가 외부 클라우드 서비스를 이용하는 경우",
+        request_serial="240001",
+        generate_memo=True,
+    )
+
+
 def test_generated_memo_with_grounded_citation_is_trusted(monkeypatch) -> None:
     retriever = _retriever()
     monkeypatch.setattr("app.rag.service._evidence_retriever", lambda: retriever)
@@ -75,14 +86,7 @@ def test_generated_memo_with_grounded_citation_is_trusted(monkeypatch) -> None:
         "handoff_recommended": True,
     }
     client = _Client(payload)
-    result = run_rag(
-        RAGRequest(
-            request_text="금융회사 클라우드 이용 문의",
-            request_serial="240001",
-            generate_memo=True,
-        ),
-        client=client,
-    )
+    result = run_rag(_request(), client=client)
     assert client.messages.calls == 1
     assert result.memo is not None
     assert result.validation is not None and result.validation.valid
@@ -106,14 +110,7 @@ def test_generated_memo_with_hallucinated_quote_fails_closed(monkeypatch) -> Non
         "uncertainty": "",
         "handoff_recommended": False,
     }
-    result = run_rag(
-        RAGRequest(
-            request_text="금융회사 클라우드 이용 문의",
-            request_serial="240001",
-            generate_memo=True,
-        ),
-        client=_Client(payload),
-    )
+    result = run_rag(_request(), client=_Client(payload))
     assert result.validation is not None and not result.validation.valid
     assert result.abstained
     assert result.abstain_reason == "citation_or_quote_validation_failed"
