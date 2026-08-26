@@ -2,7 +2,7 @@
 
 **과거 규제 예외 판단에서 실제로 적용된 기준을 복원하고, 새 요청에 선례를 적용해도 되는지 검증하는 AI Agent Workflow.**
 
-금융당국 사례집 **1,095 사례 · 1,122쌍**을 PDF에서 구조화하고, 규칙·선례 검색·LLM deciding-factor 분석·결정론적 검증·기권을 하나의 판단 흐름으로 연결했다. 최종 clean 프로파일은 **test 168건 중 76건 답변 / 92건 기권, 답변 정확도 82.89%, coverage 45.24%**다. 이 수치는 S5로 억지 회수하지 않은 fail-closed 결과다.
+금융당국 사례집 **1,095건 · 1,122쌍**을 PDF에서 구조화하고, 규칙·선례 검색·LLM deciding-factor 분석·결정론적 검증·기권을 하나의 판단 흐름으로 연결했다. 최종 clean 프로파일은 **test 168건 중 76건 답변 / 92건 기권, 답변 정확도 82.89%, coverage 45.24%**다. 이 수치는 S5로 억지 회수하지 않은 fail-closed 결과다.
 
 `1. Problem` · `2. Why This Problem` · `3. What Makes It Different` · `4. System Overview` · `5. Demo` · `6. Architecture` · `7. Evaluation` · `8. Failure Cases` · `9. Experiments` · `10. Limitations`
 
@@ -327,4 +327,4 @@ pip3 install -r requirements-dev.txt
 python3 -m pytest tests -q
 ```
 
-**현재 규모:** 1,095 사례 · 1,122쌍 · 실패 케이스 78건 · 테스트 <!--TESTS-->553<!--/TESTS-->개.
+**현재 규모:** 1,095건 · 1,122쌍 · 실패 케이스 78건 · 테스트 <!--TESTS-->553<!--/TESTS-->개.
