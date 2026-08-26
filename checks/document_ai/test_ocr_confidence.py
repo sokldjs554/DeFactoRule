@@ -18,9 +18,21 @@ FORM = """금융규제 업무 문서
 
 
 def test_tesseract_tsv_parser_reconstructs_lines_and_confidence() -> None:
-    tsv = "\t".join(
-        ["level", "page_num", "block_num", "par_num", "line_num", "word_num", "left", "top", "width", "height", "conf", "text"]
-    ) + "\n"
+    header = [
+        "level",
+        "page_num",
+        "block_num",
+        "par_num",
+        "line_num",
+        "word_num",
+        "left",
+        "top",
+        "width",
+        "height",
+        "conf",
+        "text",
+    ]
+    tsv = "\t".join(header) + "\n"
     tsv += "5\t1\t1\t1\t1\t1\t0\t0\t10\t10\t95.0\t금융규제\n"
     tsv += "5\t1\t1\t1\t1\t2\t0\t0\t10\t10\t55.0\t업무\n"
     tsv += "5\t1\t1\t1\t2\t1\t0\t0\t10\t10\t85.0\t문서\n"
