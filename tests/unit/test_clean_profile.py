@@ -16,6 +16,8 @@ from app.evaluation.clean_profile import (
     integrity,
     rule_transfer,
 )
+from app.evaluation.final_freeze import build_final_freeze
+from app.rules.runtime_induction import project_runtime_asset
 
 
 def row(serial="1", page="1", label="비조치", request="가나다", sector="전자금융",
@@ -74,10 +76,20 @@ class TestRuleTransfer:
         assert report["whole_model_accuracy"] == 0.5
 
     def test_the_sector_rule_changes_the_count_depending_on_who_reads_it(self):
-        rules = [rule(1, "기타", [{"kind": "sector", "value": "공통"}])]
+        sector_rule = rule(1, "기타", [{"kind": "sector", "value": "공통"}])
+        text_rule = rule(2, "비조치", [{"kind": "ngram", "value": "가"}])
         rows = [row(sector="공통", label="기타")]
-        assert rule_transfer(rules, "비조치", rows)["fired"] == 1
-        assert rule_transfer(rules, "비조치", rows, matcher=fires_as_router)["fired"] == 0
+        assert rule_transfer([sector_rule], "비조치", rows)["fired"] == 1
+        assert rule_transfer(
+            [sector_rule], "비조치", rows, matcher=fires_as_router
+        )["fired"] == 0
+
+        projected = project_runtime_asset(
+            {"settings": {}, "default_label": "비조치", "rules": [sector_rule, text_rule]}
+        )
+        assert [r["order"] for r in projected["rules"]] == [2]
+        assert projected["dropped_rules"][0]["order"] == 1
+        assert projected["dropped_rules"][0]["unsupported_atom_kinds"] == ["sector"]
 
 
 class TestIntegrity:
@@ -91,6 +103,15 @@ class TestIntegrity:
         report = integrity([row(serial="1")], [row(serial="2")],
                            [row(serial="1")], [row(serial="3")])
         assert report["union_preserved"] is False
+
+        asset, freeze = build_final_freeze(write=False)
+        assert len(asset["rules"]) == 10
+        assert [r["order"] for r in asset["dropped_rules"]] == [8]
+        assert freeze["final"]["answered"] == 76
+        assert freeze["final"]["abstained"] == 92
+        assert freeze["final"]["correct"] == 63
+        assert freeze["final"]["wrong"] == 13
+        assert freeze["transitions"]["changed"] == []
 
 
 class TestCounts:
