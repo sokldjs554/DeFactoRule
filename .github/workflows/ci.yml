@@ -23,7 +23,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      # OCR은 시스템 엔진 평가라 Python matrix에서 중복 실행하지 않는다.
+      # 3.11 job이 전용 Document AI checks + 60문서×3프로필 benchmark를 담당한다.
       - name: OCR 시스템 의존성
+        if: matrix.python-version == '3.11'
         run: |
           sudo apt-get update
           sudo apt-get install -y tesseract-ocr tesseract-ocr-kor
@@ -45,6 +48,7 @@ jobs:
         run: python scripts/evaluate_rag.py
 
       - name: Document AI realistic synthetic scan 평가
+        if: matrix.python-version == '3.11'
         run: python scripts/evaluate_document_ai.py --n 60
 
       - name: 코퍼스 규모 보고
