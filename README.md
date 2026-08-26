@@ -160,7 +160,7 @@ tests/             unit · integration · evaluation · regression
 experiments/       frozen result artifacts
 ```
 
-테스트 <!--TESTS-->553<!--/TESTS-->개를 Python 3.9와 3.11 CI에서 실행한다. C-5 merge 후 main push에서도 lint, 전체 테스트, 코퍼스 검사가 통과한 상태로 freeze했다.
+테스트 <!--TESTS-->563<!--/TESTS-->개를 Python 3.9와 3.11 CI에서 실행한다. C-5 merge 후 main push에서도 lint, 전체 테스트, 코퍼스 검사가 통과한 상태로 freeze했다.
 
 ### Runtime contract mismatch를 어떻게 처리했나
 
@@ -327,4 +327,4 @@ pip3 install -r requirements-dev.txt
 python3 -m pytest tests -q
 ```
 
-**현재 규모:** 1,095건 · 1,122쌍 · 실패 케이스 78건 · 테스트 <!--TESTS-->553<!--/TESTS-->개.
+**현재 규모:** 1,095건 · 1,122쌍 · 실패 케이스 78건 · 테스트 <!--TESTS-->563<!--/TESTS-->개.
