@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import re
-from typing import Dict, Optional
 
 from app.document_ai.models import ExtractedDocument
 from app.extraction.casebook import NONACTION_FIELDS, RE_DECISION, RE_SERIAL, split_fields
@@ -15,12 +14,12 @@ def _clean_scalar(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip(" \t:：._-、")
 
 
-def _line_value(text: str, label: str) -> Optional[str]:
+def _line_value(text: str, label: str) -> str | None:
     match = re.search(rf"(?m)^\s*{re.escape(label)}\s*[:：]?\s*(.+?)\s*$", text)
     return _clean_scalar(match.group(1)) if match else None
 
 
-def _request_block(text: str) -> Optional[str]:
+def _request_block(text: str) -> str | None:
     match = re.search(r"(?ms)^\s*요청대상행위\s*[:：]?\s*\n(?P<body>.+)$", text)
     if not match:
         return None
@@ -42,7 +41,7 @@ def extract_fields(text: str) -> ExtractedDocument:
 
     parsed_fields, _ = split_fields(text, NONACTION_FIELDS)
     request = parsed_fields.get("요청대상행위") or _request_block(text)
-    quotes: Dict[str, str] = {}
+    quotes: dict[str, str] = {}
     if serial_match:
         quotes["serial"] = serial_match.group(0)
     if sector:
