@@ -1,42 +1,28 @@
 # DeFactoRule
 
-**규제 예외 승인 이력에서, 문서 어디에도 적혀 있지 않은 판단 기준을 복원한다.**
+**과거 규제 예외 판단에서 실제로 적용된 기준을 복원하고, 새 요청에 선례를 적용해도 되는지 검증하는 AI Agent Workflow.**
 
-금융당국 사례집 1,095 사례로 "이 요청은 조치 대상인가" 를 판정하고,
-**틀릴 것 같으면 기권하는** 시스템. 결론은 정확도가 아니라 *어디서 틀리는지를
-아는가* 에 있다.
+금융당국 사례집 **1,095건 · 1,122쌍**을 PDF에서 구조화하고, 규칙·선례 검색·LLM deciding-factor 분석·결정론적 검증·기권을 하나의 판단 흐름으로 연결했다. 최종 clean 프로파일은 **test 168건 중 76건 답변 / 92건 기권, 답변 정확도 82.89%, coverage 45.24%**다. 이 수치는 S5로 억지 회수하지 않은 fail-closed 결과다.
 
-`1. Problem` · `2. Why` · `3. Different` · `4. Overview` · `5. Demo` ·
-`6. Architecture` · `7. Evaluation` · `8. Failures` · `9. Experiments` · `10. Limitations`
+`1. Problem` · `2. Why This Problem` · `3. What Makes It Different` · `4. System Overview` · `5. Demo` · `6. Architecture` · `7. Evaluation` · `8. Failure Cases` · `9. Experiments` · `10. Limitations`
 
 ---
 
 ## 1. Problem
 
-어떤 조직이든 규정에는 **원칙**만 적혀 있고, 실제 판단은 **예외 승인 이력에
-축적된 암묵 기준**을 따른다. "이런 조건이면 예외를 허용한다" 는 규칙이 문서
-어디에도 없이 관행으로 존재한다. 담당자가 바뀌면 이 기준이 사라지고, 판단이
-흔들린다.
+기업의 실제 업무 판단은 규정 문구만으로 끝나지 않는다. 같은 규정 아래에서도 과거에 무엇을 허용했고 무엇을 막았는지, 어떤 차이가 결론을 갈랐는지가 조직의 **De Facto Rule**로 축적된다. 문제는 그 기준이 문서 한 곳에 명시돼 있지 않다는 점이다.
 
-금융규제에서 이 현상은 공개 데이터로 관측된다. 금융회사는 "이 행위를 해도
-제재하지 않겠다" 는 확인을 당국에 요청하고, 당국은 **비조치의견서**로 답한다.
-회신문에는 결론과 근거 법령이 적힌다. 그러나 **왜 이 사안은 되고 저 사안은
-안 되는지를 가르는 기준은 어디에도 공표되지 않는다.**
+이 프로젝트는 금융규제 사례집을 공개된 관측 창으로 사용한다. PDF에서 요청·회답·라벨을 구조화하고, 새 요청에 대해 **명시 규칙 + 과거 선례 + 결정적 차이**를 함께 보면서 답할지 기권할지를 결정한다.
 
-증거는 사례집 안에 있다. 요청문이 거의 같은 사안들이 반복해서 나오는데,
-그중 일부는 결론이 갈린다 — 표면에 적혀 있지 않은 무언가 때문에
-([7. Evaluation](#7-evaluation) 의 함정 구간).
+핵심 질문은 “가장 비슷한 문서를 찾았는가?”가 아니다.
+
+> **이 선례가 지금 요청에도 실제로 적용 가능한가? 무엇이 결론을 가르는 차이인가?**
 
 ## 2. Why This Problem
 
-- **사람이 처리하는 방식**: 경력자의 머릿속. 인수인계 문서에는 "케이스 바이
-  케이스" 라고 적힌다.
-- **검색으로 안 되는 이유**: 정답이 문서에 없다. 검색은 적혀 있는 것만 찾는다.
-  이 저장소가 실제로 재봤다 — 가장 닮은 선례를 그대로 따라가는 전략(`neighbor`)은
-  선례와 결론이 같은 구간에서 정확도 **1.000**, 결론이 갈리는 구간에서 **0.000**
-  이다. 평균을 내면 그럴듯해 보이고, 갈리는 자리에서 전부 틀린다.
-- **더 나쁜 것은 눈이 먼 자리가 하필 중요한 쪽이라는 점이다.** 닮은 선례가
-  존재하는 비율을 정답 클래스별로 갈라 보면:
+검색만으로는 충분하지 않다. 가장 닮은 선례를 그대로 따라가는 `neighbor`는 선례와 정답이 같은 구간에서는 강하지만 결론이 갈리는 **TRAP** 구간에서는 구조적으로 실패했다.
+
+더 중요한 문제는 근거 가용성이 클래스마다 다르다는 점이다.
 
 <!-- README_BLIND:시작 -->
 | 정답 | test 건수 | dev 에 닮은 선례가 있는 건수 | 비율 |
@@ -46,137 +32,177 @@
 | `비조치` | 126 | 70 | **55.6%** |
 <!-- README_BLIND:끝 -->
 
-  제재로 이어지는 `조치` 는 드물고, 드문 만큼 선례도 없다. 검색 기반 접근은
-  **가장 비용이 큰 판단에서 구조적으로 무력하다.**
-- 그러므로 필요한 것은 생성이 아니라 **귀납**, 그리고 귀납이 실패하는 자리를
-  아는 것이다.
+제재로 이어질 수 있는 `조치`는 표본도, 닮은 선례도 적다. 그래서 DeFactoRule은 **항상 답하는 분류기**보다 다음 세 가지를 우선한다.
+
+1. 미래 선례를 보지 않는 검색 계약
+2. 표면 유사도와 실제 적용 가능성의 분리
+3. 근거가 부족하거나 충돌하면 기권하는 운영 계약
 
 ## 3. What Makes It Different
 
-| 흔한 프로젝트 | DeFactoRule |
+| 흔한 접근 | DeFactoRule |
 |---|---|
-| 문서에 적힌 답을 찾는다 | 문서에 없는 판단 기준을 복원한다 |
-| LLM 이 답을 생성한다 | LLM 은 의미 해석과 후보 생성만 한다. 수치·논리·판정은 결정론적 코드가 한다 |
-| "LLM 이 그럴듯한 이유를 말했다" 로 끝 | held-out 예측과 **부트스트랩 + Holm 보정**으로 진위를 가른다 |
-| 항상 답을 낸다 | **기권을 서비스 계약에 넣는다.** 모델은 신뢰도까지만 말하고 기권은 코드가 판정한다 |
-| 잘 된 결과만 싣는다 | 기각된 가설과 뒤집힌 진단을 그대로 남긴다 |
+| PDF를 검색 가능한 텍스트로만 만든다 | PDF → 사례 → 요청·회답 → 구조화된 평가 단위까지 결정론적으로 만든다 |
+| 가장 비슷한 선례를 답으로 사용한다 | **Temporal eligibility → Retrieval → Router → Applicability** 순서로 적용 가능성을 따진다 |
+| LLM이 최종 판단과 근거를 함께 생성한다 | LLM은 조건·차이를 구조화하고, 최종 safety basis는 결정론적 gate가 계산한다 |
+| 애매해도 답한다 | `abstain / human handoff`를 정상 출력으로 취급한다 |
+| 평가 결과만 보고 규칙을 고친다 | dev/test 경계, provenance, regression guard를 먼저 고정하고 test 피드백 튜닝을 금지한다 |
+| 성공 사례만 보여준다 | 실패한 가설·과잉 기권·temporal proxy 한계까지 frozen artifact에 남긴다 |
 
-**이 프로젝트가 실제로 내놓은 결론은 겸손한 쪽이다.** LLM 이 규칙 기준선보다
-매크로 F1 이 높다는 주장은 7개 모델 1,122쌍 비교에서 다중비교 보정 후 대부분
-살아남지 못한다(F1 7/21 · **AURC 10/21 유의**). 살아남는 것은 **위험–커버리지**
-쪽이다 — 같은 모델이 자기 신뢰도로 기권할 때 AURC 0.125 대 규칙 기준선 0.282.
-즉 이 도메인에서 LLM 의 값어치는 *더 맞히는 것* 이 아니라 **자기가 틀릴 때를
-아는 것** 이다. 서비스가 기권을 못 돌려주면 그 값어치는 경계에서 사라진다.
+초기 7개 판정기 비교에서는 **F1 7/21 · **AURC 10/21 유의****였다. 그러나 최종 Agent의 목적은 그 legacy 실험을 이겼다고 주장하는 것이 아니다. 최종 단계에서는 데이터 누수와 미래 선례를 제거한 clean protocol 아래에서 **잘못된 선례 적용을 막는 안전한 workflow**를 고정했다.
 
 ## 4. System Overview
 
-```
-사례집 PDF ─▶ 파서 ─▶ 사례 1,095건 ─▶ 질의–회답 1,122쌍 ─▶ 라벨(문서 체크박스)
-                │                                              │
-                │ 전 과정 결정론적 · 서식 회귀 테스트가 지킨다      │ dev/test 결정론적 분할
-                ▼                                              ▼
-        ┌───────────────────────── 판정기 7종 ─────────────────────────┐
-        │ majority · keyword · induced   결정론  (LLM 없이 어디까지)      │
-        │ neighbor                       검색    (닮은 선례를 따른다)     │
-        │ llm · prior · sector           LLM     (의미 해석 + 신뢰도)     │
-        └──────────────────────────────┬──────────────────────────────┘
-                                       ▼
-             채점 하네스 — 매크로 F1 · 위험–커버리지(AURC) · TRAP
-                                       ▼
-             기권 판정(결정론) ─▶ FastAPI ─▶ 시각화 화면 4종
+```text
+금융규제 사례집 PDF
+        │
+        ▼
+결정론적 문서 구조화
+PDF → 사례 → 요청·회답 쌍 → 라벨
+        │
+        ▼
+clean group split
+동일/날짜 변형 사안이 dev↔test를 넘지 않게 그룹 단위 분리
+        │
+        ▼
+Temporal Eligibility
+T-serial proxy로 현재 요청보다 이전인 후보만 retrieval pool에 남김
+        │
+        ▼
+Evidence Retrieval + De Facto Rules
+문자 4-gram IDF 선례 + runtime-compatible E6 규칙
+        │
+        ▼
+Router
+명확한 근거 / 충돌 / 표면유사 / 근거부족을 구분
+        │
+        ├── 충분한 근거 ───────────────▶ 결정론적 decision + validation
+        │
+        └── 위험·모호 subset
+                 │
+                 ▼
+          LLM Deciding-Factor Agent
+      shared / request-only / precedent-only 조건 추출
+                 │
+                 ▼
+        Deterministic Diff Coverage Gate
+          ├─ grounded decisive difference → 선례 적용 차단
+          ├─ 분석 불완전 → abstain / handoff
+          └─ 차이 없음 → recovery 후보일 뿐, 현재는 자동 회수하지 않음
 ```
 
-**§9 의 분리를 코드로 강제한다.** 무엇을 LLM 에게 맡기고 무엇을 맡기지 않는지가
-계층 경계와 같다.
+**LLM과 코드의 역할을 의도적으로 분리했다.**
 
-| LLM 이 하는 일 | 결정론적 코드가 하는 일 |
+| LLM | 결정론적 코드 |
 |---|---|
-| 요청문의 의미 해석 | 라벨 판정 · 클래스 집계 |
-| 회답에서 판단 기준 **후보** 생성 | 후보의 순환성·인용 대조 검증 |
-| 신뢰도 등급 표명 | **기권 여부 결정** · 문턱 운용 |
-| — | 통계 검정 · 다중비교 보정 · 분할 규율 |
+| 긴 업무 요청에서 공통 조건 구조화 | PDF/레코드 파싱과 키 생성 |
+| 요청에만 있는 조건 추출 | temporal candidate filtering |
+| 선례에만 있는 조건 추출 | retrieval ranking · rule matching |
+| 결정적 차이 후보 표시 | factor literal grounding 검증 |
+| — | Diff Coverage Gate · route · abstain · trace |
+| — | 평가 · provenance · regression guard |
 
-`agents` 는 `evaluation` 을 임포트하지 않는다. LLM 계층이 채점 계층에 기대면
-이 분리가 코드에서 무너지기 때문이다.
+LLM 출력 스키마에는 `verdict`, `applies/differs`, `applicability_basis` 자체가 없다. 모델이 결론을 직접 정하지 못하게 하고, 원문에 실제로 존재하는 factor만 안전 gate의 입력으로 사용한다.
 
 ## 5. Demo
 
-**Python 3.9 이상.** macOS 에서 `python` 은 시스템에 남은 2.7 을 가리키는 경우가
-많으니 반드시 `python3` 를 쓴다.
+Python 3.9 이상.
 
 ```bash
 git clone https://github.com/sokldjs554/DeFactoRule
-cd DeFactoRule                      # 모든 명령은 저장소 루트에서
+cd DeFactoRule
 pip3 install -r requirements.txt
-python3 scripts/check_env.py        # 무엇이 빠졌는지 알려준다
-python3 scripts/serve.py            # http://127.0.0.1:8000/  ·  API 문서 /docs
+python3 scripts/check_env.py
+python3 scripts/serve.py
 ```
 
-`/` 는 **대화창이 아니다.** 이 프로젝트의 핵심 질문 — *모델이 자기가 틀릴 때를
-아는가* — 를 네 화면으로 보여준다. 빌드 단계도 외부 자산도 없다.
+최종 clean 결과는 외부 API 없이 다시 계산할 수 있다.
 
-| 화면 | 무엇을 보여주는가 |
+```bash
+python3 scripts/calibrate_temporal.py
+python3 scripts/final_freeze.py
+```
+
+`final_freeze.py`는 다음 계약이 깨지면 실패한다.
+
+- clean test 168건
+- final answered 76 / abstained 92 / correct 63 / wrong 13
+- runtime E6에서 지원하지 않는 `sector` atom 제거
+- sector 제거 전후 **row-level Router behavior 변화 0건**
+- frozen JSON artifact와 재계산 결과 동일
+
+FastAPI UI는 기존 연구 결과와 실패 레지스트리를 탐색하는 용도다.
+
+| 엔드포인트 | 역할 |
 |---|---|
-| 위험–커버리지 곡선 | 기권을 허용하면 위험이 어떻게 떨어지는가. 모델별 AURC |
-| 판정 + 문턱 슬라이더 | 같은 요청에 문턱을 올려 보며 **기권이 생기는 지점**을 직접 본다 |
-| 업권별 기저율 | 어디가 어려운 구간인가. dev 에서 뽑은 값만 노출한다 |
-| 실패 레지스트리 | 58건의 **지금** 상태 — 재현 검사를 그 자리에서 돌린 결과 |
-
-| 엔드포인트 | 무엇을 주는가 |
-|---|---|
-| `POST /classify` | 결론 예측. `min_confidence` 를 올리면 **기권**한다 |
-| `GET /base-rates` | dev 기저율(업권별). test 에서 뽑은 값은 노출하지 않는다 |
-| `GET /evaluation/models` | 커버리지 100% 에서의 매크로 F1. 결측이 있으면 표시한다 |
-| `GET /evaluation/risk-coverage` | 위험–커버리지 곡선과 AURC. 결측이 있는 예측은 제외 |
-| `GET /failures` | 실패 레지스트리 + 재현 검사 결과 |
-
-전체 파이프라인을 원본 PDF 부터 다시 돌리는 명령은 [부록](#부록--재현)에 있다.
+| `POST /classify` | 기존 분류 서비스 + 기권 계약 |
+| `GET /base-rates` | dev 기반 기저율 |
+| `GET /evaluation/models` | 판정기 비교 결과 |
+| `GET /evaluation/risk-coverage` | 위험–커버리지 곡선/AURC |
+| `GET /failures` | 실패 레지스트리와 재현 probe |
 
 ## 6. Architecture
 
-```
+```text
 app/
-  core/            공용 입출력과 레코드 키. 도메인을 모른다.
-  domain/          라벨 체계 · 판정 지침 · 기저율
-  extraction/      PDF → 사례 → 질의·회답 쌍 (전 과정 결정론적)
-  rules/           결정론적 기준선 — LLM 없이 어디까지 되는가
-  retrieval/       근거 검색 — 아직 비어 있다
-  agents/          LLM 호출. 의미 해석과 후보 생성만 맡는다
-  evaluation/      채점 · 통계 · 오류 분석
-  infrastructure/  외부 시스템과의 경계
-  api/             서비스 진입점
+  core/            공용 I/O · text normalization · audit
+  domain/          라벨 · similarity threshold · temporal contract
+  extraction/      PDF → 사례 → 질의·회답 구조화
+  rules/           E6 rule induction + runtime capability projection
+  retrieval/       lexical · dense · hybrid retriever
+  agents/          Router · temporal calibration · deciding-factor Agent
+  evaluation/      clean profile · metrics · final freeze
+  infrastructure/  Anthropic API boundary · structured-output handling
+  api/             FastAPI service
 
-scripts/           얇은 CLI 진입점 (이름은 그대로, 구현은 app/ 에 있다)
+scripts/           얇은 CLI / 실험·freeze 진입점
 tests/             unit · integration · evaluation · regression
+experiments/       frozen result artifacts
 ```
 
-의존 방향은 위에서 아래로만 흐른다. 자세한 근거와 재편 과정은
-[docs/11-architecture.md](docs/11-architecture.md).
+테스트 <!--TESTS-->553<!--/TESTS-->개를 Python 3.9와 3.11 CI에서 실행한다. C-5 merge 후 main push에서도 lint, 전체 테스트, 코퍼스 검사가 통과한 상태로 freeze했다.
 
-테스트 <!--TESTS-->553<!--/TESTS-->개가 네 갈래로 나뉘어 있다. `regression` 은
-고친 실패가 다시 열리는 것을, `evaluation` 은 문서 수치가 산출물과 어긋나는 것을
-막는다.
+### Runtime contract mismatch를 어떻게 처리했나
 
-```bash
-pip3 install -r requirements-dev.txt
-python3 -m pytest tests -q
-```
+clean E6가 학습한 11개 규칙 중 #8은 `sector='공통'`이라는 editorial metadata를 사용했다. 그러나 live Router는 request text만 받으므로 이 규칙은 production에서 절대 발화할 수 없었다.
+
+처음에는 `sector`를 제외하고 규칙을 다시 유도하는 진단을 해봤지만, test에서 answered 101 / wrong 26으로 안전성이 악화됐다. 이 결과를 보고 규칙을 골라내는 대신 진단을 폐기했다. 최종 구현은 **이미 frozen된 E6에서 runtime이 평가할 수 없는 규칙 #8 전체만 capability projection으로 제거**한다. 대체 규칙을 새로 학습하지 않고 원래 order도 보존한다. 그 결과 최종 168건에서 C-3와 row-level 동작이 완전히 동일했다.
 
 ## 7. Evaluation
 
-**분할 규율.** dev/test 는 난수가 아니라 결정론적 규칙으로 나눈다(3건마다 1건).
-라벨은 사람이 붙인 것이 아니라 **문서에 인쇄된 체크박스**다. 정답 표지가 요청문에
-새어 들어가는 경로를 세 겹으로 지웠고, 클래스별 용어 감사(이항 검정 + Holm)로
-남은 누출을 다시 확인했다.
+### 7.1 Final clean operating profile
 
-**지표.**
+최종 운영 프로파일은 legacy random-like split이 아니라 **group-based clean split**을 사용한다. normalized request와 날짜 변형이 dev/test 경계를 넘지 않게 묶고, retrieval 전에 T-serial eligibility를 적용한다. T-serial은 실제 결정일자가 없는 데이터에서 쓰는 **chronology proxy**이지 실제 시간의 ground truth라고 주장하지 않는다.
 
-| 지표 | 왜 이것을 보는가 |
-|---|---|
-| 매크로 F1 | 클래스가 심하게 치우쳐 정확도는 다수 클래스만 맞혀도 올라간다 |
-| AURC (위험–커버리지) | 기권을 허용했을 때의 성능. 이 프로젝트의 실제 주장이 놓인 자리 |
-| **TRAP** ★ | 이 프로젝트를 위해 만든 지표 — 아래 |
-| 짝지은 부트스트랩 + Holm | 7개 모델 1,122쌍을 한 번에 비교하므로 보정 없이는 우연이 섞인다 |
+| 항목 | Final clean |
+|---|---:|
+| dev / test | 87 / 168 |
+| answered / abstained | 76 / 92 |
+| correct / wrong (answered) | 63 / 13 |
+| coverage | **45.24%** |
+| answered accuracy | **82.89%** |
+| Path A / B / C | 15 / 61 / 92 |
+| abstain — conflicting evidence | 60 |
+| abstain — no evidence | 23 |
+| abstain — surface only | 7 |
+| abstain — ambiguous margin | 2 |
+
+이 수치는 `experiments/results/clean/final_clean_temporal.json`에 고정돼 있고 CI가 재계산 결과와 byte-level 구조가 아닌 **JSON 의미 수준의 동일성**을 검사한다.
+
+Temporal-matched clean dev calibration도 retrieval 계약과 같은 T-serial 조건에서 다시 계산했다. trust band는 27건 중 2건 오류, doubt band는 50건 중 23건 오류였고 두 Wilson 구간은 분리됐다. 하지만 이 재보정은 최종 Router의 76/92/63/13을 바꾸지 않았다. temporal의 가치는 정확도 상승보다 **미래 선례를 후보에서 먼저 제외하는 causal integrity**에 있다.
+
+### 7.2 S5 — deciding-factor safety audit
+
+C-4에서는 temporal 적용 후 선정한 5건을 별도 qualitative audit했다. LLM은 두 요청문의 factor만 구조화하고, deterministic gate가 literal grounding과 한쪽에만 존재하는 결정적 차이를 확인했다.
+
+- `240006`, `230067`, `240022`, `220070`: grounded decisive difference로 G4
+- `250055`: 사전 기대는 `no_decisive_difference`였지만 최종 G4
+
+따라서 **safe recovery는 검증되지 않았다.** 이 결과를 숨기지 않고 S5를 자동 회수기가 아니라 **fail-closed safety veto**로 제한했다. aggregate 168건 성능에는 S5 회수를 넣지 않았다. 상세 frozen summary: `experiments/results/clean/c4_s5_audit_summary.json`.
+
+### 7.3 Historical model study — clean freeze와 별도 트랙
+
+아래 표들은 초기 170건 protocol에서 모델 특성과 위험–커버리지를 연구한 historical experiment다. 최종 clean 168건 operating profile과 직접 성능 비교하지 않는다.
 
 <!-- README_F1:시작 -->
 | 모델 | 매크로 F1 (커버리지 100%) |
@@ -190,12 +216,7 @@ python3 -m pytest tests -q
 | `majority` | 0.284 |
 <!-- README_F1:끝 -->
 
-**TRAP — 표면선례 함정 정확도.** 매크로 F1 도 AURC 도 기성품이고, 둘 다
-"문서에 적혀 있지 않은 기준을 복원했는가" 에는 답하지 못한다. 그래서 test 사례마다
-dev 에서 가장 닮은 선례를 찾아 두 무리로 가른다 — 선례의 결론이 정답과 같으면
-**순응**, 다르면 **함정**. 함정 구간의 정확도가 TRAP 이다. 표면 유사도를 그대로
-베끼는 전략은 여기서 **구조적으로 0%** 이므로, TRAP 은 *표면 너머를 읽었는가* 의
-직접 측정이 된다. 최근접 선례는 dev 에서만 찾는다(test 끼리 찾으면 정답이 오간다).
+**TRAP**은 test 요청의 최근접 dev 선례가 정답과 반대 결론인 구간을 따로 보는 지표다. 표면 유사도를 그대로 복사하는 `neighbor`는 이 구간에서 0이 된다.
 
 <!-- README_TRAP:시작 -->
 순응 72건 · 함정 15건 · 선례 없음 83건 (닮음 문턱 0.15, 문자 4-gram IDF 코사인)
@@ -210,23 +231,7 @@ dev 에서 가장 닮은 선례를 찾아 두 무리로 가른다 — 선례의 
 | `neighbor` | 0.724 | 1.000 | **0.000** | 1.000 |
 <!-- README_TRAP:끝 -->
 
-`neighbor` 가 순응 1.000 · 함정 0.000 인 것은 지표가 설계대로 작동한다는 뜻이다.
-전체 정확도만 보면 `neighbor` 는 `majority` 와 비슷해 보이지만, **결론이 갈리는
-자리에서는 하나도 맞히지 못한다.**
-
-이 표의 모든 수치는 `experiments/results/*.json` 에서 생성한다. 손으로 적지
-않는다 — 한 번 손으로 적었다가 판정이 뒤집힌 문장을 문서에 남긴 적이 있다(EV-14).
-
-```bash
-python3 scripts/sync_docs.py --check   # 어긋난 곳만 본다
-python3 scripts/sync_docs.py           # 산출물에서 다시 써 넣는다
-```
-
-### Agent Workflow — 무엇을 얻고 무엇을 잃었나
-
-Phase 3 은 판정기 하나를 더 만든 것이 아니라 **어떤 근거로 판단할지 정하는
-절차**를 만든 것이다. 그 절차의 각 부분이 값어치를 하는지 따로 쟀다(E8~E11a,
-새 API 호출 0회).
+초기 Agent ablation도 historical artifact로 보존한다.
 
 <!-- README_AGENT:시작 -->
 | 변형 | 커버리지 | 답한 것 정확도 | 매크로 F1 | 함정 15건 (맞힘/틀림/기권) |
@@ -240,238 +245,86 @@ Phase 3 은 판정기 하나를 더 만든 것이 아니라 **어떤 근거로 �
 기권 78건 중 **답했어도 맞았을 것이 50건(64%)** — 과잉 기권이 지금의 가장 큰 약점이다.
 <!-- README_AGENT:끝 -->
 
-읽는 법 세 가지.
-
-1. **기권은 함정에서 값어치를 한다.** 같은 라우팅에서 기권만 켜면 함정 구간의
-   오답이 13 → 5 로 준다(`router-noabstain` vs `router`). 커버리지 98.2% →
-   54.1% 가 그 대가다.
-2. **검증은 지금 배선에서 아무것도 바꾸지 않는다.** `router-novalidate` 와
-   `router` 의 모든 수치가 같다. 결정이 근거에서 나오고 인용을 원문에서 잘라
-   내므로 검사 넷이 구성상 참이기 때문이다. 지우지 않는 이유와 함께
-   [docs/17](docs/17-e8-e11-agent-workflow.md) 에 적었다.
-3. **전체 위험-커버리지는 나아지지 않았다.** AURC `naive` 0.215 대 `router`
-   0.236, 짝지은 부트스트랩에서 **판정 보류**(p Holm 0.413). 그러므로 이
-   워크플로가 전체적으로 우월하다고 주장하지 않는다.
-
-**결론은 이렇게 적는다.**
-
-> 지금의 Router 는 *더 잘 맞히는 모델* 이 아니다. **표면적으로 위험한 선례에서
-> 무리하게 답하는 오류를 줄이는 대신 커버리지를 크게 희생하는 보수적 라우팅**
-> 이 확인됐다. 다음 과제는 선례의 **실제 적용 가능성**을 판단해 과잉 기권을
-> 줄이는 것이다.
-
-### E11b — 그 "적용 가능성" 을 LLM 에게 물어봤다 (5건 실측)
-
-기권한 건에 대해 **결론은 감춘 채 요청문 둘만** 주고 "차이가 결론을 바꿀
-만한가" 를 물었다. 사전 등록한 5건, 각 1회, 재시도 0 ([선정안](docs/18-e11b-case-selection.md)
-은 호출 **전에** 커밋했다). claude-opus-5 · $0.0674.
-
-| case | 범주 | 기대 | 실제 | 선례 | 정답 | 최종 |
-|---|---|---|---|---|---|---|
-| 250055 | 명백히 적용 | applies | applies | 비조치 | 비조치 | **비조치** (회수) |
-| 240047 | 표면 유사 | differs | differs | 비조치 | 기타 | 기권 |
-| 230110 | 모호·부분 | unclear | differs | 기타 | 기타 | 기권 |
-| 240023 | 충돌·H1 | applies | applies | 비조치 | 비조치 | 기권 (가드가 막음) |
-| 220049 | 최고 난이도 | differs | **applies** | 기타 | 비조치 | 기권 (가드가 막음) |
-
-되는 자리와 안 되는 자리가 갈렸다. `240047` 에서는 유사도의 출처인 **공유
-각주를 인용하지 않고** 서로 다른 요청 행위를 정확히 집었다. 반면 `220049`
-(유사도 0.738)에서는 결론을 가른 구절 *"내부 업무용 시스템과는 연결되지
-않음"* 을 건드리지 않고 **양쪽에 똑같이 있는 문장**을 인용한 뒤 `applies`
-라고 답했다 — 검색기가 표면 유사도에 속는 것을 막으려고 붙인 검사가 같은
-방식으로 속았다.
-
-**결론은 이렇게 적는다.**
-
-> **E11b 는 applicability 판단이 일부 표면선례를 구분할 수 있음을
-> 보여주었지만, 높은 lexical similarity 환경에서 결론을 가르는 결정적 조건을
-> 놓치는 실패가 확인되었다. 따라서 applicability LLM 단독으로 TRAP 문제를
-> 해결하지 못했다.**
-
-오답이 0건이라는 사실을 성능 우위로 읽지 않는다. n=5 이고, 오답 0 은 대부분
-**답하지 않았기 때문**이다. 반대 근거 가드는 2회 발화해 이익 1·손해 1 이므로
-그 가설도 확인되지 않았다. → [docs/19](docs/19-e11b-results.md)
-
----
+이 legacy 진단에서 **과잉 기권 50건**이 확인됐고, 이것이 applicability 분석을 추가한 직접적인 동기였다. 최종 clean workflow에서는 temporal eligibility와 protocol leakage를 먼저 바로잡았기 때문에 위 표를 최종 운영 수치로 재사용하지 않는다.
 
 ## 8. Failure Cases
 
-실패 케이스 78건을 계층·범주로 분류하고, **각 건마다 재현 검사(probe)를 코드로**
-남겼다. 고쳤다고 기록된 케이스가 실패하면 그 수정이 풀린 것이고, 열려 있다고
-기록된 케이스가 통과하면 레지스트리가 낡은 것이다. 둘 다 테스트가 잡는다.
+실패 케이스 78건을 extraction / labeling / retrieval / evaluation / agent / infrastructure 계층으로 관리한다. 단순 메모가 아니라 재현 가능한 probe가 있는 failure registry다.
 
-```bash
-python3 scripts/failure_report.py              # 전체 재현 검사
-python3 scripts/failure_report.py --layer extraction
-```
+| ID | 실패 | 대응 |
+|---|---|---|
+| EX-05 | PDF 항목명의 뒷조각이 값 앞에 남음 | parser regression으로 406건 → 0건 |
+| EX-16 | 서로 다른 질의·회답을 순번 교집합으로 잘못 결합 | pair splitting regression |
+| EV-14 | 모델 수정 뒤 문서 판정이 예전 상태로 남음 | artifact→docs 동기화 검사 |
+| EV-16 | 규칙 후보가 조용히 버려져 원인 추적 불가 | 공용 discard audit |
+| AG-13 | 높은 lexical similarity에서 결정적 조건을 놓치고 공유 문구를 근거로 사용 | S5 deciding-factor + deterministic grounding; class-wide 해결로는 주장하지 않음 |
 
-기록에 남길 값어치가 있었던 것 몇 가지:
-
-| ID | 무엇이 잘못됐나 | 어떻게 드러났나 | 전 → 후 |
-|---|---|---|---|
-| EX-05 | 항목명의 뒷조각이 값 맨 앞에 남았다 | 레지스트리 probe 가 코퍼스를 훑어 | 406건 → 0건 |
-| EX-16 | 순번 교집합으로 짝을 지어 서로 다른 질의·회답을 붙였다 | 분할 함수에 단위 테스트를 붙이다 | 2건 → 0건 |
-| EV-14 | 학습기를 고친 뒤 문서만 갱신을 놓쳐 **판정이 뒤집힌 문장**이 남았다 | 7개 모델 전수 재계산 | 1건 → 0건 |
-| EV-16 | 규칙 학습기가 후보를 버리며 아무 데도 기록하지 않았다 | 공용 폐기 장치를 만들며 | 0개 → 165개 기록 |
-
-**개별 사례가 아니라 패턴을 지킨다.** 같은 종류의 실수가 2건 이상 쌓이면
-그 *패턴* 자체에 가드를 붙인다 — 예를 들어 "걸러내는 코드가 걸러낸 것을 기록하지
-않는다" 는 이제 모든 필터 단계를 훑어 검사한다. 전/후 수치와 taxonomy 는
-[docs/12-failure-registry.md](docs/12-failure-registry.md).
+고친 실패가 다시 열리거나, 문서 숫자가 frozen artifact와 달라지거나, final profile이 76/92/63/13에서 변하면 CI가 실패한다.
 
 ## 9. Experiments
 
-| 실험 | 물음 | 결과 |
+| 단계 | 질문 | 결론 |
 |---|---|---|
-| [E1](docs/07-e1-llm-vs-baseline.md) | LLM 이 규칙 기준선보다 나은가 | 매크로 F1 0.587 vs 0.494 — **판정 보류** |
-| [E2](docs/08-e2-risk-coverage.md) | 기권을 허용하면 달라지는가 | AURC 0.125 vs 0.282 — **유의** |
-| [E3](docs/09-e3-sector-analysis.md) | 어느 구간이 어려운가 | E1 진단 정정 · 전자금융이 어려운 구간 |
-| [E4](docs/10-e4-prompt-variants.md) | 기저율을 알려주면 나아지는가 | **가설 기각** — AURC 불변 |
-| [E5](docs/13-retrieval-baseline.md) | 검색만으로 어디까지 되는가 | F1 0.538 · **`조치` 앵커링 7.1%** |
-| [E6](docs/14-rule-induction.md) | 규칙을 역추출하면 전이되는가 | **`조치` 규칙 전이 100%→20%** |
-| [E7](docs/15-full-comparison.md) | 7개 모델 전수 비교, 보정 후 | F1 7/21 · **AURC 10/21 유의** |
-| [E8](docs/17-e8-e11-agent-workflow.md) | 검색을 무조건 믿는 것 대비 나아지는가 | AURC 0.215 → 0.236 — **판정 보류** |
-| [E9](docs/17-e8-e11-agent-workflow.md) | 경로 선택 자체의 값어치 | 함정 오답 14 → 5 |
-| [E10](docs/17-e8-e11-agent-workflow.md) | 기권의 값어치 | **함정 오답 13 → 5** |
-| [E11a](docs/17-e8-e11-agent-workflow.md) | 결정론 검증의 값어치 | **모든 수치 동일 — 값어치 0** |
-| [E11b](docs/19-e11b-results.md) | 선례의 적용 가능성을 LLM 이 가릴 수 있는가 | 5건 · **표면선례 일부는 구분, 유사도 0.738 에서 실패** |
+| E1 | LLM이 규칙 baseline보다 나은가 | 매크로 F1 0.587 vs 0.494 — 단독 우위 주장은 보류 |
+| E2 | confidence 기반 기권은 가치가 있는가 | AURC 0.125 vs 0.282 — 유의 |
+| E3 | 어느 도메인 구간이 어려운가 | 초기 진단을 데이터로 정정 |
+| E4 | 기저율을 프롬프트에 넣으면 개선되는가 | 가설 기각 |
+| E5 | 최근접 선례만 따르면 되는가 | `neighbor` TRAP 0.000 |
+| E6 | dev에서 역추출한 규칙이 test로 전이되는가 | 소수 클래스 규칙의 취약성 확인 |
+| E7 | 7개 모델 전수 비교 | **F1 7/21 · **AURC 10/21 유의** |
+| E8~E11a | Router/기권/Validator ablation | 함정 오류 감소와 coverage 비용 확인 |
+| E11b | LLM applicability만으로 표면선례 문제를 해결하는가 | AG-13 발견, 단독 해결 실패 |
+| C-1 | 미래 선례를 제거하면 retrieval이 얼마나 변하는가 | T-serial 선택; strict-year는 지나치게 파괴적 |
+| C-2 | temporal eligibility를 retrieval 전에 넣을 수 있는가 | 구현 완료; 성능 향상이 아니라 integrity 목적 |
+| C-3 | 같은 temporal 정책으로 risk를 다시 보정하면 결과가 바뀌는가 | calibration 정합화, Router 수치는 동일 |
+| C-4 | LLM이 결정적 차이를 구조화하고 코드가 검증할 수 있는가 | safety veto로 채택, safe recovery는 미검증 |
+| C-5 | runtime schema와 frozen rule asset을 일치시킬 수 있는가 | unsupported sector #8 제거, row-level delta 0 |
 
-기각된 가설(E4)과 뒤집힌 진단(E3)을 지우지 않고 남겼다. 실행하지 않은 수치는
-이 저장소 어디에도 쓰지 않는다.
+최종 hardening 근거는 다음 frozen artifacts에 있다.
 
-전체 문서: [주제 선정](docs/01-topic-research.md) · [W1 게이트](docs/02-w1-gate.md) ·
-[분할과 회귀](docs/03-splitting-and-regression.md) · [띄어쓰기 복원](docs/04-spacing-restoration.md) ·
-[Phase 2 baseline](docs/05-phase2-baseline.md) · [비조치 baseline](docs/06-nonaction-baseline.md) ·
-[아키텍처](docs/11-architecture.md) · [실패 레지스트리](docs/12-failure-registry.md) ·
-[회답 근거 구조화](docs/16-criteria-extraction.md) ·
-[Phase 3 설계](docs/phase3-agent-workflow-design.md) ·
-[E8~E11a Agent Workflow](docs/17-e8-e11-agent-workflow.md) ·
-[E11b 선정안](docs/18-e11b-case-selection.md) · [E11b 결과](docs/19-e11b-results.md) ·
-[최종 Agent Workflow 설계](docs/20-final-agent-workflow-design.md) ·
-[Temporal 정책 영향도](docs/21-temporal-policy-impact.md) ·
-[분할 누수 감사](docs/22-split-leakage-audit.md) ·
-[사안 무리 분할 — 설계와 실행](docs/23-group-split-design.md) ·
-[clean split 결정론 평가](docs/24-clean-deterministic-evaluation.md) ·
-[clean 평가 규약 감사](docs/25-clean-protocol-audit.md) ·
-[기저율 출처 정정](docs/26-clean-base-rate-provenance.md) ·
-[clean 실측 선정안](docs/27-clean-llm-case-selection.md)
+- `experiments/results/clean/trap_risk_clean_temporal.json`
+- `experiments/results/clean/e6_rules_clean_runtime.json`
+- `experiments/results/clean/c4_s5_audit_summary.json`
+- `experiments/results/clean/final_clean_temporal.json`
+
+세부 설계와 실패 과정은 `docs/20-final-agent-workflow-design.md` 이후 문서에 이어진다.
 
 ## 10. Limitations
 
-- **Agent 가 과하게 기권한다.** 78건 기권 중 **답했어도 맞았을 것이 50건
-  (64%)** 이다. 기권이 함정 구간의 오답을 줄이기는 하지만 값싸게 사지 않는다.
-  지금 이 워크플로의 가장 분명한 약점이다.
-- **선례의 적용 가능성을 LLM 에게 묻는 처방(E11b)은 TRAP 문제를 풀지 못했다.**
-  5건 실측에서 유사도 0.341 의 표면선례는 구분했지만, 0.738 에서는 결론을
-  가른 구절을 놓치고 겹치는 문장을 근거로 들었다(AG-13, 열린 케이스). 그리고
-  이 검사가 닿는 곳은 기권 78건 중 **22건뿐이며 그중 `조치` 는 0건**이다 —
-  가장 비싼 오류 구간에는 처방 자체가 닿지 않는다.
-- **E11b 는 5건이다.** 사정거리의 23%이고 경로 층화도 모집단과 다르다. 오답
-  0건·회수 1건을 성능 수치로 일반화하지 않는다. 나머지 17건은 부르지 않기로
-  했다 — 수치는 늘지만 위 실패는 그대로이기 때문이다.
-- **전체 성능은 기존 LLM 판정기보다 낮다.** AURC `router` 0.236 대 `sector`
-  0.124(보정 후 유의). Agent 는 LLM 을 전혀 쓰지 않으므로 당연하지만, 그렇다고
-  "Agent 가 더 낫다" 고 적을 수는 없다.
-- **소수 클래스 표본이 작다.** test 의 `조치` 는 14건이다. 이 프로젝트의 소수
-  클래스 수치는 모두 그 위에 있고, 신뢰구간이 넓다. 확대 해석하지 않는다.
-- **회답 근거 구조화가 아직 실행되지 않았다.** 파이프라인·순환 차단·인용 대조는
-  구현과 테스트를 마쳤으나 실제 추출은 미실행이다(Phase 5b). 설계와 사전 등록한
-  성공 기준은 [docs/16](docs/16-criteria-extraction.md).
-- **`retrieval/` 은 비어 있다.** E5 의 검색 기준선은 `evaluation` 안에서 돌고,
-  독립된 색인 계층(Elasticsearch)은 아직 없다.
-- **Track B(혁신금융서비스 부가조건)는 미착수.** 게이트에서 반려·미지정 사례가
-  공개되지 않는다는 제약을 확인했고, 타겟을 "어떤 부가조건이 어느 수준으로
-  붙는가" 로 재정의해 둔 상태다. → [docs/01](docs/01-topic-research.md)
-- **법령해석 트랙(836건)에는 아직 정답이 없다.** 비조치 트랙만 문서 체크박스라는
-  순환 없는 라벨을 갖는다.
-- **미적용 스택**: LangGraph 워크플로 · Docker 패키징 · PostgreSQL. 필요가
-  생기지 않은 것을 쓰기 위해 설계를 비틀지 않았다.
+- **Coverage를 희생한다.** 최종 clean test 168건 중 92건을 기권한다. 답변 정확도 82.89%는 반드시 coverage 45.24%와 함께 읽어야 한다.
+- **T-serial은 실제 시간축이 아니다.** 데이터에 결정/회신일이 일관되게 없어서 serial 순서를 chronology proxy로 쓴다. 과거 실측에서 실제 날짜 순서와의 inversion이 존재했으므로 “temporal-safe”라고 부르지 않는다.
+- **S5 safe recovery는 검증되지 않았다.** 5건 qualitative audit에서 적용 후보 `250055`도 decisive difference로 차단됐다. 따라서 현재 S5는 잘못된 선례 적용을 막는 veto이지 coverage 회수 장치가 아니다.
+- **LLM audit 표본은 작고 stochastic하다.** 한 clean AG-13형 사례를 잡았다고 failure class가 해결됐다고 주장하지 않는다.
+- **`조치` 선례 근거가 희소하다.** clean test의 소수 클래스에 threshold-positive precedent가 거의 없어 retrieval 기반 개선이 구조적으로 어렵다.
+- **DOUBT/TRUST는 clean dev에서 band separation을 지지하지만 유일 최적값으로 재탐색한 값은 아니다.** 성능을 맞추기 위한 threshold tuning은 하지 않았다.
+- **Document AI는 구조화 파이프라인 수준이다.** PyMuPDF 기반 PDF→사례→질의·회답 구조화와 회귀 테스트는 구현했지만, OCR/layout model 자체를 연구한 프로젝트는 아니다.
+- **실서비스 배포 성과로 과장하지 않는다.** FastAPI 경계와 재현 가능한 pipeline은 있지만 실제 고객 트래픽에서 운영한 시스템은 아니다.
+- **historical 170건 실험과 final clean 168건은 프로토콜이 다르다.** legacy F1/AURC/TRAP 표를 final Agent의 직접 비교 수치로 사용하지 않는다.
 
 ---
 
-## 부록 — 진행 상태
+### Reproduce
 
-| Phase | 내용 | 상태 |
-|---|---|---|
-| **−1** | 주제 발굴 35개 → 채점 → 최종 1개 선정 | ✅ 완료 |
-| **−1b** | 데이터 생존 게이트 | ✅ 조건부 통과 (설계 변경) |
-| **1a** | 사례집 파서 · 코퍼스 실측 | ✅ **1,095건 — W1 게이트 통과** |
-| **1b** | 질의–회답 분할 · 서식 회귀 테스트 | ✅ 1,122쌍 |
-| **1c** | 띄어쓰기 복원 | ✅ 45건 복원 · 비조치 F1 0.816 |
-| **2a** | 라벨 체계 · 규칙 baseline · 평가 하네스 | ✅ 법령해석 커버리지 41.1% |
-| **2b** | LLM 분류기 | ✅ 비조치 170/170 |
-| **2c** | 비조치 트랙 baseline (순환 없는 평가) | ✅ 매크로 F1 0.494 |
-| **2d** | E1 — LLM vs 규칙 baseline | ✅ 매크로 F1 0.587 (판정 보류) |
-| **2e** | E2 — 위험-커버리지 곡선 | ✅ AURC 0.125 vs 0.282 (**유의**) |
-| **2f** | E3 — 업권별 분석 | ✅ E1 진단 정정 |
-| **2g** | E4 — 기저율 프롬프트 변형 | ✅ 가설 기각 (AURC 불변) |
-| **2h** | E5 — 검색 기준선 · 표면선례 함정 지표 | ✅ 검색 F1 0.538 · **조치 앵커링 7.1%** |
-| **3a** | 아키텍처 재편 · 테스트 4분할 | ✅ app/ 9계층 |
-| **3b** | 실패 케이스 레지스트리 | ✅ 실행 가능한 재현 검사 |
-| **3c** | API 계층 (FastAPI · Pydantic) | ✅ 기권을 계약에 포함 |
-| **3d** | 시각화 UI (채팅창 아님) | ✅ 화면 4종 |
-| **4a** | E6 — 규칙 역추출 (결정론적 학습기) | ✅ **조치 규칙 전이 100%→20%** |
-| **4b** | E7 — 7개 모델 전수 비교 (Holm 보정) | ✅ F1 7/21 · **AURC 10/21 유의** |
-| **5a** | 회답 근거 구조화 — 파이프라인·안전장치 | ✅ 순환 차단 · 인용 대조 · dry-run |
-| **5b** | 회답 근거 구조화 — 실행 | ⏸ 중단 (표본 대비 실험 과대 · [docs/16](docs/16-criteria-extraction.md)) |
-| **3-1** | 선례 신뢰도 보정 (dev LOO) | ✅ 구간 분리 확인 · 2차원 초안 폐기 |
-| **3-2** | 검색기 3종 비교 (L·D·H) | ✅ **검색을 바꿔 풀 문제가 아님** |
-| **3-3** | Router · Validator · Workflow | ✅ 극단 케이스 9종 · 실행 흔적 |
-| **3-4** | E8~E11a | ✅ 기권 유효 · 검증 값어치 0 · **AURC 개선 실패** |
-| **3-5** | E11b — 선례 적용가능성 (LLM) | ✅ 5건 실측 $0.0674 · **TRAP 미해결**([AG-13](docs/19-e11b-results.md)) |
-| 9~11 | UI 확장 · 배포 | ⬜ 최종 Agent Workflow 설계 확정 뒤로 미룸 |
-
-**현재 규모** — 실패 케이스 78건(열린 것 1건) · 테스트 <!--TESTS-->553<!--/TESTS-->개.
-두 수치 모두 `scripts/sync_docs.py` 가 산출물에서 다시 채우고
-`tests/regression/test_documented_numbers.py` 가 매번 대조한다. 손으로 적어
-두고 대조되지 않던 수치("테스트 331개 · 문서 16편")는 실제와 어긋난 채
-남아 있었으므로 지웠다 — 대조되지 않는 숫자는 적지 않는다.
-
-## 부록 — 재현
-
-원본 PDF 는 저장소에 커밋하지 않는다. [data/SOURCES.md](data/SOURCES.md) 를 보고
-`data/raw/casebooks/` 에 넣은 뒤:
+원본 PDF는 저장소에 커밋하지 않는다. `data/SOURCES.md`의 출처에서 받아 `data/raw/casebooks/`에 둔다.
 
 ```bash
-# 1. 사례집 PDF → 사례
+# PDF → 구조화 사례
 python3 scripts/parse_casebook.py --input data/raw/casebooks --output data/processed
-
-# 2. 띄어쓰기 복원
 python3 scripts/restore_spacing.py train --input data/processed --model models/spacing.json
 python3 scripts/restore_spacing.py apply --input data/processed --model models/spacing.json --threshold -0.25
-
-# 3. 질의–회답 쌍으로 분할
 python3 scripts/split_queries.py --input data/processed --output data/processed
 
-# 4. 평가셋 (정답은 문서 체크박스)
+# historical evaluation assets
 python3 scripts/make_nonaction_gold.py --input data/processed/cases_nonaction.jsonl --output data/eval
+python3 scripts/sync_docs.py --check
 
-# 5. 결정론적·검색 기준선
-python3 scripts/baseline_nonaction.py --gold data/eval/nonaction_test.jsonl \
-    --output data/processed/pred_nonaction_majority.jsonl --strategy majority
-python3 scripts/baseline_neighbor.py --dev data/eval/nonaction_dev.jsonl \
-    --gold data/eval/nonaction_test.jsonl \
-    --output data/processed/pred_nonaction_neighbor.jsonl
+# final clean deterministic freeze — API 호출 없음
+python3 scripts/calibrate_temporal.py
+python3 scripts/final_freeze.py
 
-# 6. LLM 판정기 (API 키 필요 · --limit 로 먼저 비용을 확인한다)
-export ANTHROPIC_API_KEY=...
-python3 scripts/classify_llm.py --task nonaction \
-    --input data/eval/nonaction_test.jsonl \
-    --output data/processed/pred_nonaction_llm.jsonl --limit 30
-
-# 7. 채점
-python3 scripts/evaluate.py --gold data/eval/nonaction_test.jsonl \
-    --pred data/processed/pred_nonaction_majority.jsonl --labels nonaction --name majority
+# tests
+pip3 install -r requirements-dev.txt
+python3 -m pytest tests -q
 ```
 
-## 부록 — 개발 환경 주의사항
-
-수집 대상 도메인은 개발 컨테이너에서 접근이 차단되어 있다.
-
-```
-better.fsc.go.kr    EGRESS_BLOCKED   (금융규제·법령해석포털)
-www.data.go.kr      EGRESS_BLOCKED   (공공데이터포털)
-```
-
-**수집 스크립트는 로컬에서 실행한다.** 수집 결과를 커밋한 뒤 전처리·모델링·평가를
-진행한다.
+**현재 규모:** 1,095건 · 1,122쌍 · 실패 케이스 78건 · 테스트 <!--TESTS-->553<!--/TESTS-->개.
