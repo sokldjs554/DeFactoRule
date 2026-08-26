@@ -19,7 +19,12 @@ def process_document(
 ) -> DocumentAIResult:
     document = read_document(path, ocr=ocr, dpi=dpi)
     fields = extract_fields_llm(document.text, client) if use_llm else extract_fields(document.text)
-    report = validate_extraction(document.text, fields)
+    report = validate_extraction(
+        document.text,
+        fields,
+        ocr_mean_confidence=document.ocr_mean_confidence,
+        ocr_low_confidence_fraction=document.ocr_low_confidence_fraction,
+    )
     return DocumentAIResult(
         document=document,
         fields=fields,
