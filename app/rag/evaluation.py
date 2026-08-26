@@ -26,7 +26,7 @@ def evaluate_retrieval(k: int = 5) -> dict:
     top1_agreement: list[bool] = []
     topk_same_outcome: list[bool] = []
     evidence_counts: list[int] = []
-    ids: list[str] = []
+    duplicate_id_queries = 0
     temporal_violations = 0
 
     for row in test:
@@ -37,7 +37,9 @@ def evaluate_retrieval(k: int = 5) -> dict:
             temporal_policy="serial",
         )
         evidence_counts.append(len(hits))
-        ids.extend(hit.evidence_id for hit in hits)
+        ids = [hit.evidence_id for hit in hits]
+        if len(ids) != len(set(ids)):
+            duplicate_id_queries += 1
 
         for hit in hits:
             if not precedent_is_eligible(
@@ -69,7 +71,7 @@ def evaluate_retrieval(k: int = 5) -> dict:
         "mean_evidence_count": mean(evidence_counts) if evidence_counts else 0.0,
         "median_top1_score": median(top1_scores) if top1_scores else None,
         "temporal_violations": temporal_violations,
-        "evidence_ids_unique_within_run": len(ids) == len(set(ids)),
+        "duplicate_id_queries": duplicate_id_queries,
         "top1_outcome_agreement": (
             sum(top1_agreement) / len(top1_agreement) if top1_agreement else None
         ),
