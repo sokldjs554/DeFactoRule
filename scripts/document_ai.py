@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
+# ruff: noqa: I001
 from __future__ import annotations
 
 import argparse
 import json
+import sys
 from dataclasses import asdict
 from pathlib import Path
 
-from app.document_ai.service import process_document
-from app.infrastructure.anthropic_client import connect
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from app.document_ai.service import process_document  # noqa: E402
+from app.infrastructure.anthropic_client import connect  # noqa: E402
 
 
 def main() -> None:
