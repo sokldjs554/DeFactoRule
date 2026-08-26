@@ -44,8 +44,8 @@ jobs:
       - name: Evidence RAG 오프라인 평가
         run: python scripts/evaluate_rag.py
 
-      - name: Document AI synthetic scan 평가
-        run: python scripts/evaluate_document_ai.py --n 20
+      - name: Document AI realistic synthetic scan 평가
+        run: python scripts/evaluate_document_ai.py --n 60
 
       - name: 코퍼스 규모 보고
         run: |
