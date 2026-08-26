@@ -267,15 +267,19 @@ def test_invalid_document_never_reaches_rag(tmp_path: Path, monkeypatch) -> None
     assert result.document_ai.validation.review_required
 
 
-def test_synthetic_document_ai_benchmark_has_two_profiles() -> None:
+def test_synthetic_document_ai_benchmark_has_three_profiles_and_realistic_metrics() -> None:
     if not shutil.which("tesseract"):
         pytest.skip("tesseract executable is not installed")
     result = evaluate_document_ai(n=3)
     assert result["benchmark"] == "synthetic_scanned_financial_requests"
     assert result["n_documents"] == 3
     assert result["ocr_language"] == "kor"
-    assert len(result["profiles"]) == 2
+    assert result["fields"] == ["serial", "sector", "decision", "request"]
+    assert len(result["profiles"]) == 3
     for profile in result["profiles"]:
         assert 0.0 <= profile["mean_cer_no_space"] <= 1.5
-        assert 0.0 <= profile["scalar_field_exact"] <= 1.0
+        assert 0.0 <= profile["field_f1_exact"] <= 1.0
+        assert 0.0 <= profile["document_exact_match"] <= 1.0
+        assert 0.0 <= profile["review_rate"] <= 1.0
+        assert 0.0 <= profile["error_detection_recall"] <= 1.0
         assert profile["fully_valid"] + profile["review_required"] == 3
