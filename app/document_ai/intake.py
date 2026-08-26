@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import pymupdf
 
@@ -32,9 +31,9 @@ def _render_page(page: pymupdf.Page, dpi: int) -> bytes:
 
 def read_document(
     path: Path,
-    ocr: Optional[TesseractOCR] = None,
+    ocr: TesseractOCR | None = None,
     dpi: int = 220,
-    max_pages: Optional[int] = None,
+    max_pages: int | None = None,
 ) -> DocumentText:
     """Read a PDF/image, invoking OCR only when native text is unavailable/unhealthy."""
     mode = detect_mode(path)
