@@ -28,6 +28,7 @@ pythonpath = ["."]
 # TypeError 가 된다. ruff 는 정적 애노테이션만 보고 이것을 안전하다고 판단한다.
 # 3.9 지원을 유지하는 동안 이 파일에서는 typing.Optional/List 를 쓴다.
 "app/api/schemas.py" = ["UP006", "UP007", "UP035", "UP045"]
+"app/rag/schemas.py" = ["UP006", "UP007", "UP035", "UP045"]
 # Agent 상태도 Pydantic 모델이므로 같은 이유가 그대로 적용된다.
 "app/agents/state.py" = ["UP006", "UP007", "UP035", "UP045"]
 
