@@ -1,8 +1,8 @@
 """C-5 final deterministic freeze.
 
-No LLM/API calls. Re-induces clean E6 with only runtime-observable atoms, then evaluates
-that asset with the clean split, T-serial eligibility and temporal-matched risk table.
-The previous C-3 temporal Router is recomputed in the same process as a drift anchor.
+No LLM/API calls. The already-frozen clean E6 asset is projected onto conditions the live
+request-only Router can evaluate, then checked under the clean split, T-serial eligibility
+and temporal-matched risk table. No replacement rules are learned from test feedback.
 """
 
 from __future__ import annotations
@@ -17,8 +17,7 @@ from app.evaluation.clean_profile import fires_as_induced, fires_as_router, rule
 from app.retrieval.lexical import LexicalRetriever
 from app.rules.runtime_induction import (
     RUNTIME_ATOM_KINDS,
-    induce_runtime,
-    serialize_runtime_rules,
+    project_runtime_asset,
     validate_runtime_asset,
 )
 
@@ -36,12 +35,12 @@ def _load_world():
         for c in cases
     ]
     corpus = [text for text in corpus if text]
-    legacy_clean = json.loads((RESULTS / "e6_rules_clean.json").read_text(encoding="utf-8"))
+    frozen_clean = json.loads((RESULTS / "e6_rules_clean.json").read_text(encoding="utf-8"))
     risk = json.loads(
         (RESULTS / "trap_risk_clean_temporal.json").read_text(encoding="utf-8")
     )
     fallback = Counter(r["label"] for r in dev).most_common(1)[0][0]
-    return dev, test, corpus, legacy_clean, risk, fallback
+    return dev, test, corpus, frozen_clean, risk, fallback
 
 
 def _run(dev, test, corpus, rules, risk, fallback):
@@ -76,9 +75,7 @@ def _profile(rows: list[dict], states: list) -> dict:
         if state.abstained
     )
     rule_fires = Counter(
-        evidence.id
-        for state in states
-        for evidence in state.rule_evidence
+        evidence.id for state in states for evidence in state.rule_evidence
     )
     return {
         "n": len(rows),
@@ -95,13 +92,27 @@ def _profile(rows: list[dict], states: list) -> dict:
     }
 
 
+def _state_signature(state) -> tuple:
+    """Fields that affect observable Router behaviour and its audit trace."""
+    return (
+        state.abstained,
+        state.decision,
+        state.provisional,
+        state.route.value if state.route else None,
+        state.route_reason,
+        state.abstention_reason.value if state.abstention_reason else None,
+        tuple(e.id for e in state.rule_evidence),
+        tuple(state.evidence_used),
+    )
+
+
 def _transitions(rows: list[dict], before: list, after: list) -> dict:
     counts = Counter()
     changed = []
     for row, old, new in zip(rows, before, after):
         a, b = _outcome(row, old), _outcome(row, new)
         counts[f"{a}->{b}"] += 1
-        if a != b or old.route_reason != new.route_reason:
+        if _state_signature(old) != _state_signature(new):
             changed.append(
                 {
                     "serial": str(row["serial"]),
@@ -112,18 +123,15 @@ def _transitions(rows: list[dict], before: list, after: list) -> dict:
                     "after_route": new.route_reason,
                     "before_decision": old.decision,
                     "after_decision": new.decision,
-                    "before_provisional": old.provisional,
-                    "after_provisional": new.provisional,
                 }
             )
     return {"counts": dict(sorted(counts.items())), "changed": changed}
 
 
 def build_final_freeze(write: bool = True) -> tuple[dict, dict]:
-    dev, test, corpus, legacy_clean, risk, fallback = _load_world()
+    dev, test, corpus, frozen_clean, risk, fallback = _load_world()
 
-    learned, default = induce_runtime(dev)
-    runtime_asset = serialize_runtime_rules(learned, default)
+    runtime_asset = project_runtime_asset(frozen_clean)
     validate_runtime_asset(runtime_asset)
     atom_kinds = {
         atom["kind"]
@@ -133,6 +141,7 @@ def build_final_freeze(write: bool = True) -> tuple[dict, dict]:
     if not atom_kinds <= RUNTIME_ATOM_KINDS:
         raise AssertionError(f"unsupported atom kinds survived: {sorted(atom_kinds)}")
 
+    default = runtime_asset["default_label"]
     induced_transfer = rule_transfer(
         runtime_asset["rules"], default, test, matcher=fires_as_induced
     )
@@ -140,30 +149,29 @@ def build_final_freeze(write: bool = True) -> tuple[dict, dict]:
         runtime_asset["rules"], default, test, matcher=fires_as_router
     )
     if induced_transfer != router_transfer:
-        raise AssertionError("runtime E6 induction and Router matcher disagree")
+        raise AssertionError("projected E6 and Router matcher disagree")
 
-    before = _run(
-        dev,
-        test,
-        corpus,
-        legacy_clean["rules"],
-        risk,
-        fallback,
-    )
-    after = _run(
-        dev,
-        test,
-        corpus,
-        runtime_asset["rules"],
-        risk,
-        fallback,
-    )
+    before = _run(dev, test, corpus, frozen_clean["rules"], risk, fallback)
+    after = _run(dev, test, corpus, runtime_asset["rules"], risk, fallback)
     before_profile = _profile(test, before)
     anchor_view = {key: before_profile[key] for key in C3_ANCHOR}
     if anchor_view != C3_ANCHOR:
         raise AssertionError(f"C-3 anchor drift: expected={C3_ANCHOR} actual={anchor_view}")
 
+    transitions = _transitions(test, before, after)
+    if transitions["changed"]:
+        raise AssertionError(
+            "capability projection changed Router behaviour: "
+            f"{transitions['changed'][:3]}"
+        )
+
     final_profile = _profile(test, after)
+    final_anchor_view = {key: final_profile[key] for key in C3_ANCHOR}
+    if final_anchor_view != C3_ANCHOR:
+        raise AssertionError(
+            f"final profile drift: expected={C3_ANCHOR} actual={final_anchor_view}"
+        )
+
     payload = {
         "phase": "C-5 final deterministic freeze",
         "api_calls": 0,
@@ -173,14 +181,17 @@ def build_final_freeze(write: bool = True) -> tuple[dict, dict]:
             "risk_asset": "trap_risk_clean_temporal.json",
             "rule_asset": "e6_rules_clean_runtime.json",
             "runtime_rule_atom_kinds": sorted(RUNTIME_ATOM_KINDS),
+            "rule_contract": "capability projection of frozen clean E6; no re-induction",
             "s5_mode": "fail-closed qualitative safety veto; not applied to aggregate metrics",
         },
         "runtime_e6": {
-            "legacy_clean_rule_count": len(legacy_clean["rules"]),
+            "source_rule_count": len(frozen_clean["rules"]),
             "final_rule_count": len(runtime_asset["rules"]),
+            "dropped_rules": runtime_asset["dropped_rules"],
             "default_label": default,
             "atom_kinds_present": sorted(atom_kinds),
             "transfer": router_transfer,
+            "behaviorally_equivalent_to_c3": True,
         },
         "c3_anchor_recomputed": before_profile,
         "final": final_profile,
@@ -195,12 +206,13 @@ def build_final_freeze(write: bool = True) -> tuple[dict, dict]:
                 - before_profile["accuracy_on_answered"]
             ),
         },
-        "transitions": _transitions(test, before, after),
+        "transitions": transitions,
         "limitations": [
             "T-serial is a chronology proxy, not ground-truth decision time.",
             "S5 audit is qualitative and fail-closed; safe recovery was not established.",
             "Action-label precedent evidence remains sparse.",
             "DOUBT/TRUST are inherited thresholds supported, not uniquely optimized, on clean dev.",
+            "A text-only E6 re-induction was evaluated as a diagnostic and not adopted; production uses a capability projection of the frozen clean asset.",
         ],
     }
 
@@ -221,6 +233,7 @@ def main() -> None:
     print("C-5 final deterministic freeze · API 0회")
     print(
         f"runtime E6 {len(runtime_asset['rules'])} rules · "
+        f"dropped={len(runtime_asset['dropped_rules'])} · "
         f"atom kinds={payload['runtime_e6']['atom_kinds_present']}"
     )
     print(
