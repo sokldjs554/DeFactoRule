@@ -52,8 +52,8 @@ class RAGMemo(BaseModel):
 
 class RAGValidation(BaseModel):
     valid: bool
-    invalid_citations: list[str] = []
-    ungrounded_quotes: list[str] = []
+    invalid_citations: list[str] = Field(default_factory=list)
+    ungrounded_quotes: list[str] = Field(default_factory=list)
     reason: str | None = None
 
 
