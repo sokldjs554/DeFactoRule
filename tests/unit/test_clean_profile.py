@@ -6,7 +6,10 @@
 `R1` 수를 읽으면 규칙이 안 걸린 이유를 영영 못 찾는다.
 """
 
+import json
+
 from app.agents.calibration import band_of as calibration_band
+from app.core.paths import RESULTS
 from app.domain.similarity import DOUBT, TRUST
 from app.evaluation.clean_profile import (
     band_of,
@@ -112,6 +115,15 @@ class TestIntegrity:
         assert freeze["final"]["correct"] == 63
         assert freeze["final"]["wrong"] == 13
         assert freeze["transitions"]["changed"] == []
+
+        committed_asset = json.loads(
+            (RESULTS / "clean" / "e6_rules_clean_runtime.json").read_text(encoding="utf-8")
+        )
+        committed_freeze = json.loads(
+            (RESULTS / "clean" / "final_clean_temporal.json").read_text(encoding="utf-8")
+        )
+        assert asset == committed_asset
+        assert freeze == committed_freeze
 
 
 class TestCounts:
