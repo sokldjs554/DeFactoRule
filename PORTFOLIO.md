@@ -1,15 +1,16 @@
 # DeFactoRule — Enterprise Decision Agent
 
-> **과거 예외 승인 이력에서 조직의 실제 판단 기준을 복원하고, 새 업무 요청에 선례를 적용할 때 결정적 차이·충돌·불확실성을 검증하는 AI Agent Workflow**
+> **비정형 금융 문서를 구조화하고, 과거 판단 기준과 선례를 검색한 뒤 결정적 차이·충돌·불확실성을 검증하는 AI Agent Workflow**
 
 ## 프로젝트 한 줄 요약
 
-금융규제 사례집 PDF를 구조화된 업무 사례로 변환하고, **명시 규칙 + 과거 선례 검색 + LLM deciding-factor 분석 + deterministic validation + abstention/handoff**를 연결해 잘못된 선례 적용을 줄이는 의사결정 Agent를 설계·구현했다.
+금융규제 사례집을 구조화된 업무 사례로 변환하고, **OCR-aware Document AI + 명시 규칙 + temporal Evidence RAG + LLM deciding-factor 분석 + deterministic validation + abstention/handoff**를 연결해 잘못된 선례 적용을 줄이는 의사결정 Agent를 설계·구현했다.
 
 - 개인 프로젝트
-- Python / FastAPI / PyMuPDF / Anthropic API / pytest / GitHub Actions
+- Python / FastAPI / PyMuPDF / Tesseract OCR / Pydantic / Anthropic Structured Output / pytest / GitHub Actions
 - 데이터: 금융당국 사례집 1,095 사례 · 1,122 질의–회답 쌍
-- 최종 clean evaluation: test 168건
+- 최종 decision clean evaluation: test 168건
+- Document AI evaluation: 60개 금융 요청 × 3 synthetic scan profiles
 
 ---
 
@@ -19,14 +20,16 @@
 
 문제는 가장 비슷한 선례가 항상 올바른 선례가 아니라는 점이다. 실제 데이터에서 최근접 선례를 그대로 따르는 baseline은 결론이 갈리는 TRAP 구간에서 정확도 0.000이었다.
 
+또 실제 업무 입력은 항상 깨끗한 text PDF가 아니다. scan/image 입력은 OCR 오독을 포함할 수 있고, OCR 결과 안에서 quote가 존재한다는 사실만으로 원문 정확성을 보장할 수 없다.
+
 그래서 목표를 단순 문서 검색이 아니라 다음 workflow로 정의했다.
 
 ```text
-비정형 업무문서
-  → 구조화
-  → 규칙/선례 검색
-  → temporal eligibility
-  → evidence Router
+PDF / Scan / Image
+  → native text or OCR-aware Document AI
+  → structured extraction / validation
+  → temporal Evidence RAG + rules
+  → risk Router
   → LLM deciding-factor analysis
   → deterministic evidence validation
   → decision / abstain / human handoff
@@ -34,9 +37,9 @@
 
 ## 2. 내가 구현한 핵심
 
-### A. 비정형 PDF → 구조화 업무 데이터
+### A. 비정형 문서 → 구조화 업무 데이터
 
-사례집 PDF를 단순 텍스트로 저장하는 데서 끝내지 않고 다음 단위까지 결정론적으로 분해했다.
+기존 사례집 PDF를 다음 단위까지 결정론적으로 분해했다.
 
 ```text
 PDF
@@ -46,38 +49,53 @@ PDF
  → 문서 체크박스 기반 label
 ```
 
-파싱 오류를 failure registry와 regression test로 관리했고, 동일 데이터에서 같은 결과가 재생성되도록 CLI pipeline을 분리했다.
-
-**의미:** Agent가 자연어 문서를 바로 소비하는 것이 아니라, 업무 절차에서 사용할 수 있는 구조화된 case/evidence 단위로 변환한다.
-
-### B. De Facto Rule + precedent retrieval
-
-두 종류의 evidence를 사용했다.
-
-1. **Induced rule** — dev 사례의 결론에서 반복되는 text condition을 역추출
-2. **Precedent** — 요청문과 유사한 과거 사례 검색
-
-검색 baseline을 분석하면서 표면 유사도가 높은데 결론이 반대인 사례를 TRAP으로 분리했다. 이 실패를 통해 “retrieval score가 높다 = 적용 가능하다”라는 가정을 버렸다.
-
-### C. Temporal eligibility before ranking
-
-과거 선례 기반 시스템에서 미래 사례를 보는 것은 정보 누수다. 검색 결과를 만든 뒤 미래 문서를 지우는 대신 **후보 pool 자체를 먼저 제한**했다.
+추가로 live/document input 경로에서는 native PDF와 scan/image를 구분한다.
 
 ```text
-eligible_indices(request)
-  → candidate subset
-  → retrieval ranking
+PDF / image
+  ├─ healthy native text → PyMuPDF
+  └─ scan / image → Tesseract Korean OCR
+        ↓
+serial / sector / decision / request + source quote
+        ↓
+schema / grounding / OCR-confidence validation
+        ├─ review_required → stop
+        └─ validated → Evidence RAG
 ```
 
-실제 결정일자가 모든 사례에 존재하지 않아 `(year, serial)`을 chronology proxy로 사용하는 T-serial 정책을 채택했다. strict-year는 근거 pool을 지나치게 없앴다.
+Tesseract는 교체 가능한 OCR adapter의 baseline이다. OCR 모델을 직접 학습했다고 주장하지 않는다.
 
-T-serial의 한계도 명시했다. serial 순서는 실제 날짜의 ground truth가 아니므로 “temporal-safe”라고 주장하지 않는다.
+### B. De Facto Rule + Temporal Evidence RAG
 
-### D. Risk-aware Router + Abstention
+두 종류의 업무 근거를 사용한다.
 
-retrieval similarity만으로 답하지 않고 dev LOO에서 precedent-following error risk를 calibration했다.
+1. **Induced rule** — dev 사례에서 반복되는 text condition
+2. **Precedent evidence** — 새 요청과 유사한 과거 사례
 
-Temporal policy와 동일한 조건에서 clean dev를 다시 보정한 결과:
+Evidence RAG는 lexical + dense hybrid retrieval을 사용하고 provenance를 유지한다.
+
+- `evidence_id`
+- source / page / serial
+- request / outcome
+- retrieval score
+
+T-serial temporal eligibility를 **ranking 이전**에 적용하고, similarity floor 0.15 미만은 LLM context에 넣지 않는다.
+
+Clean test 168건 retrieval audit:
+
+| Metric | Result |
+|---|---:|
+| threshold-passing evidence | 88 / 168 |
+| evidence coverage | **52.38%** |
+| zero evidence | 80 |
+| temporal violation | **0** |
+| duplicate evidence-id query | **0** |
+
+`top1 outcome agreement 70.45%`는 human relevance label이 없는 diagnostic이므로 RAG accuracy라고 부르지 않는다.
+
+### C. Risk-aware Router + Abstention
+
+retrieval similarity만으로 답하지 않고 clean dev에서 precedent-following risk를 calibration했다.
 
 | Band | n | Wrong | Risk |
 |---|---:|---:|---:|
@@ -85,18 +103,16 @@ Temporal policy와 동일한 조건에서 clean dev를 다시 보정한 결과:
 | middle | 9 | 3 | 33.3% |
 | doubt | 50 | 23 | 46.0% |
 
-Router는 evidence agreement, conflict, similarity band, rule evidence를 조합해 path를 고르고 근거가 약하면 기권한다.
+Router는 evidence agreement, conflict, similarity band, rule evidence를 조합하고 근거가 약하면 기권한다.
 
-### E. LLM Deciding-Factor Agent
-
-이 프로젝트에서 LLM은 최종 결론 생성기가 아니다.
+### D. LLM Deciding-Factor Agent
 
 LLM이 하는 일:
 
-- 두 요청의 `shared_factors` 구조화
-- `only_in_request` 추출
-- `only_in_precedent` 추출
-- 판단을 가를 수 있는 factor 후보 표시
+- `shared_factors`
+- `only_in_request`
+- `only_in_precedent`
+- 결정적 차이 후보
 
 LLM이 하지 못하게 한 일:
 
@@ -104,65 +120,65 @@ LLM이 하지 못하게 한 일:
 - `applies / differs / unclear`
 - 최종 applicability basis
 
-Structured Output schema 자체에서 이 필드를 제거했다.
+Structured Output schema 자체에서 최종 판단 필드를 제거했다.
 
-### F. Deterministic Diff Coverage Gate
+### E. Deterministic Diff Coverage Gate
 
-LLM이 근거를 말했는지만 확인하면 부족했다. 높은 lexical similarity 사례에서 양쪽에 공통인 문장을 올바르게 인용하고도 **실제 결정 조건은 놓치는 실패**를 발견했기 때문이다.
+LLM이 정확한 문장을 인용해도 실제 결론을 가르는 조건을 놓칠 수 있었다. 그래서 factor를 다시 원문에 대조한다.
 
-그래서 factor를 다시 원문에 대조한다.
+- literal grounding
+- declared side 존재
+- opposite-side absence
+- shared factor 양쪽 존재
+- decisive difference
+- recovery 시 전체 diff coverage
 
-- factor가 원문에 literal-grounded되는가
-- declared side에 실제 존재하는가
-- 반대쪽에는 없는가
-- shared factor가 실제 양쪽에 존재하는가
-- decisive difference가 확인됐는가
-- recovery를 주장한다면 실제 diff를 빠짐없이 설명했는가
+안전성은 비대칭이다.
 
-안전성은 비대칭으로 설계했다.
+> **결정적 차이 하나가 확인되면 선례 적용을 막을 수 있지만, “차이가 없다”고 회수하려면 모든 차이를 설명해야 한다.**
 
-> **결정적 차이 하나가 확인되면 선례 적용을 막을 수 있지만, “결정적 차이가 없다”고 선례를 회수하려면 모든 차이를 설명해야 한다.**
+## 3. 실패가 설계를 바꾼 사례
 
-## 3. 대표 실패와 설계 변경
+### Split leakage
 
-### 실패 1 — split leakage
+기존 행 순서 split에서 test 27건이 dev와 사실상 동일 요청이었다.
 
-기존 행 순서 split에서 test 27건이 dev와 거의 동일한 요청이었다. 날짜 표현을 정규화하면 전부 같은 request group으로 묶였다.
+**수정:** normalized request group 단위 clean split.
 
-**수정:** normalized group 단위 clean split.
+### Future precedent
 
-### 실패 2 — 미래 선례
-
-2024년 3월 요청이 2024년 6월 사례를 선례로 검색하는 케이스를 발견했다.
+2024년 3월 요청이 2024년 6월 사례를 검색하는 케이스를 발견했다.
 
 **수정:** temporal eligibility를 ranking 이전에 적용.
 
-### 실패 3 — surface match as evidence
+### Surface-match as evidence
 
-LLM이 실제 원문 문장을 근거로 들었지만 결론을 가르는 clause를 놓쳤다. 단순 grounding 검사는 통과했다.
+LLM이 실제 원문 문장을 인용했지만 결론을 가르는 clause를 놓쳤다.
 
 **수정:** deciding-factor 구조화 + deterministic side/uniqueness/diff validation.
 
-### 실패 4 — runtime schema mismatch
+### Runtime schema mismatch
 
-E6가 `sector='공통'`이라는 metadata rule을 학습했지만 live Agent는 request text만 받기 때문에 해당 rule은 runtime에서 절대 실행할 수 없었다.
+E6가 live request에서 관측할 수 없는 `sector='공통'` 규칙을 학습했다. sector 없이 re-induction했더니 wrong이 13→26으로 악화됐다.
 
-처음에는 sector 없이 rule을 다시 학습했지만 wrong이 13→26으로 악화됐다. test 결과에 맞춰 rule을 고르는 대신 re-induction을 폐기했다.
+**최종 수정:** frozen E6에서 runtime-unobservable rule #8만 whole-rule capability projection. 대체 rule을 학습하지 않았고 168행 Router 결과 변화 0건.
 
-**최종 수정:** frozen E6에서 runtime-unobservable rule #8만 whole-rule capability projection으로 제거. 대체 rule을 학습하지 않았고 168행 Router 결과 변화 0건을 확인했다.
+### OCR grounding blind spot
+
+60-document realistic benchmark에서 OCR 결과 안의 quote grounding만으로는 **OCR 자체의 오독**을 잡지 못한다는 문제가 드러났다.
+
+첫 평가 후 post-gate 결과를 보기 전에 다음 quality gate를 고정했다.
+
+- mean OCR word confidence < 80 → review
+- confidence < 60 token 비율 > 20% → review
+
+재평가에서 degraded scan은 오류 문서의 58.33%를 review로 보냈지만 clean/standard의 high-confidence 오독 detection recall은 1.69% / 10.53%에 그쳤다.
+
+**결론:** confidence는 보조 신호로 채택하지만 ground-truth correctness 보증으로 사용하지 않는다. threshold를 결과에 맞춰 다시 튜닝하지 않았다.
 
 ## 4. 최종 결과
 
-### Final clean operating profile
-
-최종 조건:
-
-- group-based clean split
-- T-serial temporal eligibility
-- temporal-matched risk calibration
-- runtime-compatible frozen E6
-- Router + deterministic validation
-- S5는 aggregate 성능을 올리는 recovery가 아니라 fail-closed safety veto
+### Decision Agent - final clean operating profile
 
 | Metric | Result |
 |---|---:|
@@ -174,42 +190,53 @@ E6가 `sector='공통'`이라는 metadata rule을 학습했지만 live Agent는 
 | coverage | **45.24%** |
 | accuracy on answered | **82.89%** |
 
-답변 정확도만 따로 강조하지 않는다. 82.89%는 **coverage 45.24%**와 한 쌍이다.
+82.89%는 반드시 **coverage 45.24%**와 함께 읽는다.
 
-### S5 qualitative audit
+S5 qualitative audit은 안전 veto로는 채택했지만 safe recovery는 검증되지 않아 aggregate 168건 recovery에 사용하지 않았다.
 
-5건의 preregistered clean 사례를 별도 검증했다.
+### OCR-aware Document AI - frozen synthetic scan benchmark
 
-- 위험/모호 precedent에서 grounded decisive difference를 포착
-- opposing precedent가 0인 surface-match 위험 사례도 차단
-- 그러나 사전 “적용 가능” 후보까지 decisive difference로 차단
+60개 실제 금융 request text를 clean-test pool 전반에서 고정 선택하고 세 가지 scan profile로 rasterize했다. 쉬운 scalar field만 평가하지 않고 serial / sector / decision / 긴 request 전체를 exact field metric에 포함했다.
 
-따라서 결론은:
+| Profile | Request char acc. | Field F1 exact | Review rate | Error-detection recall |
+|---|---:|---:|---:|---:|
+| clean 220dpi PNG | **94.38%** | **75.42%** | 1.67% | 1.69% |
+| standard 170dpi JPEG | **89.79%** | **75.11%** | 10.00% | 10.53% |
+| degraded 120dpi JPEG | **93.53%** | **62.44%** | 58.33% | 58.33% |
 
-> **잘못된 선례 적용을 막는 safety veto는 채택. 자동 abstention recovery는 미검증.**
+이 benchmark는 **synthetic scanned-document benchmark**이며 실제 고객 스캔 성능을 의미하지 않는다. request char accuracy가 scan 난이도에 따라 단조 감소하지 않은 결과도 측정값 그대로 보존했다.
 
-## 5. 평가를 운영 관점으로 만든 방법
+## 5. 평가와 운영 계약
 
-### 결과보다 먼저 protocol을 고정
+### 결과보다 protocol을 먼저 고정
 
-- 같은 request group이 dev/test를 넘지 않게 split
-- temporal filter를 retrieval 이전에 적용
-- calibration source/provenance 고정
-- historical experiment와 final clean profile 분리
-- test 결과를 보고 threshold를 재튜닝하지 않음
+- same request group dev/test 분리
+- temporal filter before ranking
+- temporal-matched calibration
+- retrieval similarity floor 0.15
+- OCR confidence gate preregistration before post-gate benchmark
+- test 결과를 보고 threshold 재튜닝 금지
 
 ### 결과 artifact를 CI에 연결
 
-최종 CI는 코드 테스트뿐 아니라 다음을 검사한다.
+Core CI:
 
+- **563 collected = 552 passed + 11 skipped**
+- Python 3.9 / 3.11
+- Evidence RAG offline audit
 - final 168-row profile invariant
-- runtime E6 dropped rule invariant
-- committed final JSON == fresh recomputation
-- historical experiment variant set 불변
-- S5 structured-output schema 불변
-- C-4 5-case selection drift
+- frozen artifact regression guards
 
-Python 3.9 / 3.11에서 553 tests를 실행하고 main push CI를 통과시켰다.
+Document AI:
+
+- **17 dedicated checks**
+- real Tesseract Korean OCR contract test
+- native/scan detection
+- structured extraction schema
+- hallucinated/ungrounded quote rejection
+- valid document → temporal RAG bridge
+- invalid/review document → RAG 호출 금지
+- 60-document × 3-profile benchmark on CI
 
 ## 6. 기술 스택
 
@@ -219,17 +246,21 @@ Python 3.9 / 3.11에서 553 tests를 실행하고 main push CI를 통과시켰�
 - FastAPI
 - Pydantic
 
-**Document / Data**
+**Document AI / Data**
 
 - PyMuPDF
+- Tesseract OCR (`kor` baseline)
+- native / OCR intake routing
+- structured field + provenance quote extraction
+- OCR confidence / grounding validation
 - JSON / JSONL
-- deterministic preprocessing pipeline
 
 **Retrieval / Agent**
 
 - character n-gram IDF retrieval
 - dense / hybrid retriever abstraction
-- Anthropic structured output
+- temporal Evidence RAG
+- Anthropic Structured Output
 - evidence Router
 - deciding-factor Agent
 - abstention / handoff contract
@@ -238,7 +269,8 @@ Python 3.9 / 3.11에서 553 tests를 실행하고 main push CI를 통과시켰�
 
 - pytest
 - GitHub Actions
-- Wilson confidence interval
+- CER / exact field F1 / document exact-match
+- risk calibration / Wilson confidence interval
 - paired bootstrap / Holm correction in historical model study
 - failure registry + executable probes
 - frozen result artifacts
@@ -247,45 +279,51 @@ Python 3.9 / 3.11에서 553 tests를 실행하고 main push CI를 통과시켰�
 
 ### 업무 절차를 Agent Workflow로 바꾸기
 
-“LLM에게 문서를 주고 답을 생성”하는 방식 대신 실제 의사결정 절차를 노드로 나눴다.
-
 ```text
-입력 구조화
+문서 intake
+→ structured extraction / validation
 → evidence retrieval
-→ eligibility
+→ temporal eligibility
 → risk routing
 → deciding-factor analysis
 → deterministic validation
-→ decision / abstention
+→ decision / abstention / handoff
 → trace / evaluation
 ```
 
-### 비정형 문서를 구조화된 evidence로 바꾸기
+### LLM/RAG/OCR을 각각 검증 가능한 경계로 두기
 
-PDF 파싱, 사례 분리, 요청·회답 pairing, label extraction을 별도 pipeline과 regression test로 구현했다.
-
-### LLM 출력도 다시 검증하기
-
-LLM이 정확한 문장을 인용했다는 것만으로 신뢰하지 않고, **그 문장이 실제 결론을 가르는 차이인지** deterministic code로 다시 검사한다.
+- OCR은 text source를 만들지만 correctness를 스스로 보증하지 않는다.
+- RAG는 evidence를 제공하지만 similarity를 applicability로 간주하지 않는다.
+- LLM은 factor를 구조화하지만 최종 verdict를 직접 생성하지 않는다.
+- downstream code가 provenance, grounding, temporal, conflict contract를 검사한다.
 
 ### 실험 실패를 제품 계약으로 연결하기
 
-- 미래 선례 발견 → temporal retrieval contract
-- split leakage 발견 → group split
+- 미래 선례 → temporal retrieval contract
+- split leakage → group split
 - surface grounding 실패 → deciding-factor gate
-- over-abstention 발견 → applicability 단계
-- recovery 미검증 → S5를 safety veto로 제한
+- over-abstention → applicability 단계
+- recovery 미검증 → S5 safety veto
 - runtime metadata mismatch → capability projection
-
-즉 metric을 높이는 패치보다 **실패 원인을 운영 가능한 contract로 바꾸는 것**을 프로젝트의 중심으로 삼았다.
+- OCR high-confidence 오독 → confidence gate의 한계를 명시하고 독립 검증 채널 필요성 도출
 
 ## 8. 한계
 
 - T-serial은 실제 chronology가 아니라 proxy다.
 - clean action-label precedent evidence가 희소하다.
-- S5 audit은 5건이라 class-wide 성능을 주장할 수 없다.
-- safe recovery는 아직 검증되지 않았다.
-- Document AI는 PDF 구조화 pipeline이며 OCR/layout model 자체를 학습한 프로젝트는 아니다.
+- S5 audit은 5건이며 safe recovery는 검증되지 않았다.
+- OCR 평가는 synthetic scans 60건 × 3 profiles이며 실제 고객 문서 성능이 아니다.
+- Tesseract pretrained baseline을 사용했고 OCR detector/recognizer를 직접 학습·fine-tuning하지 않았다.
+- table structure recognition과 image-VLM benchmark는 수행하지 않았다.
+- optional LLM structured extraction은 schema/contract까지 구현했지만 live extraction 품질·비용은 이번 phase에서 측정하지 않았다.
+- OCR confidence는 clean/standard high-confidence transcription error를 충분히 검출하지 못했다.
 - 실제 고객 production traffic에서 운영한 시스템은 아니다.
 
-이 한계를 포함한 최종 engineering record는 [`docs/28-final-clean-freeze.md`](docs/28-final-clean-freeze.md)와 `experiments/results/clean/`의 frozen artifacts에 남겼다.
+상세 frozen record:
+
+- [`docs/28-final-clean-freeze.md`](docs/28-final-clean-freeze.md)
+- [`docs/29-evidence-rag.md`](docs/29-evidence-rag.md)
+- [`docs/30-document-ai-ocr.md`](docs/30-document-ai-ocr.md)
+- [`docs/31-portfolio-capture-guide.md`](docs/31-portfolio-capture-guide.md)
+- `experiments/results/clean/`
