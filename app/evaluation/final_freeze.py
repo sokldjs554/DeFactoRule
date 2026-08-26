@@ -212,7 +212,10 @@ def build_final_freeze(write: bool = True) -> tuple[dict, dict]:
             "S5 audit is qualitative and fail-closed; safe recovery was not established.",
             "Action-label precedent evidence remains sparse.",
             "DOUBT/TRUST are inherited thresholds supported, not uniquely optimized, on clean dev.",
-            "A text-only E6 re-induction was evaluated as a diagnostic and not adopted; production uses a capability projection of the frozen clean asset.",
+            (
+                "A text-only E6 re-induction was evaluated as a diagnostic and not adopted; "
+                "production uses a capability projection of the frozen clean asset."
+            ),
         ],
     }
 
