@@ -45,9 +45,13 @@ def main() -> None:
             generate_memo=args.rag_memo,
             dpi=args.dpi,
         )
+        payload = asdict(result)
+        if result.rag is not None:
+            payload["rag"] = result.rag.model_dump()
     else:
         result = process_document(args.path, client=client, use_llm=args.llm, dpi=args.dpi)
-    print(json.dumps(asdict(result), ensure_ascii=False, indent=2))
+        payload = asdict(result)
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":
