@@ -24,7 +24,7 @@ def pytest_sessionstart(session) -> None:  # noqa: ARG001
     assert len(resolved) == 5
     assert not drift, f"C-4 S5 실행 계획 drift: {drift}"
 
-    # AG-13 / clean 230041형: 공통 조건과 양쪽의 결정적 차이를 절 단위로 나눈다.
+    # AG-13 / clean 230041형: 실재하는 결정적 차이는 literal grounding으로 거절 가능.
     request = (
         "외부 시스템에서 자료를 전달받음.\n"
         "실시간 데이터 연계가 가능한 스트리밍 방식은 아님."
@@ -41,7 +41,7 @@ def pytest_sessionstart(session) -> None:  # noqa: ARG001
             side="request",
             axis="스트리밍 방식 여부",
             value_in_request="아님",
-            value_in_precedent="사용",
+            value_in_precedent=None,
             decisive=True,
         ),
         Factor(
@@ -49,7 +49,7 @@ def pytest_sessionstart(session) -> None:  # noqa: ARG001
             text="망연계솔루션(스트리밍 방식)을 통해 내부메일시스템으로 전송함",
             side="precedent",
             axis="스트리밍 방식 여부",
-            value_in_request="아님",
+            value_in_request=None,
             value_in_precedent="사용",
             decisive=True,
         ),
@@ -59,18 +59,25 @@ def pytest_sessionstart(session) -> None:  # noqa: ARG001
     assert result.fired_rule == "G4"
     assert result.decisive_confirmed_ids == ("F1", "F2")
 
-    # 표면 공통문장만 내놓고 실제 차이를 분석하지 않으면 applies 금지.
+    # rejection은 shared factor가 부실해도 literal-grounded decisive difference가 있으면
+    # fail-safe하게 성립한다. shared completeness는 recovery에만 필수다.
+    fake_shared = [Factor(id="S2", text="양쪽에 없는 공통 조건", side="both")]
+    reject_with_bad_shared = evaluate_diff_coverage(request, precedent, fake_shared, decisive)
+    assert reject_with_bad_shared.basis == "decisive_difference"
+    assert reject_with_bad_shared.fired_rule == "G4"
+    assert "S2" in reject_with_bad_shared.rejected_factor_ids
+
+    # 표면 공통문장만 내놓고 실제 차이를 분석하지 않으면 recovery 금지.
     surface_only = evaluate_diff_coverage(request, precedent, shared, [])
     assert surface_only.basis == "incomplete_analysis"
     assert surface_only.fired_rule == "G2"
     assert surface_only.uncovered_differences
 
-    # 공통 factor도 양쪽 원문에 실제로 존재해야 한다. 지어낸 shared로 G1 우회 금지.
-    fake_shared = [Factor(id="S2", text="양쪽에 없는 공통 조건", side="both")]
-    no_real_shared = evaluate_diff_coverage(request, precedent, fake_shared, decisive)
-    assert no_real_shared.basis == "incomplete_analysis"
-    assert no_real_shared.fired_rule == "G1"
-    assert "S2" in no_real_shared.rejected_factor_ids
+    # 공통 factor도 양쪽 원문에 실제로 존재해야 G1 recovery gate를 통과한다.
+    no_difference_analysis = evaluate_diff_coverage(request, precedent, fake_shared, [])
+    assert no_difference_analysis.basis == "incomplete_analysis"
+    assert no_difference_analysis.fired_rule == "G1"
+    assert "S2" in no_difference_analysis.rejected_factor_ids
 
     # 원문에 없는 decisive factor는 접지 실패로 폐기되고 applies로 빠지지 않는다.
     phantom = [
@@ -80,7 +87,7 @@ def pytest_sessionstart(session) -> None:  # noqa: ARG001
             side="request",
             axis="가공 조건",
             value_in_request="있음",
-            value_in_precedent="없음",
+            value_in_precedent=None,
             decisive=True,
         )
     ]
@@ -88,6 +95,23 @@ def pytest_sessionstart(session) -> None:  # noqa: ARG001
     assert rejected.basis == "incomplete_analysis"
     assert rejected.fired_rule == "G2"
     assert rejected.rejected_factor_ids == ("F3",)
+
+    # 양쪽에 똑같이 존재하는 문구를 decisive라고 잘못 표시해도 G4로 우회할 수 없다.
+    fake_decisive_shared_text = [
+        Factor(
+            id="F4",
+            text="외부 시스템에서 자료를 전달받음",
+            side="request",
+            axis="공통 조건",
+            value_in_request="있음",
+            value_in_precedent=None,
+            decisive=True,
+        )
+    ]
+    not_unique = evaluate_diff_coverage(request, precedent, shared, fake_decisive_shared_text)
+    assert not_unique.basis == "incomplete_analysis"
+    assert not_unique.fired_rule == "G2"
+    assert not not_unique.decisive_confirmed_ids
 
     # 실질 차이가 0이어도 선례 적격성 A1~A4를 확인하지 않으면 applies 금지.
     identical = "동일한 요청 내용임."
