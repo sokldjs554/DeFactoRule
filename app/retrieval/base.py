@@ -28,6 +28,15 @@ class Retriever(Protocol):
         """선례 풀과 (표현을 만들 때 쓸) 코퍼스를 받는다."""
         ...
 
-    def search(self, request: str, k: int = 5) -> list[tuple[int, float]]:
-        """(선례 인덱스, 점수) 를 점수 내림차순으로. 점수는 0~1 로 맞춘다."""
+    def search(
+        self,
+        request: str,
+        k: int = 5,
+        candidate_indices: list[int] | None = None,
+    ) -> list[tuple[int, float]]:
+        """(선례 인덱스, 점수)를 내림차순으로.
+
+        `candidate_indices`가 주어지면 **순위를 매기기 전에** 그 후보만 본다.
+        temporal eligibility처럼 top-k 이전에 적용해야 하는 제약을 위한 계약이다.
+        """
         ...
