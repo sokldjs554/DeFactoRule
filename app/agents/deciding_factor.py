@@ -134,10 +134,12 @@ def _unique_to_declared_side(factor: Factor, request: str, precedent: str) -> bo
     needle = normalize_for_match(factor.text)
     if not needle:
         return False
+    normalized_request = normalize_for_match(request)
+    normalized_precedent = normalize_for_match(precedent)
     if factor.side == "request":
-        return needle in normalize_for_match(request) and needle not in normalize_for_match(precedent)
+        return needle in normalized_request and needle not in normalized_precedent
     if factor.side == "precedent":
-        return needle in normalize_for_match(precedent) and needle not in normalize_for_match(request)
+        return needle in normalized_precedent and needle not in normalized_request
     return False
 
 
