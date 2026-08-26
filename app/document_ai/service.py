@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from app.document_ai.extraction import extract_fields, extract_fields_llm
 from app.document_ai.intake import read_document
@@ -13,7 +12,7 @@ from app.document_ai.validation import validate_extraction
 
 def process_document(
     path: Path,
-    ocr: Optional[TesseractOCR] = None,
+    ocr: TesseractOCR | None = None,
     client=None,
     use_llm: bool = False,
     dpi: int = 220,
