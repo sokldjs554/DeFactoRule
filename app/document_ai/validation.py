@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import re
-from typing import List
 
 from app.document_ai.models import ExtractedDocument, ValidationReport
 
@@ -15,7 +14,7 @@ def _norm(text: str) -> str:
 
 
 def validate_extraction(source_text: str, fields: ExtractedDocument) -> ValidationReport:
-    issues: List[str] = []
+    issues: list[str] = []
     if not fields.serial or not re.fullmatch(r"\d{5,7}", fields.serial):
         issues.append("invalid_or_missing_serial")
     if not fields.sector:
