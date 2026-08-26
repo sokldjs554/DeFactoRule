@@ -1,8 +1,9 @@
 """Evidence retrieval for the optional RAG service layer.
 
-The frozen decision Router is not modified here.  RAG gets its own precedent
-retrieval service with provenance-preserving evidence IDs and temporal filtering
-before ranking.
+The frozen decision Router is not modified here. RAG gets its own precedent
+retrieval service with provenance-preserving evidence IDs, temporal filtering
+before ranking, and the same calibrated similarity floor used by the decision
+system to avoid filling context with arbitrarily weak top-k matches.
 """
 
 from __future__ import annotations
@@ -11,6 +12,7 @@ from dataclasses import dataclass
 
 from app.core.io import load_jsonl
 from app.core.paths import EVAL
+from app.domain.similarity import SIMILARITY_FLOOR
 from app.domain.temporal import eligible_indices
 from app.retrieval.dense import DenseRetriever
 from app.retrieval.hybrid import HybridRetriever
@@ -56,11 +58,12 @@ def evidence_id(row: dict) -> str:
 
 
 class EvidenceRetriever:
-    """Hybrid precedent retriever with optional T-serial eligibility.
+    """Hybrid precedent retriever with T-serial eligibility and a relevance floor.
 
-    The corpus is the clean dev precedent pool.  It is deliberately separate from
+    The corpus is the clean dev precedent pool. It is deliberately separate from
     the frozen evaluation Router so adding RAG cannot silently change published
-    aggregate metrics.
+    aggregate metrics. Results below the project's calibrated similarity floor
+    are omitted rather than supplied to the LLM as weak evidence.
     """
 
     def __init__(self, precedents: list[dict] | None = None) -> None:
@@ -76,10 +79,9 @@ class EvidenceRetriever:
         request_serial: str | None = None,
         k: int = DEFAULT_K,
         temporal_policy: str = "serial",
+        min_score: float = SIMILARITY_FLOOR,
     ) -> list[EvidenceHit]:
-        if not request_text.strip():
-            return []
-        if k <= 0:
+        if not request_text.strip() or k <= 0:
             return []
 
         if temporal_policy == "serial":
@@ -102,6 +104,8 @@ class EvidenceRetriever:
         )
         hits: list[EvidenceHit] = []
         for index, score in ranked:
+            if score < min_score:
+                continue
             row = self.precedents[index]
             precedent_request = str(row.get("request") or "")
             hits.append(
