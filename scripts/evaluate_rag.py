@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ruff: noqa: I001
 """Print the API-free Evidence RAG retrieval evaluation as JSON."""
 from __future__ import annotations
 
