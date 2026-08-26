@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from app.document_ai.benchmark import evaluate_document_ai  # noqa: E402
+from app.document_ai.benchmark import BENCHMARK_N, evaluate_document_ai  # noqa: E402
 
 
 def _run_checks() -> None:
@@ -25,7 +25,7 @@ def _run_checks() -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path)
-    parser.add_argument("--n", type=int, default=20)
+    parser.add_argument("--n", type=int, default=BENCHMARK_N)
     parser.add_argument(
         "--skip-checks",
         action="store_true",
