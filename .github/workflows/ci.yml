@@ -36,6 +36,9 @@ jobs:
       - name: 테스트
         run: pytest tests -v
 
+      - name: Evidence RAG 오프라인 평가
+        run: python scripts/evaluate_rag.py
+
       - name: 코퍼스 규모 보고
         run: |
           for f in data/processed/*.jsonl; do

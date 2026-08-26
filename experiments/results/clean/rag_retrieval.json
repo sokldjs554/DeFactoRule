@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "split": "clean_test",
+  "n": 168,
+  "k": 5,
+  "retriever": "H(L+D)",
+  "temporal_policy": "serial",
+  "similarity_floor": 0.15,
+  "evidence_available": 88,
+  "evidence_coverage": 0.5238095238095238,
+  "zero_evidence": 80,
+  "mean_evidence_count": 1.1369047619047619,
+  "median_top1_score": 0.3312125856053989,
+  "temporal_violations": 0,
+  "duplicate_id_queries": 0,
+  "top1_outcome_agreement": 0.7045454545454546,
+  "topk_contains_same_outcome": 0.7840909090909091,
+  "diagnostic_note": "outcome agreement is not a relevance metric; the corpus has no human precedent-relevance judgments"
+}
