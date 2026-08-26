@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Print the API-free Evidence RAG retrieval evaluation as JSON."""
 
-from __future__ import annotations
-
 import json
 
 from app.rag.evaluation import evaluate_retrieval
