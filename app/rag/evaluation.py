@@ -12,6 +12,7 @@ from statistics import mean, median
 
 from app.core.io import load_jsonl
 from app.core.paths import EVAL
+from app.domain.similarity import SIMILARITY_FLOOR
 from app.domain.temporal import precedent_is_eligible
 from app.rag.evidence import EvidenceRetriever
 
@@ -65,6 +66,7 @@ def evaluate_retrieval(k: int = 5) -> dict:
         "k": k,
         "retriever": retriever.retriever.name,
         "temporal_policy": "serial",
+        "similarity_floor": SIMILARITY_FLOOR,
         "evidence_available": with_evidence,
         "evidence_coverage": with_evidence / n if n else 0.0,
         "zero_evidence": n - with_evidence,
