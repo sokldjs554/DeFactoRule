@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """Print the API-free Evidence RAG retrieval evaluation as JSON."""
+from __future__ import annotations
 
 import json
+import sys
+from pathlib import Path
 
-from app.rag.evaluation import evaluate_retrieval
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from app.rag.evaluation import evaluate_retrieval  # noqa: E402
 
 
 if __name__ == "__main__":
