@@ -4,6 +4,8 @@
 
 금융당국 사례집 **1,095건 · 1,122쌍**을 PDF에서 구조화하고, 규칙·선례 검색·LLM deciding-factor 분석·결정론적 검증·기권을 하나의 판단 흐름으로 연결했다. 최종 clean 프로파일은 **test 168건 중 76건 답변 / 92건 기권, 답변 정확도 82.89%, coverage 45.24%**다. 이 수치는 S5로 억지 회수하지 않은 fail-closed 결과다.
 
+별도 upstream 확장으로 **PDF / scan / image → OCR-aware Document AI → structured extraction / validation → Evidence RAG** 경로도 구현했다. OCR 평가는 실제 고객 스캔이 아니라 60개 금융 요청을 세 가지 품질로 rasterize한 synthetic benchmark이며, 결과와 한계를 decision/RAG 성능과 분리해서 기록한다.
+
 `1. Problem` · `2. Why This Problem` · `3. What Makes It Different` · `4. System Overview` · `5. Demo` · `6. Architecture` · `7. Evaluation` · `8. Failure Cases` · `9. Experiments` · `10. Limitations`
 
 ---
@@ -43,17 +45,19 @@
 | 흔한 접근 | DeFactoRule |
 |---|---|
 | PDF를 검색 가능한 텍스트로만 만든다 | PDF → 사례 → 요청·회답 → 구조화된 평가 단위까지 결정론적으로 만든다 |
+| 스캔 문서를 OCR text로 바로 신뢰한다 | native/OCR 분기 → field/quote 추출 → schema/grounding/confidence 검증 → review 또는 downstream |
 | 가장 비슷한 선례를 답으로 사용한다 | **Temporal eligibility → Retrieval → Router → Applicability** 순서로 적용 가능성을 따진다 |
 | LLM이 최종 판단과 근거를 함께 생성한다 | LLM은 조건·차이를 구조화하고, 최종 safety basis는 결정론적 gate가 계산한다 |
 | 애매해도 답한다 | `abstain / human handoff`를 정상 출력으로 취급한다 |
 | 평가 결과만 보고 규칙을 고친다 | dev/test 경계, provenance, regression guard를 먼저 고정하고 test 피드백 튜닝을 금지한다 |
-| 성공 사례만 보여준다 | 실패한 가설·과잉 기권·temporal proxy 한계까지 frozen artifact에 남긴다 |
+| 성공 사례만 보여준다 | 실패한 가설·과잉 기권·temporal proxy·OCR confidence 한계까지 frozen artifact에 남긴다 |
 
 초기 7개 판정기 비교에서는 **F1 7/21 · **AURC 10/21 유의****였다. 그러나 최종 Agent의 목적은 그 legacy 실험을 이겼다고 주장하는 것이 아니다. 최종 단계에서는 데이터 누수와 미래 선례를 제거한 clean protocol 아래에서 **잘못된 선례 적용을 막는 안전한 workflow**를 고정했다.
 
 ## 4. System Overview
 
 ```text
+[casebook / offline evaluation]
 금융규제 사례집 PDF
         │
         ▼
@@ -64,7 +68,19 @@ PDF → 사례 → 요청·회답 쌍 → 라벨
 clean group split
 동일/날짜 변형 사안이 dev↔test를 넘지 않게 그룹 단위 분리
         │
-        ▼
+        └─────────────────────────────┐
+                                      │
+[live / document intake]              │
+PDF / scan / image                     │
+        │                              │
+        ▼                              │
+native text or Korean OCR              │
+        │                              │
+        ▼                              │
+structured extraction + validation     │
+        │ validated only               │
+        └─────────────────────────────┤
+                                      ▼
 Temporal Eligibility
 T-serial proxy로 현재 요청보다 이전인 후보만 retrieval pool에 남김
         │
@@ -99,6 +115,7 @@ Router
 | 요청에만 있는 조건 추출 | temporal candidate filtering |
 | 선례에만 있는 조건 추출 | retrieval ranking · rule matching |
 | 결정적 차이 후보 표시 | factor literal grounding 검증 |
+| OCR/native text에서 optional structured fields 추출 | Document AI schema / quote / OCR-quality gate |
 | — | Diff Coverage Gate · route · abstain · trace |
 | — | 평가 · provenance · regression guard |
 
@@ -136,10 +153,25 @@ FastAPI UI는 기존 연구 결과와 실패 레지스트리를 탐색하는 용
 | 엔드포인트 | 역할 |
 |---|---|
 | `POST /classify` | 기존 분류 서비스 + 기권 계약 |
+| `POST /rag/evidence` | temporal Evidence RAG retrieval + optional grounded memo |
 | `GET /base-rates` | dev 기반 기저율 |
 | `GET /evaluation/models` | 판정기 비교 결과 |
 | `GET /evaluation/risk-coverage` | 위험–커버리지 곡선/AURC |
 | `GET /failures` | 실패 레지스트리와 재현 probe |
+
+OCR-aware intake는 CLI에서도 재현할 수 있다.
+
+```bash
+# Document AI 전용 checks + 60문서 × 3프로필 benchmark
+python scripts/evaluate_document_ai.py --n 60
+
+# 실제 캡처용 동일 입력 3개 품질 생성 - API 호출 없음
+python scripts/render_document_ai_samples.py \
+  --output-dir artifacts/document_ai_capture \
+  --sample 12
+```
+
+실행 캡처 위치와 화면 구성은 [`docs/31-portfolio-capture-guide.md`](docs/31-portfolio-capture-guide.md)에 고정했다. 저장소에는 가짜 실행 이미지나 생성된 목업을 넣지 않는다.
 
 ## 6. Architecture
 
@@ -148,19 +180,38 @@ app/
   core/            공용 I/O · text normalization · audit
   domain/          라벨 · similarity threshold · temporal contract
   extraction/      PDF → 사례 → 질의·회답 구조화
+  document_ai/     native/OCR intake · structured extraction · validation · RAG bridge
   rules/           E6 rule induction + runtime capability projection
   retrieval/       lexical · dense · hybrid retriever
+  rag/             temporal Evidence RAG · provenance · memo grounding
   agents/          Router · temporal calibration · deciding-factor Agent
   evaluation/      clean profile · metrics · final freeze
   infrastructure/  Anthropic API boundary · structured-output handling
   api/             FastAPI service
 
 scripts/           얇은 CLI / 실험·freeze 진입점
-tests/             unit · integration · evaluation · regression
+tests/             core unit · integration · evaluation · regression
+checks/document_ai Document AI 전용 contract / OCR checks
 experiments/       frozen result artifacts
 ```
 
-테스트 <!--TESTS-->563<!--/TESTS-->개를 Python 3.9와 3.11 CI에서 실행한다. C-5 merge 후 main push에서도 lint, 전체 테스트, 코퍼스 검사가 통과한 상태로 freeze했다.
+Core suite는 테스트 <!--TESTS-->563<!--/TESTS-->개를 수집하며 현재 CI 기준 **552 passed / 11 skipped**다. Python 3.9와 3.11에서 core suite와 Evidence RAG 오프라인 평가를 함께 실행한다. 별도 Document AI suite는 **17 checks**이며, 실제 Tesseract 한국어 OCR과 60문서 × 3프로필 benchmark는 Python 3.11 job에서 실행한다.
+
+### OCR-aware Document AI intake
+
+OCR headline은 쉬운 scalar field만 골라 100%를 보여주지 않는다. 60개 금융 요청을 clean-test pool 전반에서 고정 샘플링하고, serial / sector / decision / **긴 request 전체**를 exact field metric에 포함했다.
+
+| Synthetic scan profile | Request char acc. | Field F1 exact | Review rate | Error-detection recall |
+|---|---:|---:|---:|---:|
+| clean 220dpi PNG | **94.38%** | **75.42%** | 1.67% | 1.69% |
+| standard 170dpi JPEG | **89.79%** | **75.11%** | 10.00% | 10.53% |
+| degraded 120dpi JPEG | **93.53%** | **62.44%** | 58.33% | 58.33% |
+
+Tesseract confidence gate는 post-gate 결과를 보기 전에 `mean confidence < 80` 또는 `low-confidence token > 20%`로 고정했다. 실험 결과 degraded 입력은 상당수 review로 보냈지만, clean/standard의 **high-confidence OCR 오독은 잘 잡지 못했다.** 따라서 confidence는 보조 quality signal이지 ground-truth 검증기가 아니다. 상세 설계/수치/한계는 [`docs/30-document-ai-ocr.md`](docs/30-document-ai-ocr.md)에 남겼다.
+
+<!-- CAPTURE_DOC_AI_INPUTS: docs/31 가이드대로 사용자가 직접 캡처한 Clean / Standard / Degraded 입력 이미지를 여기에 삽입 -->
+<!-- CAPTURE_DOC_AI_EXTRACTION: expected / actual / OCR quality / validation이 보이는 실제 JSON 캡처를 여기에 삽입 -->
+<!-- CAPTURE_DOC_AI_FAILURE: review_required=true인 실제 실패 사례 캡처를 여기에 삽입 -->
 
 ### Runtime contract mismatch를 어떻게 처리했나
 
@@ -279,6 +330,8 @@ C-4에서는 temporal 적용 후 선정한 5건을 별도 qualitative audit했�
 | C-3 | 같은 temporal 정책으로 risk를 다시 보정하면 결과가 바뀌는가 | calibration 정합화, Router 수치는 동일 |
 | C-4 | LLM이 결정적 차이를 구조화하고 코드가 검증할 수 있는가 | safety veto로 채택, safe recovery는 미검증 |
 | C-5 | runtime schema와 frozen rule asset을 일치시킬 수 있는가 | unsupported sector #8 제거, row-level delta 0 |
+| D-1 | scan/image 입력을 구조화해 downstream으로 안전하게 넘길 수 있는가 | OCR-aware intake 구현; 60×3 synthetic scan에서 품질별 field F1과 review 동작 측정 |
+| D-2 | OCR confidence가 실제 오독을 충분히 검출하는가 | degraded에는 일부 유효, clean/standard high-confidence 오독에는 부족 - 한계로 동결 |
 
 최종 hardening 근거는 다음 frozen artifacts에 있다.
 
@@ -286,6 +339,8 @@ C-4에서는 temporal 적용 후 선정한 5건을 별도 qualitative audit했�
 - `experiments/results/clean/e6_rules_clean_runtime.json`
 - `experiments/results/clean/c4_s5_audit_summary.json`
 - `experiments/results/clean/final_clean_temporal.json`
+- `experiments/results/clean/rag_retrieval.json`
+- `experiments/results/clean/document_ai_ocr.json`
 
 세부 설계와 실패 과정은 `docs/20-final-agent-workflow-design.md` 이후 문서에 이어진다.
 
@@ -297,7 +352,8 @@ C-4에서는 temporal 적용 후 선정한 5건을 별도 qualitative audit했�
 - **LLM audit 표본은 작고 stochastic하다.** 한 clean AG-13형 사례를 잡았다고 failure class가 해결됐다고 주장하지 않는다.
 - **`조치` 선례 근거가 희소하다.** clean test의 소수 클래스에 threshold-positive precedent가 거의 없어 retrieval 기반 개선이 구조적으로 어렵다.
 - **DOUBT/TRUST는 clean dev에서 band separation을 지지하지만 유일 최적값으로 재탐색한 값은 아니다.** 성능을 맞추기 위한 threshold tuning은 하지 않았다.
-- **Document AI는 구조화 파이프라인 수준이다.** PyMuPDF 기반 PDF→사례→질의·회답 구조화와 회귀 테스트는 구현했지만, OCR/layout model 자체를 연구한 프로젝트는 아니다.
+- **Document AI/OCR은 synthetic benchmark 범위다.** Tesseract 한국어 baseline과 native/OCR intake, field/quote 구조화, confidence/grounding validation, RAG bridge를 구현했지만 실제 고객 스캔·OCR fine-tuning·table recognition·image-VLM benchmark는 없다.
+- **OCR confidence만으로는 high-confidence 오독을 충분히 검출하지 못했다.** clean/standard에서 ground-truth field mismatch의 review recall은 각각 1.69% / 10.53%였다. 따라서 validation pass를 ground-truth correctness로 해석하지 않는다.
 - **실서비스 배포 성과로 과장하지 않는다.** FastAPI 경계와 재현 가능한 pipeline은 있지만 실제 고객 트래픽에서 운영한 시스템은 아니다.
 - **historical 170건 실험과 final clean 168건은 프로토콜이 다르다.** legacy F1/AURC/TRAP 표를 final Agent의 직접 비교 수치로 사용하지 않는다.
 
@@ -322,9 +378,20 @@ python3 scripts/sync_docs.py --check
 python3 scripts/calibrate_temporal.py
 python3 scripts/final_freeze.py
 
+# Evidence RAG retrieval audit — API 호출 없음
+python3 scripts/evaluate_rag.py
+
+# Document AI — dedicated checks + 60×3 synthetic scan benchmark, API 호출 없음
+python3 scripts/evaluate_document_ai.py --n 60
+
+# 포트폴리오 / README 실제 캡처 세트 생성
+python3 scripts/render_document_ai_samples.py \
+  --output-dir artifacts/document_ai_capture \
+  --sample 12
+
 # tests
 pip3 install -r requirements-dev.txt
 python3 -m pytest tests -q
 ```
 
-**현재 규모:** 1,095건 · 1,122쌍 · 실패 케이스 78건 · 테스트 <!--TESTS-->563<!--/TESTS-->개.
+**현재 규모:** 1,095건 · 1,122쌍 · 실패 케이스 78건 · core tests <!--TESTS-->563<!--/TESTS-->개 + Document AI dedicated checks 17개.

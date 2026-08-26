@@ -1,0 +1,34 @@
+"""End-to-end Document AI intake service, separate from the frozen decision profile."""
+from __future__ import annotations
+
+from pathlib import Path
+
+from app.document_ai.extraction import extract_fields, extract_fields_llm
+from app.document_ai.intake import read_document
+from app.document_ai.models import DocumentAIResult
+from app.document_ai.ocr import TesseractOCR
+from app.document_ai.validation import validate_extraction
+
+
+def process_document(
+    path: Path,
+    ocr: TesseractOCR | None = None,
+    client=None,
+    use_llm: bool = False,
+    dpi: int = 220,
+) -> DocumentAIResult:
+    document = read_document(path, ocr=ocr, dpi=dpi)
+    fields = extract_fields_llm(document.text, client) if use_llm else extract_fields(document.text)
+    report = validate_extraction(
+        document.text,
+        fields,
+        ocr_mean_confidence=document.ocr_mean_confidence,
+        ocr_low_confidence_fraction=document.ocr_low_confidence_fraction,
+    )
+    return DocumentAIResult(
+        document=document,
+        fields=fields,
+        validation=report,
+        extractor="llm-structured" if use_llm else "deterministic-form-baseline",
+        input_name=path.name,
+    )
