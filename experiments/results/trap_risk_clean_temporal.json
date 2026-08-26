@@ -1,0 +1,81 @@
+{
+  "n_dev": 87,
+  "n_with_eligible_precedent": 86,
+  "n_without_eligible_precedent": 1,
+  "temporal_policy": "serial",
+  "thresholds": {
+    "trust": 0.6,
+    "doubt": 0.15
+  },
+  "overall_risk": 0.32558139534883723,
+  "by_band": {
+    "trust": {
+      "n": 27,
+      "wrong": 2,
+      "risk": 0.07407407407407407,
+      "ci95": [
+        0.020554221697383523,
+        0.2336997729073062
+      ]
+    },
+    "middle": {
+      "n": 9,
+      "wrong": 3,
+      "risk": 0.3333333333333333,
+      "ci95": [
+        0.12058159868274287,
+        0.6458026525009103
+      ]
+    },
+    "doubt": {
+      "n": 50,
+      "wrong": 23,
+      "risk": 0.46,
+      "ci95": [
+        0.3296943460178263,
+        0.5960136567161192
+      ]
+    }
+  },
+  "by_neighbor_label": {
+    "기타": {
+      "n": 20,
+      "wrong": 13,
+      "risk": 0.65,
+      "ci95": [
+        0.43285051021946463,
+        0.8188104521320554
+      ]
+    },
+    "비조치": {
+      "n": 60,
+      "wrong": 12,
+      "risk": 0.2,
+      "ci95": [
+        0.11828389736858964,
+        0.3178204609181701
+      ]
+    },
+    "조치": {
+      "n": 6,
+      "wrong": 3,
+      "risk": 0.5,
+      "ci95": [
+        0.18761280689940874,
+        0.8123871931005913
+      ]
+    }
+  },
+  "joint_cell_counts": {
+    "doubt|기타": 17,
+    "doubt|비조치": 27,
+    "doubt|조치": 6,
+    "middle|비조치": 9,
+    "trust|기타": 3,
+    "trust|비조치": 24
+  },
+  "sparse_cells": 0,
+  "bands_separable": true,
+  "separability_detail": "믿음 상한 0.234 < 못믿음 하한 0.330 — 겹치지 않는다",
+  "idf_source": "cases_nonaction.jsonl 259건"
+}

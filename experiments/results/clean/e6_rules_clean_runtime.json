@@ -1,0 +1,146 @@
+{
+  "contract": {
+    "source": "frozen clean E6 asset",
+    "method": "capability_projection_no_reinduction",
+    "runtime_atom_kinds": [
+      "length",
+      "ngram"
+    ],
+    "unsupported_metadata_atoms": [
+      "sector"
+    ],
+    "reason": "live AgentState receives request text; sector is editorial metadata",
+    "preserve_original_rule_order": true
+  },
+  "settings": {
+    "ngram_lengths": [
+      3,
+      4,
+      5,
+      6
+    ],
+    "min_df": 4,
+    "max_df_ratio": 0.6,
+    "min_support": 4,
+    "min_precision": 0.8,
+    "max_depth": 3,
+    "beam": 12
+  },
+  "default_label": "기타",
+  "rules": [
+    {
+      "order": 1,
+      "label": "비조치",
+      "description": "본문에 '에따른' 포함 AND 본문에 '제1항' 포함 -> 비조치",
+      "atoms": [
+        {"kind": "ngram", "value": "에따른"},
+        {"kind": "ngram", "value": "제1항"}
+      ],
+      "dev_support": 22,
+      "dev_precision": 1.0,
+      "test_support": null,
+      "test_precision": null
+    },
+    {
+      "order": 2,
+      "label": "비조치",
+      "description": "본문에 '’24.' 포함 -> 비조치",
+      "atoms": [{"kind": "ngram", "value": "’24."}],
+      "dev_support": 10,
+      "dev_precision": 1.0,
+      "test_support": null,
+      "test_precision": null
+    },
+    {
+      "order": 3,
+      "label": "비조치",
+      "description": "본문에 '조치를' 포함 -> 비조치",
+      "atoms": [{"kind": "ngram", "value": "조치를"}],
+      "dev_support": 9,
+      "dev_precision": 1.0,
+      "test_support": null,
+      "test_precision": null
+    },
+    {
+      "order": 4,
+      "label": "비조치",
+      "description": "본문에 '<별표' 포함 -> 비조치",
+      "atoms": [{"kind": "ngram", "value": "<별표"}],
+      "dev_support": 7,
+      "dev_precision": 1.0,
+      "test_support": null,
+      "test_precision": null
+    },
+    {
+      "order": 5,
+      "label": "비조치",
+      "description": "본문에 '□가상자산사업자가' 포함 -> 비조치",
+      "atoms": [{"kind": "ngram", "value": "□가상자산사업자가"}],
+      "dev_support": 4,
+      "dev_precision": 1.0,
+      "test_support": null,
+      "test_precision": null
+    },
+    {
+      "order": 6,
+      "label": "기타",
+      "description": "본문에 '서비스' 포함 AND 본문에 '□금융회사' 포함 -> 기타",
+      "atoms": [
+        {"kind": "ngram", "value": "서비스"},
+        {"kind": "ngram", "value": "□금융회사"}
+      ],
+      "dev_support": 4,
+      "dev_precision": 1.0,
+      "test_support": null,
+      "test_precision": null
+    },
+    {
+      "order": 7,
+      "label": "조치",
+      "description": "본문에 '위반인지' 포함 -> 조치",
+      "atoms": [{"kind": "ngram", "value": "위반인지"}],
+      "dev_support": 6,
+      "dev_precision": 1.0,
+      "test_support": null,
+      "test_precision": null
+    },
+    {
+      "order": 9,
+      "label": "비조치",
+      "description": "본문에 '에따른' 포함 -> 비조치",
+      "atoms": [{"kind": "ngram", "value": "에따른"}],
+      "dev_support": 5,
+      "dev_precision": 1.0,
+      "test_support": null,
+      "test_precision": null
+    },
+    {
+      "order": 10,
+      "label": "기타",
+      "description": "본문에 '는경우' 포함 -> 기타",
+      "atoms": [{"kind": "ngram", "value": "는경우"}],
+      "dev_support": 5,
+      "dev_precision": 0.8,
+      "test_support": null,
+      "test_precision": null
+    },
+    {
+      "order": 11,
+      "label": "비조치",
+      "description": "본문에 '감독규정' 포함 -> 비조치",
+      "atoms": [{"kind": "ngram", "value": "감독규정"}],
+      "dev_support": 5,
+      "dev_precision": 0.8,
+      "test_support": null,
+      "test_precision": null
+    }
+  ],
+  "dropped_rules": [
+    {
+      "order": 8,
+      "description": "업권이 '공통' -> 기타",
+      "unsupported_atom_kinds": ["sector"],
+      "reason": "condition is unavailable from the live request-only input"
+    }
+  ]
+}

@@ -26,6 +26,16 @@ from app.core.io import load_jsonl, write_jsonl  # noqa: E402
 from app.core.paths import EVAL, PROCESSED, RESULTS  # noqa: E402
 from app.retrieval.lexical import LexicalRetriever  # noqa: E402
 
+# E8~E11a 의 역사적 실험 집합. 새 production 정책을 VARIANTS 에 추가해도
+# `experiment` 결과 파일의 구성/의미가 조용히 바뀌면 안 된다.
+HISTORICAL_EXPERIMENT_VARIANTS = (
+    "naive",
+    "always-precedent",
+    "router",
+    "router-noabstain",
+    "router-novalidate",
+)
+
 
 def load_everything(args):
     dev = [r for r in load_jsonl(Path(args.dev)) if r.get("label")]
@@ -57,7 +67,7 @@ def cmd_experiment(args) -> None:
     trap = trap_keys(dev, test, corpus)
 
     results = {}
-    for name in VARIANTS:
+    for name in HISTORICAL_EXPERIMENT_VARIANTS:
         results[name] = run_variant(name, LexicalRetriever, dev, rules, risk, test,
                                     corpus, fallback)
         write_jsonl(PROCESSED / f"pred_nonaction_agent_{name}.jsonl",

@@ -1,0 +1,262 @@
+{
+  "phase": "C-5 final deterministic freeze",
+  "api_calls": 0,
+  "profile": {
+    "split": "clean-group",
+    "temporal_policy": "serial proxy",
+    "risk_asset": "trap_risk_clean_temporal.json",
+    "rule_asset": "e6_rules_clean_runtime.json",
+    "runtime_rule_atom_kinds": [
+      "length",
+      "ngram"
+    ],
+    "rule_contract": "capability projection of frozen clean E6; no re-induction",
+    "s5_mode": "fail-closed qualitative safety veto; not applied to aggregate metrics"
+  },
+  "runtime_e6": {
+    "source_rule_count": 11,
+    "final_rule_count": 10,
+    "dropped_rules": [
+      {
+        "order": 8,
+        "description": "업권이 '공통' -> 기타",
+        "unsupported_atom_kinds": [
+          "sector"
+        ],
+        "reason": "condition is unavailable from the live request-only input"
+      }
+    ],
+    "default_label": "기타",
+    "atom_kinds_present": [
+      "ngram"
+    ],
+    "transfer": {
+      "n_rules": 10,
+      "default_label": "기타",
+      "test_n": 168,
+      "fired": 138,
+      "coverage": 0.8214285714285714,
+      "correct_when_fired": 100,
+      "precision_when_fired": 0.7246376811594203,
+      "precision_ci95": [
+        0.6447888462840227,
+        0.7923184621501743
+      ],
+      "fell_to_default": 30,
+      "default_correct": 6,
+      "default_label_distribution": {
+        "기타": 6,
+        "비조치": 21,
+        "조치": 3
+      },
+      "rules_that_never_fire": [],
+      "whole_model_accuracy": 0.6309523809523809,
+      "per_rule": [
+        {
+          "order": 1,
+          "label": "비조치",
+          "description": "본문에 '에따른' 포함 AND 본문에 '제1항' 포함 -> 비조치",
+          "dev_support": 22,
+          "dev_precision": 1.0,
+          "test_support": 33,
+          "test_correct": 30,
+          "test_precision": 0.9090909090909091
+        },
+        {
+          "order": 2,
+          "label": "비조치",
+          "description": "본문에 '’24.' 포함 -> 비조치",
+          "dev_support": 10,
+          "dev_precision": 1.0,
+          "test_support": 12,
+          "test_correct": 12,
+          "test_precision": 1.0
+        },
+        {
+          "order": 3,
+          "label": "비조치",
+          "description": "본문에 '조치를' 포함 -> 비조치",
+          "dev_support": 9,
+          "dev_precision": 1.0,
+          "test_support": 4,
+          "test_correct": 4,
+          "test_precision": 1.0
+        },
+        {
+          "order": 4,
+          "label": "비조치",
+          "description": "본문에 '<별표' 포함 -> 비조치",
+          "dev_support": 7,
+          "dev_precision": 1.0,
+          "test_support": 23,
+          "test_correct": 15,
+          "test_precision": 0.6521739130434783
+        },
+        {
+          "order": 5,
+          "label": "비조치",
+          "description": "본문에 '□가상자산사업자가' 포함 -> 비조치",
+          "dev_support": 4,
+          "dev_precision": 1.0,
+          "test_support": 3,
+          "test_correct": 3,
+          "test_precision": 1.0
+        },
+        {
+          "order": 6,
+          "label": "기타",
+          "description": "본문에 '서비스' 포함 AND 본문에 '□금융회사' 포함 -> 기타",
+          "dev_support": 4,
+          "dev_precision": 1.0,
+          "test_support": 15,
+          "test_correct": 8,
+          "test_precision": 0.5333333333333333
+        },
+        {
+          "order": 7,
+          "label": "조치",
+          "description": "본문에 '위반인지' 포함 -> 조치",
+          "dev_support": 6,
+          "dev_precision": 1.0,
+          "test_support": 13,
+          "test_correct": 5,
+          "test_precision": 0.38461538461538464
+        },
+        {
+          "order": 9,
+          "label": "비조치",
+          "description": "본문에 '에따른' 포함 -> 비조치",
+          "dev_support": 5,
+          "dev_precision": 1.0,
+          "test_support": 18,
+          "test_correct": 17,
+          "test_precision": 0.9444444444444444
+        },
+        {
+          "order": 10,
+          "label": "기타",
+          "description": "본문에 '는경우' 포함 -> 기타",
+          "dev_support": 5,
+          "dev_precision": 0.8,
+          "test_support": 14,
+          "test_correct": 4,
+          "test_precision": 0.2857142857142857
+        },
+        {
+          "order": 11,
+          "label": "비조치",
+          "description": "본문에 '감독규정' 포함 -> 비조치",
+          "dev_support": 5,
+          "dev_precision": 0.8,
+          "test_support": 3,
+          "test_correct": 2,
+          "test_precision": 0.6666666666666666
+        }
+      ]
+    },
+    "behaviorally_equivalent_to_c3": true
+  },
+  "c3_anchor_recomputed": {
+    "n": 168,
+    "answered": 76,
+    "abstained": 92,
+    "correct": 63,
+    "wrong": 13,
+    "coverage": 0.4523809523809524,
+    "accuracy_on_answered": 0.8289473684210527,
+    "routes": {
+      "R1": 60,
+      "R2": 23,
+      "R3": 48,
+      "R5": 20,
+      "R8": 15,
+      "R9": 2
+    },
+    "paths": {
+      "A": 15,
+      "B": 61,
+      "C": 92
+    },
+    "abstention_reasons": {
+      "AMBIGUOUS_MARGIN": 2,
+      "CONFLICTING_EVIDENCE": 60,
+      "NO_EVIDENCE": 23,
+      "SURFACE_ONLY": 7
+    },
+    "rule_fires": {
+      "rule:e6#1": 33,
+      "rule:e6#10": 54,
+      "rule:e6#11": 81,
+      "rule:e6#2": 14,
+      "rule:e6#3": 13,
+      "rule:e6#4": 29,
+      "rule:e6#5": 3,
+      "rule:e6#6": 15,
+      "rule:e6#7": 17,
+      "rule:e6#9": 79
+    }
+  },
+  "final": {
+    "n": 168,
+    "answered": 76,
+    "abstained": 92,
+    "correct": 63,
+    "wrong": 13,
+    "coverage": 0.4523809523809524,
+    "accuracy_on_answered": 0.8289473684210527,
+    "routes": {
+      "R1": 60,
+      "R2": 23,
+      "R3": 48,
+      "R5": 20,
+      "R8": 15,
+      "R9": 2
+    },
+    "paths": {
+      "A": 15,
+      "B": 61,
+      "C": 92
+    },
+    "abstention_reasons": {
+      "AMBIGUOUS_MARGIN": 2,
+      "CONFLICTING_EVIDENCE": 60,
+      "NO_EVIDENCE": 23,
+      "SURFACE_ONLY": 7
+    },
+    "rule_fires": {
+      "rule:e6#1": 33,
+      "rule:e6#10": 54,
+      "rule:e6#11": 81,
+      "rule:e6#2": 14,
+      "rule:e6#3": 13,
+      "rule:e6#4": 29,
+      "rule:e6#5": 3,
+      "rule:e6#6": 15,
+      "rule:e6#7": 17,
+      "rule:e6#9": 79
+    }
+  },
+  "delta": {
+    "answered": 0,
+    "abstained": 0,
+    "correct": 0,
+    "wrong": 0,
+    "coverage": 0.0,
+    "accuracy_on_answered": 0.0
+  },
+  "transitions": {
+    "counts": {
+      "abstain->abstain": 92,
+      "correct->correct": 63,
+      "wrong->wrong": 13
+    },
+    "changed": []
+  },
+  "limitations": [
+    "T-serial is a chronology proxy, not ground-truth decision time.",
+    "S5 audit is qualitative and fail-closed; safe recovery was not established.",
+    "Action-label precedent evidence remains sparse.",
+    "DOUBT/TRUST are inherited thresholds supported, not uniquely optimized, on clean dev.",
+    "A text-only E6 re-induction was evaluated as a diagnostic and not adopted; production uses a capability projection of the frozen clean asset."
+  ]
+}
