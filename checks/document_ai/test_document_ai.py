@@ -12,9 +12,11 @@ from app.document_ai.extraction import DOCUMENT_SCHEMA, extract_fields, extract_
 from app.document_ai.intake import detect_mode
 from app.document_ai.models import ExtractedDocument
 from app.document_ai.ocr import OcrOutput, TesseractOCR
+from app.document_ai.rag_bridge import process_document_with_rag
 from app.document_ai.service import process_document
 from app.document_ai.validation import validate_extraction
 from app.infrastructure.schema_rules import check_output_schema
+from app.rag.schemas import RAGResponse
 
 FORM = """금융규제 업무 문서
 일련번호: 240001
@@ -212,6 +214,57 @@ def test_optional_llm_extractor_uses_structured_output() -> None:
     )
     assert fields.serial == "240001"
     assert fields.quotes["request"] == "클라우드 이용"
+
+
+def test_valid_document_is_forwarded_to_temporal_rag(tmp_path: Path, monkeypatch) -> None:
+    path = tmp_path / "valid.pdf"
+    _native_pdf(path)
+    captured = {}
+
+    def fake_run_rag(req, client=None):
+        captured["request_text"] = req.request_text
+        captured["request_serial"] = req.request_serial
+        captured["temporal_policy"] = req.temporal_policy
+        return RAGResponse(
+            retriever="fake",
+            temporal_policy=req.temporal_policy,
+            evidence_count=0,
+            evidence=[],
+            abstained=True,
+            abstain_reason="fake-no-evidence",
+        )
+
+    monkeypatch.setattr("app.document_ai.rag_bridge.run_rag", fake_run_rag)
+    result = process_document_with_rag(path)
+    assert result.forwarded
+    assert result.rag is not None
+    assert captured == {
+        "request_text": "금융회사가 외부 클라우드 서비스를 이용하는 경우",
+        "request_serial": "240001",
+        "temporal_policy": "serial",
+    }
+
+
+def test_invalid_document_never_reaches_rag(tmp_path: Path, monkeypatch) -> None:
+    path = tmp_path / "invalid.pdf"
+    _native_pdf(
+        path,
+        """금융규제 업무 문서
+일련번호: 240001
+업권: 전자금융
+요청대상행위:
+금융회사가 외부 클라우드 서비스를 이용하는 경우
+""",
+    )
+
+    def exploding_run_rag(*args, **kwargs):
+        raise AssertionError("invalid extraction must not reach RAG")
+
+    monkeypatch.setattr("app.document_ai.rag_bridge.run_rag", exploding_run_rag)
+    result = process_document_with_rag(path)
+    assert not result.forwarded
+    assert result.rag is None
+    assert result.document_ai.validation.review_required
 
 
 def test_synthetic_document_ai_benchmark_has_two_profiles() -> None:
