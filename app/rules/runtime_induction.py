@@ -1,75 +1,72 @@
-"""Production E6 induction contract.
+"""Production E6 runtime capability contract.
 
-Legacy E6 intentionally keeps its historical atom vocabulary (`ngram`, `sector`, `length`)
-for reproducibility. The live Router only receives request text, so editorial `sector`
-metadata is not a valid production condition. This module reuses the same inducer while
-restricting candidate atoms to kinds the runtime matcher can actually evaluate.
+The clean E6 asset is already a frozen learned model. Production must not silently learn a
+replacement model merely because one learned condition is unavailable at inference time.
+Instead, project the frozen asset onto conditions the live Router can actually evaluate.
+
+This is deliberately structural, not performance-driven: any rule containing unsupported
+editorial metadata is removed as a whole, its original order is preserved, and no replacement
+rule is induced from test results.
 """
 
 from __future__ import annotations
 
-from app.rules.induction import (
-    BEAM,
-    MAX_DEPTH,
-    MAX_DF_RATIO,
-    MIN_DF,
-    MIN_PRECISION,
-    MIN_SUPPORT,
-    NGRAM_LENGTHS,
-    Rule,
-    coverage_masks,
-    induce,
-    mine_atoms,
-)
+from copy import deepcopy
 
 RUNTIME_ATOM_KINDS = frozenset({"ngram", "length"})
 
 
-def runtime_atoms(rows: list[dict]):
-    """Build the normal E6 vocabulary, excluding conditions unavailable at inference time."""
-    candidates = [a for a in mine_atoms(rows) if a.kind in RUNTIME_ATOM_KINDS]
-    # Maximalize/deduplicate only after unsupported atoms are removed. Filtering after
-    # coverage dedup could accidentally let a `sector` atom hide an equivalent text atom.
-    return list(coverage_masks(rows, candidates))
+def unsupported_atom_kinds(rule: dict) -> tuple[str, ...]:
+    """Return unsupported atom kinds in stable order."""
+    return tuple(
+        sorted(
+            {
+                str(atom.get("kind"))
+                for atom in rule.get("atoms", [])
+                if atom.get("kind") not in RUNTIME_ATOM_KINDS
+            }
+        )
+    )
 
 
-def induce_runtime(rows: list[dict]) -> tuple[list[Rule], str]:
-    """Run the historical inducer with the production-capable atom vocabulary only."""
-    return induce(rows, atoms=runtime_atoms(rows))
+def project_runtime_asset(frozen_payload: dict) -> dict:
+    """Remove only rules the live request-only matcher cannot evaluate.
 
+    Orders are not renumbered. They identify the frozen learned rules and keeping them stable
+    makes traces comparable with the clean E6 audit.
+    """
+    kept = []
+    dropped = []
+    for rule in frozen_payload.get("rules", []):
+        unsupported = unsupported_atom_kinds(rule)
+        if unsupported:
+            dropped.append(
+                {
+                    "order": rule.get("order"),
+                    "description": rule.get("description"),
+                    "unsupported_atom_kinds": list(unsupported),
+                    "reason": "condition is unavailable from the live request-only input",
+                }
+            )
+        else:
+            kept.append(deepcopy(rule))
 
-def serialize_runtime_rules(rules: list[Rule], default: str) -> dict:
-    """Stable JSON payload for the clean production E6 asset."""
-    return {
+    payload = {
         "contract": {
+            "source": "frozen clean E6 asset",
+            "method": "capability_projection_no_reinduction",
             "runtime_atom_kinds": sorted(RUNTIME_ATOM_KINDS),
             "unsupported_metadata_atoms": ["sector"],
             "reason": "live AgentState receives request text; sector is editorial metadata",
+            "preserve_original_rule_order": True,
         },
-        "settings": {
-            "ngram_lengths": list(NGRAM_LENGTHS),
-            "min_df": MIN_DF,
-            "max_df_ratio": MAX_DF_RATIO,
-            "min_support": MIN_SUPPORT,
-            "min_precision": MIN_PRECISION,
-            "max_depth": MAX_DEPTH,
-            "beam": BEAM,
-        },
-        "default_label": default,
-        "rules": [
-            {
-                "order": r.order,
-                "label": r.label,
-                "description": r.describe(),
-                "atoms": [{"kind": a.kind, "value": a.value} for a in r.atoms],
-                "dev_support": r.dev_support,
-                "dev_precision": r.dev_precision,
-                "test_support": None,
-                "test_precision": None,
-            }
-            for r in rules
-        ],
+        "settings": deepcopy(frozen_payload.get("settings", {})),
+        "default_label": frozen_payload.get("default_label"),
+        "rules": kept,
+        "dropped_rules": dropped,
     }
+    validate_runtime_asset(payload)
+    return payload
 
 
 def validate_runtime_asset(payload: dict) -> None:
