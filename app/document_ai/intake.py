@@ -29,6 +29,16 @@ def _render_page(page: pymupdf.Page, dpi: int) -> bytes:
     return page.get_pixmap(dpi=dpi, alpha=False).tobytes("png")
 
 
+def _ocr_page(page: int, output) -> PageText:
+    return PageText(
+        page=page,
+        text=output.text,
+        source="ocr",
+        ocr_mean_confidence=output.mean_confidence,
+        ocr_low_confidence_fraction=output.low_confidence_fraction,
+    )
+
+
 def read_document(
     path: Path,
     ocr: TesseractOCR | None = None,
@@ -55,7 +65,7 @@ def read_document(
     engine = ocr or TesseractOCR()
     if path.suffix.lower() in _IMAGE_SUFFIXES:
         output = engine.recognize(path.read_bytes())
-        pages = [PageText(page=1, text=output.text, source="ocr")]
+        pages = [_ocr_page(1, output)]
         return DocumentText(
             mode="ocr",
             engine=output.engine,
@@ -70,7 +80,7 @@ def read_document(
     for i in range(limit):
         output = engine.recognize(_render_page(doc[i], dpi=dpi))
         engine_name = output.engine
-        pages.append(PageText(page=i + 1, text=output.text, source="ocr"))
+        pages.append(_ocr_page(i + 1, output))
     text = "\n".join(p.text for p in pages)
     return DocumentText(
         mode="ocr",
