@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "benchmark": "synthetic_scanned_financial_requests",
+  "source": "data/eval/nonaction_test_clean.jsonl",
+  "selection": "first 20 rows with masked_leaks=0, serial present, request<=700 chars",
+  "n_documents": 20,
+  "profiles": [
+    {
+      "profile": "clean_220dpi_png",
+      "n": 20,
+      "mean_cer_no_space": 0.04122782526884612,
+      "mean_request_cer_no_space": 0.045135430501480236,
+      "scalar_field_exact": 1.0,
+      "fully_valid": 20,
+      "review_required": 0
+    },
+    {
+      "profile": "degraded_120dpi_jpeg",
+      "n": 20,
+      "mean_cer_no_space": 0.08717060562852878,
+      "mean_request_cer_no_space": 0.18811853908320195,
+      "scalar_field_exact": 0.8166666666666667,
+      "fully_valid": 14,
+      "review_required": 6
+    }
+  ],
+  "ocr_engine": "tesseract 5.3.4",
+  "ocr_language": "kor",
+  "note": "Synthetic rasterization/degradation benchmark; not a claim about real scanned customer documents. No LLM calls are used."
+}
