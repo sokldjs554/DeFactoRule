@@ -15,10 +15,10 @@ router = APIRouter(prefix="/rag", tags=["rag"])
     response_model=RAGResponse,
     summary="Temporal hybrid retrieval + grounded evidence memo",
 )
-def evidence_rag(req: RAGRequest) -> RAGResponse:
+def _evidence_rag(req: RAGRequest) -> RAGResponse:
     """Retrieve traceable precedent evidence and optionally generate a memo.
 
-    `generate_memo=false` is deterministic/API-free.  Generation never returns a
+    `generate_memo=false` is deterministic/API-free. Generation never returns a
     trusted memo unless every citation ID exists and every quoted span is grounded
     in its cited precedent request.
     """
