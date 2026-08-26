@@ -4,9 +4,15 @@
 요청/선례의 실제 텍스트 차이를 빠뜨렸는지, 근거가 원문에 접지되는지, 그리고
 `applies`를 허용해도 되는지 보수적으로 계산한다.
 
+안전성은 비대칭이다. 원문에 접지되고 반대쪽에는 없는 결정적 차이 하나가 확인되면
+그 선례의 적용을 거절할 근거는 충분하다. 반대로 `no_decisive_difference`처럼
+선례를 회수하는 방향은 모든 실질 차이가 설명되어야만 허용한다. AG-13의 위험은
+후자에서 결정적 차이를 누락한 채 회수하는 것이므로, recovery 쪽만 strict coverage를
+요구한다.
+
 PDF 줄바꿈이나 문장 전체를 difference로 오인하지 않도록, 대조용 정규화 문자열의
-실제 변경 구간을 문자 단위로 정렬해 coverage를 계산한다. 의미 유사도 threshold는
-도입하지 않는다.
+실제 변경 구간을 문자 단위로 정렬해 recovery coverage를 계산한다. 의미 유사도
+threshold는 도입하지 않는다.
 """
 
 from __future__ import annotations
@@ -77,9 +83,9 @@ def _is_metadata(segment: Segment) -> bool:
 def _diff_regions(request: str, precedent: str) -> tuple[list[Segment], list[Segment]]:
     """공백/조판을 제거한 두 원문에서 실제로 달라진 문자 구간만 반환한다.
 
-    기존 문장 단위 exact-difference는 PDF 줄바꿈이나 한 절의 변경 때문에 긴 문장
-    전체를 difference로 만들었다. 여기서는 `normalize_for_match` 후 동일 부분열을
-    정렬하므로 줄바꿈은 사라지고, 실제 insert/delete/replace 구간만 남는다.
+    이 차집합은 `applies`/`no_decisive_difference` recovery의 completeness gate에만
+    사용한다. 이미 원문에 접지된 decisive difference가 있으면 다른 잔여 차이를
+    모두 설명하지 못했다는 이유로 그 거절 근거까지 버리지는 않는다.
     """
     a = normalize_for_match(request)
     b = normalize_for_match(precedent)
@@ -123,6 +129,18 @@ def _shared_grounded(factor: Factor, request: str, precedent: str) -> bool:
     return needle in normalize_for_match(request) and needle in normalize_for_match(precedent)
 
 
+def _unique_to_declared_side(factor: Factor, request: str, precedent: str) -> bool:
+    """decisive factor가 실제 한쪽에만 존재하는 literal difference인지 확인한다."""
+    needle = normalize_for_match(factor.text)
+    if not needle:
+        return False
+    if factor.side == "request":
+        return needle in normalize_for_match(request) and needle not in normalize_for_match(precedent)
+    if factor.side == "precedent":
+        return needle in normalize_for_match(precedent) and needle not in normalize_for_match(request)
+    return False
+
+
 def _inside(span: tuple[int, int], segment: Segment) -> int:
     if segment.span[0] < 0:
         return 0
@@ -130,11 +148,7 @@ def _inside(span: tuple[int, int], segment: Segment) -> int:
 
 
 def _covers(factor: Factor, factor_spans: list[tuple[int, int]], segment: Segment) -> bool:
-    """factor가 실제 diff 구간의 절반 이상을 직접 인용하면 coverage로 인정한다.
-
-    factor는 설명 가능한 조건절이므로 diff 주변의 공통 문맥을 함께 인용할 수 있다.
-    따라서 factor 바깥 길이로 벌점을 주지 않고, 실제 diff 자체를 얼마나 덮는지만 본다.
-    """
+    """factor가 recovery용 실제 diff 구간의 절반 이상을 직접 인용하면 coverage다."""
     if factor.side == "both" or factor.side != segment.side:
         return False
     required = math.ceil(len(segment.normalized) / 2)
@@ -149,7 +163,12 @@ def evaluate_diff_coverage(
     *,
     precedent_admissible: bool = False,
 ) -> GateResult:
-    """설계서 G1~G6를 fail-closed로 계산한다.
+    """S5 G1~G6를 fail-closed로 계산한다.
+
+    G4는 안전한 rejection 경로다. 원문에 literal-grounded되고 반대쪽에는 없는
+    decisive factor가 확인되면 다른 차이의 completeness와 무관하게 적용 거절 근거로
+    인정한다. 반대로 G5/G6 recovery는 shared grounding과 전체 diff coverage를 모두
+    통과해야 한다.
 
     `identical_after_metadata`는 검색 적격성 A1~A4까지 함께 봐야 한다. 이 모듈은
     A1~A4 자체를 계산하지 않으므로 호출자가 `precedent_admissible=True`를
@@ -198,20 +217,16 @@ def evaluate_diff_coverage(
     for factor in factors:
         if not factor.decisive or factor.id not in grounded:
             continue
-        covers_real_difference = any(
-            _covers(factor, grounded[factor.id], segment) for segment in substantive
-        )
-        if (
-            covers_real_difference
-            and factor.side in {"request", "precedent"}
-            and factor.axis.strip()
-            and factor.value_in_request is not None
-            and factor.value_in_precedent is not None
-        ):
+        if factor.axis.strip() and _unique_to_declared_side(factor, request, precedent):
             decisive_confirmed.append(factor.id)
 
-    if not grounded_shared:
-        basis: Basis = "incomplete_analysis"
+    # Rejection과 recovery는 의도적으로 비대칭이다. 실재하는 결정적 차이 하나면
+    # 선례를 적용하지 않을 근거는 충분하지만, 차이가 없다고 말하려면 전부 봐야 한다.
+    if decisive_confirmed:
+        basis: Basis = "decisive_difference"
+        rule = "G4"
+    elif not grounded_shared:
+        basis = "incomplete_analysis"
         rule = "G1"
     elif uncovered:
         basis = "incomplete_analysis"
@@ -219,9 +234,6 @@ def evaluate_diff_coverage(
     elif unresolved:
         basis = "unresolved_difference"
         rule = "G3"
-    elif decisive_confirmed:
-        basis = "decisive_difference"
-        rule = "G4"
     elif not substantive and precedent_admissible:
         basis = "identical_after_metadata"
         rule = "G5"
