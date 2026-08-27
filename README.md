@@ -195,7 +195,7 @@ checks/document_ai Document AI 전용 contract / OCR checks
 experiments/       frozen result artifacts
 ```
 
-Core suite는 테스트 <!--TESTS-->571<!--/TESTS-->개를 수집하며 현재 CI 기준 **552 passed / 11 skipped**다. Python 3.9와 3.11에서 core suite와 Evidence RAG 오프라인 평가를 함께 실행한다. 별도 Document AI suite는 **17 checks**이며, 실제 Tesseract 한국어 OCR과 60문서 × 3프로필 benchmark는 Python 3.11 job에서 실행한다.
+Core suite는 테스트 <!--TESTS-->571<!--/TESTS-->개를 수집하며 현재 CI 기준 **560 passed / 11 skipped**다. Python 3.9와 3.11에서 core suite와 Evidence RAG 오프라인 평가를 함께 실행한다. 별도 Document AI suite는 **17 checks**이며, 실제 Tesseract 한국어 OCR과 60문서 × 3프로필 benchmark는 Python 3.11 job에서 실행한다.
 
 ### OCR-aware Document AI intake
 
@@ -232,6 +232,24 @@ Degraded 입력에서 OCR confidence가 높아도 serial 필드가 깨질 수 �
 Python 3.9 / 3.11 core suite와 Evidence RAG를 검증하고, Python 3.11에서 실제 Korean Tesseract 기반 60×3 Document AI benchmark를 실행한다.
 
 ![GitHub Actions CI for core, Evidence RAG, and Document AI](docs/assets/document-ai/DeFactoRule_README_images/document_ai_ci.png)
+
+### Live Claude contract audit - Schema-valid != Evidence-grounded
+
+고정된 **29건(S5 19 + RAG 10)**을 대상으로 실제 `claude-opus-5` 호출을 별도 audit했다. 이 실험은 final decision 성능을 높이기 위한 benchmark가 아니라, live LLM 출력이 기존 schema / grounding / fail-closed 계약을 지키는지 확인하는 소규모 contract audit이다.
+
+| 항목 | Live audit |
+|---|---:|
+| API success | **27 / 29** |
+| structured schema valid | **27 / 27 successful calls** |
+| S5 factor literal grounding | **141 / 152** |
+| rejected S5 factors | **11 items across 10 samples** |
+| RAG invalid citation IDs | **0** |
+| RAG ungrounded exact quote | **1** |
+| unsupported output | **12 items across 11 / 29 fixed samples** |
+
+성공한 호출은 모두 schema를 통과했지만 content grounding에서는 unsupported output이 실제로 관측됐다. 특히 RAG의 ungrounded exact quote 1건은 deterministic validator가 차단해 **`abstain (fail-closed)`**로 전환했다. 따라서 structured JSON을 받았다는 사실만으로 evidence-grounded output이라고 간주하지 않는다.
+
+이 audit 전후 final clean 168건의 **76 / 92 / 63 / 13 profile은 불변**이며, 결과를 본 뒤 prompt / threshold / Router / retrieval을 다시 튜닝하지 않았다. 상세 범위와 한계는 [`docs/32-live-llm-audit.md`](docs/32-live-llm-audit.md), aggregate freeze는 [`experiments/results/clean/live_llm_audit_summary.json`](experiments/results/clean/live_llm_audit_summary.json)에 기록했다.
 
 ### Runtime contract mismatch를 어떻게 처리했나
 
@@ -352,6 +370,7 @@ C-4에서는 temporal 적용 후 선정한 5건을 별도 qualitative audit했�
 | C-5 | runtime schema와 frozen rule asset을 일치시킬 수 있는가 | unsupported sector #8 제거, row-level delta 0 |
 | D-1 | scan/image 입력을 구조화해 downstream으로 안전하게 넘길 수 있는가 | OCR-aware intake 구현; 60×3 synthetic scan에서 품질별 field F1과 review 동작 측정 |
 | D-2 | OCR confidence가 실제 오독을 충분히 검출하는가 | degraded에는 일부 유효, clean/standard high-confidence 오독에는 부족 - 한계로 동결 |
+| L-1 | schema-valid live Claude 출력도 원문 grounding을 별도로 검증해야 하는가 | 29건 fixed audit에서 schema 27/27 통과 후에도 unsupported output 12 items 관측; RAG quote 1건은 fail-closed abstain |
 
 최종 hardening 근거는 다음 frozen artifacts에 있다.
 
@@ -361,6 +380,7 @@ C-4에서는 temporal 적용 후 선정한 5건을 별도 qualitative audit했�
 - `experiments/results/clean/final_clean_temporal.json`
 - `experiments/results/clean/rag_retrieval.json`
 - `experiments/results/clean/document_ai_ocr.json`
+- `experiments/results/clean/live_llm_audit_summary.json`
 
 세부 설계와 실패 과정은 `docs/20-final-agent-workflow-design.md` 이후 문서에 이어진다.
 
@@ -369,7 +389,7 @@ C-4에서는 temporal 적용 후 선정한 5건을 별도 qualitative audit했�
 - **Coverage를 희생한다.** 최종 clean test 168건 중 92건을 기권한다. 답변 정확도 82.89%는 반드시 coverage 45.24%와 함께 읽어야 한다.
 - **T-serial은 실제 시간축이 아니다.** 데이터에 결정/회신일이 일관되게 없어서 serial 순서를 chronology proxy로 쓴다. 과거 실측에서 실제 날짜 순서와의 inversion이 존재했으므로 “temporal-safe”라고 부르지 않는다.
 - **S5 safe recovery는 검증되지 않았다.** 5건 qualitative audit에서 적용 후보 `250055`도 decisive difference로 차단됐다. 따라서 현재 S5는 잘못된 선례 적용을 막는 veto이지 coverage 회수 장치가 아니다.
-- **LLM audit 표본은 작고 stochastic하다.** 한 clean AG-13형 사례를 잡았다고 failure class가 해결됐다고 주장하지 않는다.
+- **Live LLM audit은 작고 stochastic한 fixed audit이다.** 29건에서 11개 sample에 unsupported output이 관측됐지만 이를 Claude의 일반 오류율이나 production 성능으로 해석하지 않는다.
 - **`조치` 선례 근거가 희소하다.** clean test의 소수 클래스에 threshold-positive precedent가 거의 없어 retrieval 기반 개선이 구조적으로 어렵다.
 - **DOUBT/TRUST는 clean dev에서 band separation을 지지하지만 유일 최적값으로 재탐색한 값은 아니다.** 성능을 맞추기 위한 threshold tuning은 하지 않았다.
 - **Document AI/OCR은 synthetic benchmark 범위다.** Tesseract 한국어 baseline과 native/OCR intake, field/quote 구조화, confidence/grounding validation, RAG bridge를 구현했지만 실제 고객 스캔·OCR fine-tuning·table recognition·image-VLM benchmark는 없다.
@@ -403,6 +423,11 @@ python3 scripts/evaluate_rag.py
 
 # Document AI — dedicated checks + 60×3 synthetic scan benchmark, API 호출 없음
 python3 scripts/evaluate_document_ai.py --n 60
+
+# Live LLM contract audit — dry-run은 API 0회, 실제 호출은 --go
+python3 scripts/evaluate_live_llm_audit.py
+# ANTHROPIC_API_KEY를 환경변수로 설정한 뒤에만 실행
+python3 scripts/evaluate_live_llm_audit.py --go
 
 # 포트폴리오 / README 실제 캡처 세트 생성
 python3 scripts/render_document_ai_samples.py \
