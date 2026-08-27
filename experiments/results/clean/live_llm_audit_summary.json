@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "audit": "live_llm_contract_audit",
+  "model": "claude-opus-5",
+  "scope_note": "Small fixed live contract audit; not a representative production benchmark and not a decision-accuracy benchmark.",
+  "selection": {
+    "total_samples": 29,
+    "s5_samples": 19,
+    "rag_samples": 10,
+    "rag_eligible_population": 88,
+    "s5_rule": "All frozen temporal Router abstentions with precedent_score >= DOUBT.",
+    "rag_rule": "Rows with T-serial + similarity-floor evidence >= 1, sorted by row key and selected with stride 9.",
+    "random_seed": null
+  },
+  "frozen_profile_before": {
+    "n": 168,
+    "answered": 76,
+    "abstained": 92,
+    "correct": 63,
+    "wrong": 13,
+    "coverage": 0.4524,
+    "answered_accuracy": 0.8289
+  },
+  "aggregate": {
+    "api_calls_attempted": 29,
+    "api_success": 27,
+    "api_failure": 2,
+    "schema_valid": 27,
+    "schema_valid_denominator": 27,
+    "s5_factor_grounded": 141,
+    "s5_factor_total": 152,
+    "s5_rejected_factors": 11,
+    "rag_invalid_citations": 0,
+    "rag_ungrounded_quotes": 1,
+    "unsupported_output_items": 12,
+    "samples_with_unsupported_output": 11,
+    "s5_samples_affected": 10,
+    "rag_samples_affected": 1
+  },
+  "observed_fail_closed_case": {
+    "kind": "RAG ungrounded exact quote",
+    "count": 1,
+    "downstream": "abstain (fail-closed)"
+  },
+  "frozen_profile_unchanged": true,
+  "post_result_tuning": false,
+  "retry_for_better_output": false,
+  "provenance_note": "This summary freezes aggregate values from the completed local live run reported by the operator. It intentionally does not fabricate or reconstruct missing per-record raw outputs."
+}
