@@ -2,6 +2,8 @@
 
 **과거 규제 예외 판단에서 실제로 적용된 기준을 복원하고, 새 요청에 선례를 적용해도 되는지 검증하는 AI Agent Workflow.**
 
+**Live Demo — <https://defactorule-kl5c.onrender.com>** · API 키 없이 동작한다.
+
 금융당국 사례집 **1,095건 · 1,122쌍**을 PDF에서 구조화하고, 규칙·선례 검색·LLM deciding-factor 분석·결정론적 검증·기권을 하나의 판단 흐름으로 연결했다. 최종 clean 프로파일은 **test 168건 중 76건 답변 / 92건 기권, 답변 정확도 82.89%, coverage 45.24%**다. 이 수치는 S5로 억지 회수하지 않은 fail-closed 결과다.
 
 별도 upstream 확장으로 **PDF / scan / image → OCR-aware Document AI → structured extraction / validation → Evidence RAG** 경로도 구현했다. OCR 평가는 실제 고객 스캔이 아니라 60개 금융 요청을 세 가지 품질로 rasterize한 synthetic benchmark이며, 결과와 한계를 decision/RAG 성능과 분리해서 기록한다.
@@ -123,7 +125,12 @@ LLM 출력 스키마에는 `verdict`, `applies/differs`, `applicability_basis` �
 
 ## 5. Demo
 
-Python 3.9 이상.
+배포된 화면은 **<https://defactorule-kl5c.onrender.com>** 이다. 위험–커버리지 곡선, 같은 문턱을 직접 움직여 보는 판정,
+업권별 기저율, 실패 레지스트리의 현재 상태를 보여준다. 서버가 그 자리에서 모델을 돌리지 않고
+커밋된 산출물만 읽으므로 API 키가 필요 없다. 무료 플랜이라 15분 이상 접속이 없으면 잠들고,
+그 뒤 첫 요청은 30초에서 1분쯤 걸린다.
+
+로컬에서 띄우려면 Python 3.9 이상이 필요하다.
 
 ```bash
 git clone https://github.com/sokldjs554/DeFactoRule
