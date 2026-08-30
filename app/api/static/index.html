@@ -81,23 +81,18 @@
 <header>
   <h1>DeFactoRule</h1>
   <p class="thesis">
-    금융 규제당국이 그동안 회신해 온 사례를 모아, 어디에도 적혀 있지 않은 판단 기준을
-    되짚어 봤습니다. 여기서 보여드리는 건 정확도가 아니에요.
-    <b>모델이 자기가 틀릴 때를 아는지</b>를 봅니다. 규칙과 LLM은 매크로 F1만 놓고 보면
-    우열이 가려지지 않았는데(E2), 모르겠으면 답하지 않아도 된다고 허용하고 나서야
-    비로소 갈렸거든요.
+    금융 규제 회신 사례를 분류하는 과정에서 단순 정확도만으로는 모델의 차이를 확인하기
+    어려웠습니다. 그래서 신뢰도가 낮은 결과를 보류했을 때 오류가 얼마나 줄어드는지도
+    함께 비교했습니다.
   </p>
 </header>
 
 <main>
   <section>
-    <h2>1. 위험–커버리지</h2>
+    <h2>1. 위험–커버리지 비교</h2>
     <p class="sub">
-      가로축은 얼마나 답했는지, 세로축은 그중 얼마나 틀렸는지입니다. 곡선이
-      <b>왼쪽 아래로 내려갈수록</b> 좋아요. 자신 없는 건 답하지 않고 남겨 둘 줄 안다는
-      이야기니까요. 반대로 점이 하나만 찍힌 모델은 기권할 줄을 모릅니다. 언제 물러서야
-      할지 감이 없는 거죠. AURC는 이 곡선을 숫자 하나로 줄인 값인데, 위험의 평균이라
-      낮을수록 좋습니다. 답한 비율이 서로 다른데 F1만 나란히 놓는 건 비교가 아닙니다.
+      가로축은 모델이 결과를 낸 비율이고, 세로축은 그중 틀린 비율입니다. 같은 비율만큼
+      결과를 냈을 때 오류가 낮은 모델이 더 안정적입니다. AURC도 낮을수록 좋습니다.
     </p>
     <div class="panel row">
       <div class="grow"><svg id="rc" viewBox="0 0 520 340" style="width:100%;height:auto"></svg></div>
@@ -109,12 +104,10 @@
   </section>
 
   <section>
-    <h2>2. 문턱 움직여 보기</h2>
+    <h2>2. 신뢰도 기준 테스트</h2>
     <p class="sub">
-      위 곡선에서 점 하나를 고르는 일과, 아래 <code>min_confidence</code>를 한 칸 올리는
-      일은 똑같습니다. 문턱을 높일수록 모델은 애매한 사안에서 <b>기권</b>합니다.
-      다만 기권할지 말지를 정하는 건 모델이 아니라 코드예요. 모델은 이만큼 확신한다는
-      등급까지만 말하고, 그 선을 넘었는지는 규칙이 봅니다.
+      최소 신뢰도를 바꿔 결과가 어떻게 달라지는지 확인할 수 있습니다. 설정한 기준보다
+      신뢰도가 낮으면 결과 대신 ‘판단 보류’가 표시됩니다.
     </p>
     <div class="panel row">
       <div class="grow">
@@ -124,44 +117,40 @@
           <div class="grow">
             <label for="engine">엔진</label>
             <select id="engine">
-              <option value="rule">rule — 어휘 규칙만 씁니다 (비용 0)</option>
-              <option value="llm">llm — 문서를 읽고 판단합니다 (API 키 필요)</option>
+              <option value="rule">rule — 어휘 규칙 기반</option>
+              <option value="llm">llm — LLM 기반 판정 (API 키 필요)</option>
             </select>
           </div>
           <div class="grow">
-            <label for="conf">min_confidence — 이 등급에 못 미치면 답하지 않습니다</label>
+            <label for="conf">min_confidence</label>
             <select id="conf">
-              <option value="low">low — 무조건 답합니다</option>
-              <option value="medium">medium</option>
-              <option value="high">high — 확실할 때만 답합니다</option>
+              <option value="low">low — 모든 결과 표시</option>
+              <option value="medium">medium — medium 이상만 표시</option>
+              <option value="high">high — high만 표시</option>
             </select>
           </div>
         </div>
         <button id="go">판정</button>
       </div>
-      <div class="grow"><div id="out" class="muted">판정을 눌러 보세요. 결과가 여기 나옵니다.</div></div>
+      <div class="grow"><div id="out" class="muted">판정 결과가 여기에 표시됩니다.</div></div>
     </div>
   </section>
 
   <section>
-    <h2>3. 업권별 기저율</h2>
+    <h2>3. 업권별 라벨 분포</h2>
     <p class="sub">
-      업권마다 결론이 한쪽으로 쏠린 정도가 다릅니다. 다수 클래스가 88%인 업권에서
-      정확도 85%는 그냥 다수 클래스만 찍는 것만 못한 성적이고, 51%인 업권에서 같은
-      85%는 꽤 잘한 겁니다. 숫자는 같은데 뜻이 정반대예요. 처음엔 이걸 모르고 절대
-      정확도로 줄을 세웠다가 진단을 틀렸고(E1), 뒤늦게 바로잡았습니다(E3).
-      표본이 적은 업권은 회색으로 흐려 뒀어요. 3건짜리 분포를 또렷한 숫자로 내밀면
-      잡음을 신호처럼 보이게 만드는 거니까요. <b>이 값은 dev에서만 뽑습니다.</b>
+      업권마다 조치·비조치 비율이 달라서 정확도만 보면 성능을 잘못 해석할 수 있습니다.
+      이를 확인할 수 있도록 dev 세트의 업권별 분포를 함께 표시했습니다. 표본이 5건
+      미만인 업권은 전체 분포를 사용합니다.
     </p>
     <div class="panel"><table id="rates"><tbody><tr><td class="muted">불러오는 중…</td></tr></tbody></table></div>
   </section>
 
   <section>
-    <h2>4. 실패 레지스트리</h2>
+    <h2>4. 실패 사례 관리</h2>
     <p class="sub">
-      실패 사례마다 그걸 다시 잡아내는 검사를 하나씩 붙여 뒀습니다. 아래 목록은 그
-      검사를 방금 돌린 결과예요. 문서에 고쳤다고 적어 두는 것과는 다릅니다. 여기서
-      실패가 뜬다면, 고쳤다던 그 문제가 지금 다시 살아 있다는 뜻이니까요.
+      개발 중 발견한 오류와 이를 다시 확인하는 테스트 목록입니다. 수정한 문제가 다시
+      발생하면 ‘재발’로 표시됩니다.
     </p>
     <div class="panel">
       <div class="tax" id="tax"></div>
@@ -171,9 +160,8 @@
 </main>
 
 <footer>
-  이 화면의 숫자는 전부 저장소에 커밋된 산출물에서 계산합니다. 서버가 그때그때 모델을 돌려
-  만들어 내는 값이 아니에요. 그러니 여기 보이는 값과 <code>scripts/</code>로 직접 재현한
-  값이 다르다면, 그건 설명이 필요한 게 아니라 그냥 버그입니다.
+  화면의 지표는 저장소에 저장된 평가 결과를 사용합니다. 페이지를 열 때 모델을 새로
+  실행하지 않습니다.
 </footer>
 
 <script>
@@ -262,7 +250,7 @@ async function drawRiskCoverage() {
       el('td', {text: c.aurc.toFixed(3)}),
       el('td', {text: pct(full.risk)})
     ]);
-    if (c.flat) tr.children[0].appendChild(el('span', {class: 'flat', text: ' 기권할 줄 모름'}));
+    if (c.flat) tr.children[0].appendChild(el('span', {class: 'flat', text: ' 판단 보류 없음'}));
     tbody.appendChild(tr);
   });
   document.getElementById('rc-note').textContent = data.note;
@@ -295,7 +283,7 @@ async function classify() {
     const box = el('div', {class: 'verdict' + (body.abstained ? ' abstain' : '')});
     box.appendChild(el('div', {class: 'label', text: body.abstained ? '판단 보류' : body.decision}));
     box.appendChild(el('div', {class: 'why',
-      text: body.abstained ? body.abstain_reason : '이 문턱이면 답합니다.'}));
+      text: body.abstained ? body.abstain_reason : '최소 신뢰도 기준을 통과했습니다.'}));
     const chips = el('div', {class: 'chips'});
     [`신뢰도 ${body.confidence}`, `엔진 ${body.engine}`,
      body.rule ? `규칙 ${body.rule}` : null,
@@ -371,17 +359,17 @@ async function drawFailures() {
   list.innerHTML = '';
   const failed = d.cases.filter(c => c.probe_passed === false && c.status === 'fixed');
   const head = failed.length
-    ? `고쳤다고 적어 둔 ${failed.length}건이 지금 실패합니다. 수정이 풀렸어요.`
-    : `${d.total}건 기록 · 아직 열려 있는 것 ${d.open_cases.length}건 · 나머지는 검사를 통과했습니다.`;
+    ? `수정한 사례 중 ${failed.length}건이 다시 발생했습니다.`
+    : `총 ${d.total}건 · 미해결 ${d.open_cases.length}건 · 나머지 검사 통과`;
   list.appendChild(el('p', {class: failed.length ? 'err' : 'sub', text: head}));
 
   const order = c => (c.probe_passed === false && c.status === 'fixed') ? 0 : (c.status === 'open' ? 1 : 2);
   d.cases.sort((a, b) => order(a) - order(b) || a.id.localeCompare(b.id)).forEach(c => {
     const div = el('div', {class: 'case'});
-    let cls = 'st ok', label = '유지됨';
-    if (c.status === 'open') { cls = 'st open'; label = '열림'; }
-    else if (c.probe_passed === false) { cls = 'st bad'; label = '풀렸음'; }
-    else if (c.probe_passed === null) { cls = 'st'; label = '기록만'; }
+    let cls = 'st ok', label = '통과';
+    if (c.status === 'open') { cls = 'st open'; label = '미해결'; }
+    else if (c.probe_passed === false) { cls = 'st bad'; label = '재발'; }
+    else if (c.probe_passed === null) { cls = 'st'; label = '검사 없음'; }
     div.appendChild(el('span', {class: cls, text: label}));
     div.appendChild(el('span', {class: 'id', text: c.id}));
     div.appendChild(document.createTextNode(c.title));

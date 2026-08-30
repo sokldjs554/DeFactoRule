@@ -1,15 +1,4 @@
-"""분류 서비스 — 엔진 선택과 기권 정책.
-
-명세 §9 의 분리를 코드로 지킨다.
-
-  LLM         요청문을 읽고 결론 후보와 신뢰도 등급, 근거 인용을 낸다
-  결정론 코드  그 신뢰도를 운영 문턱과 비교해 **기권할지 정한다**
-  Validator   인용이 원문에 실재하는지 글자 단위로 대조한다
-
-기권 판정을 모델에게 맡기지 않는 것이 핵심이다. 모델은 등급까지만 말하고,
-어디서 자를지는 운영이 정한다. 그래야 같은 모델로 커버리지를 조절할 수 있고,
-그 맞바꿈이 곧 위험-커버리지 곡선이 된다(E2).
-"""
+"""분류 엔진을 실행하고 최소 신뢰도 기준을 적용합니다."""
 
 from __future__ import annotations
 
@@ -127,8 +116,8 @@ def classify(req: ClassifyRequest) -> ClassifyResponse:
                 "decision": None,
                 "abstained": True,
                 "abstain_reason": (
-                    f"신뢰도 {result.confidence.value} 가 운영 문턱 "
-                    f"{req.min_confidence.value} 에 미치지 못합니다."
+                    f"신뢰도 {result.confidence.value}가 설정한 최소 신뢰도 "
+                    f"{req.min_confidence.value}보다 낮아 판단을 보류했습니다."
                 ),
             }
         )

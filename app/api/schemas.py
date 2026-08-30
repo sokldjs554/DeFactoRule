@@ -1,13 +1,4 @@
-"""API 계약. Pydantic 이 경계에서 형식을 강제한다.
-
-**기권을 계약에 넣는다.** 이 프로젝트의 결론은 "LLM 이 규칙보다 정확한 것이
-아니라, 자기가 틀릴 때를 안다" 는 것이다(E2). 그 성질이 값어치를 가지려면
-서비스가 "모르겠다" 를 1급 응답으로 돌려줄 수 있어야 한다. 낮은 신뢰도를
-억지로 라벨로 바꿔 내보내면 AURC 로 보여준 이점이 그 자리에서 사라진다.
-
-기권 여부를 정하는 것은 **결정론적 코드**다(명세 §9). 모델은 신뢰도 등급까지만
-말하고, 그것을 자를지 말지는 운영 문턱이 정한다.
-"""
+"""API 요청 및 응답 스키마입니다."""
 
 from __future__ import annotations
 
@@ -46,9 +37,8 @@ class ClassifyRequest(BaseModel):
     min_confidence: Confidence = Field(
         Confidence.LOW,
         description=(
-            "이 등급 미만이면 기권한다. low 면 기권하지 않는다. "
-            "medium 으로 올리면 커버리지가 줄고 정확도가 오른다 — "
-            "그 맞바꿈이 위험-커버리지 곡선이다."
+            "결과를 표시할 최소 신뢰도입니다. 이 값보다 신뢰도가 낮으면 "
+            "판단을 보류합니다."
         ),
     )
 
@@ -65,10 +55,16 @@ class Evidence(BaseModel):
 
 class ClassifyResponse(BaseModel):
     decision: Optional[str] = Field(
-        None, description=f"결론 라벨. 기권하면 null. 가능한 값: {', '.join(NON_ACTIONS)}"
+        None,
+        description=(
+            "예측한 결론입니다. 판단을 보류하면 null입니다. "
+            f"가능한 값: {', '.join(NON_ACTIONS)}"
+        ),
     )
-    abstained: bool = Field(..., description="판정을 내리지 않았는가")
-    abstain_reason: Optional[str] = None
+    abstained: bool = Field(..., description="판단을 보류했는지 여부")
+    abstain_reason: Optional[str] = Field(
+        None, description="판단을 보류한 이유입니다. 보류하지 않았으면 null입니다."
+    )
     confidence: Confidence
     engine: Engine
     rule: Optional[str] = Field(None, description="규칙 엔진에서 실제로 걸린 규칙")
@@ -105,9 +101,11 @@ class OperatingPoint(BaseModel):
 
 class ModelCurve(BaseModel):
     name: str
-    aurc: float = Field(..., description="위험의 평균. 낮을수록 좋다")
+    aurc: float = Field(
+        ..., description="위험–커버리지 곡선을 요약한 값입니다. 낮을수록 좋습니다."
+    )
     flat: bool = Field(
-        ..., description="운영점이 하나뿐인가 — 기권 신호가 없다는 뜻이다"
+        ..., description="신뢰도 기준을 바꿔도 결과 지점이 하나뿐인지 여부"
     )
     points: List[OperatingPoint]
 

@@ -1,15 +1,4 @@
-"""서비스 진입점.
-
-    uvicorn app.api.main:app --reload
-    python3 scripts/serve.py
-
-엔드포인트는 이 프로젝트가 실제로 다루는 것을 그대로 노출한다 — 결론 예측과
-**기권**, 기저율, 위험-커버리지 곡선, 실패 레지스트리. 대화창이 아니다.
-
-모든 평가 응답은 커밋된 산출물에서 계산한다. 서버가 그 자리에서 모델을 돌려
-숫자를 만들지 않는다. 화면에 뜬 값과 `scripts/` 로 재현한 값이 달라지면
-그 자체가 버그다.
-"""
+"""DeFactoRule API와 대시보드 진입점입니다."""
 
 from __future__ import annotations
 
@@ -43,9 +32,8 @@ from app.evaluation.selective import aurc, operating_points, rank_of
 app = FastAPI(
     title="DeFactoRule",
     description=(
-        "금융 규제당국의 회신 이력에서, 문서 어디에도 적혀 있지 않은 판단 기준을 "
-        "복원한다. 이 API 는 결론 예측과 **기권**, 그리고 그 판단을 신뢰할 수 "
-        "있는지 재는 지표를 함께 노출한다."
+        "금융 규제 회신 사례를 바탕으로 요청대상행위의 결론을 예측하는 API입니다. "
+        "결과와 함께 신뢰도와 판단 보류 여부를 반환합니다."
     ),
     version="0.1.0",
 )
@@ -65,7 +53,7 @@ def index() -> FileResponse:
     return FileResponse(STATIC / "index.html")
 
 
-@app.get("/health", summary="살아 있는가, 그리고 무엇을 할 수 있는가")
+@app.get("/health", summary="서비스 상태 확인")
 def health() -> dict:
     return {
         "status": "ok",
@@ -75,12 +63,11 @@ def health() -> dict:
     }
 
 
-@app.post("/classify", response_model=ClassifyResponse, summary="결론 예측 (기권 포함)")
+@app.post("/classify", response_model=ClassifyResponse, summary="결론 예측 (판단 보류 포함)")
 def classify(req: ClassifyRequest) -> ClassifyResponse:
-    """요청대상행위 본문을 읽고 당국이 어떤 결론을 낼지 예측한다.
+    """요청대상행위 본문을 읽고 결론을 예측합니다.
 
-    `min_confidence` 를 올리면 모델이 자신 없는 사안에서 **기권**한다.
-    기권 판정은 모델이 아니라 결정론적 코드가 한다(명세 §9).
+    신뢰도가 `min_confidence` 보다 낮으면 판단을 보류합니다.
     """
     try:
         return classify_service(req)
@@ -88,9 +75,12 @@ def classify(req: ClassifyRequest) -> ClassifyResponse:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
-@app.get("/base-rates", response_model=BaseRatesResponse, summary="dev 기저율")
+@app.get("/base-rates", response_model=BaseRatesResponse, summary="dev 세트 업권별 분포")
 def base_rates() -> BaseRatesResponse:
-    """라벨 분포. **dev 에서만 뽑는다** — test 에서 뽑으면 정답 누출이다."""
+    """업권별 라벨 분포를 반환합니다.
+
+    데이터 누수를 막기 위해 dev 세트에서만 계산합니다.
+    """
     if not DEV_BASE_RATES.exists():
         raise HTTPException(
             status_code=404,
@@ -121,13 +111,9 @@ def risk_coverage(
         None, description="비교할 모델 이름. 생략하면 결측이 없는 예측 전부"
     ),
 ) -> RiskCoverageResponse:
-    """기권을 허용했을 때의 공정한 비교.
+    """신뢰도 기준을 바꿨을 때 모델별 오류율이 어떻게 달라지는지 비교합니다.
 
-    커버리지가 다르면 정확도를 비교할 수 없다. 곡선 전체를 겹쳐 보고 AURC 로
-    요약한다 — 위험의 평균이므로 **낮을수록 좋다.**
-
-    결측이 있는 예측 파일은 기본적으로 제외한다. 빠진 사례가 무작위가 아니면
-    남은 부분집합의 비교는 결과가 아니기 때문이다(실패 케이스 EV-08).
+    AURC는 낮을수록 좋습니다. 일부 결과가 누락된 예측 파일은 비교에서 제외합니다.
     """
     if not GOLD.exists():
         raise HTTPException(status_code=404, detail="평가셋이 없습니다.")
@@ -178,8 +164,8 @@ def risk_coverage(
         )
 
     note = (
-        "AURC는 위험의 평균이라 낮을수록 좋습니다. "
-        "점이 하나뿐이면 기권할 줄 모르는 모델이에요."
+        "AURC는 신뢰도 기준별 오류율을 하나로 요약한 값이며 낮을수록 좋습니다. "
+        "점이 하나인 모델은 판단 보류 기능을 사용하지 않습니다."
     )
     if skipped:
         note += f" 결측이 있어 제외된 예측: {', '.join(skipped)}."
@@ -190,7 +176,10 @@ def risk_coverage(
 
 @app.get("/evaluation/models", summary="모델별 매크로 F1 요약")
 def models() -> dict:
-    """커버리지 100%에서의 성적. 기권을 허용한 비교는 /evaluation/risk-coverage 다."""
+    """모든 사례에 결과를 냈을 때의 성능입니다.
+
+    판단 보류를 반영한 결과는 `/evaluation/risk-coverage` 에서 확인할 수 있습니다.
+    """
     if not GOLD.exists():
         raise HTTPException(status_code=404, detail="평가셋이 없습니다.")
     gold = {key_of(r): r for r in load_jsonl(GOLD) if r.get("label")}
@@ -226,11 +215,11 @@ def models() -> dict:
     }
 
 
-@app.get("/failures", response_model=FailureReport, summary="실패 케이스 레지스트리")
+@app.get("/failures", response_model=FailureReport, summary="실패 사례와 테스트 결과")
 def failures(
     run_probes: bool = Query(True, description="재현 검사를 실제로 돌린다"),
 ) -> FailureReport:
-    """46건의 실패 케이스와, 그 수정이 지금도 유지되는지."""
+    """개발 중 기록한 실패 사례와 재발 여부를 확인하는 테스트 결과입니다."""
     cases = load_registry()
     by_layer: dict[str, int] = {}
     payload = []

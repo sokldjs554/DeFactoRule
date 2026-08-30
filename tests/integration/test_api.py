@@ -43,7 +43,7 @@ def test_threshold_turns_a_weak_answer_into_an_abstention():
     ).json()
     assert body["abstained"] is True
     assert body["decision"] is None, "기권했는데 라벨이 남아 있으면 호출자가 그것을 답으로 쓴다"
-    assert "문턱" in body["abstain_reason"]
+    assert "최소 신뢰도" in body["abstain_reason"]
 
 
 def test_low_threshold_never_abstains():
