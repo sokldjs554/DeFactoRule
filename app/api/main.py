@@ -177,7 +177,10 @@ def risk_coverage(
             )
         )
 
-    note = "AURC 는 위험의 평균이므로 낮을수록 좋다. 곡선이 한 점이면 기권 신호가 없다는 뜻이다."
+    note = (
+        "AURC는 위험의 평균이라 낮을수록 좋습니다. "
+        "점이 하나뿐이면 기권할 줄 모르는 모델이에요."
+    )
     if skipped:
         note += f" 결측이 있어 제외된 예측: {', '.join(skipped)}."
     return RiskCoverageResponse(
