@@ -147,6 +147,11 @@ LLM 출력 스키마에는 `verdict`, `applies/differs`, `applicability_basis` �
 |---|---|
 | ![기준 low — 결론을 반환한다](docs/assets/dashboard/threshold_low.png) | ![기준 high — 판단을 보류한다](docs/assets/dashboard/threshold_high.png) |
 
+![근거 검색 — 출처 문서와 쪽수, 유사도, 선례의 결론을 함께 보여준다](docs/assets/dashboard/evidence.png)
+
+선례는 요청보다 앞선 것만 후보로 쓴다. 유사도 기준을 넘는 선례가 없으면 근거를 제시하지 않는다 —
+근거 없이 답하지 않는 것이 정상 동작이다. 검색만 하므로 외부 API 호출은 0회다.
+
 
 로컬에서 띄우려면 Python 3.9 이상이 필요하다.
 
