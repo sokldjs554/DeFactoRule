@@ -318,3 +318,20 @@ def test_rag_evidence_carries_provenance():
     for hit in body["evidence"]:
         assert hit["evidence_id"] and hit["source"] and hit["serial"]
         assert 0.0 <= hit["score"] <= 1.0
+
+
+def test_llm_engine_without_credentials_is_503_not_500(monkeypatch):
+    """키가 없으면 503 이다. 500 이면 화면이 오류 본문을 파싱하다 깨진다.
+
+    배포본에는 API 키가 없으므로 이 경로가 기본값이다. SDK 는 키가 없어도
+    클라이언트 **생성에는 성공하고** 첫 호출에서 TypeError 를 낸다 — 그것을
+    잡지 않으면 500 이 나가고, 화면에는 JSON 파서 오류가 그대로 보인다.
+    """
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_AUTH_TOKEN", raising=False)
+
+    resp = client.post("/classify", json={"request_text": "테스트 문장입니다", "engine": "llm"})
+    assert resp.status_code == 503, "자격증명 없음은 서버 결함이 아니라 사용 불가 상태다"
+    detail = resp.json()["detail"]
+    assert "ANTHROPIC_API_KEY" in detail
+    assert "rule" in detail, "쓸 수 있는 대안을 알려 줘야 한다"

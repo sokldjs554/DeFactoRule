@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 
 from app.api.schemas import (
     ClassifyRequest,
@@ -59,6 +60,15 @@ def _classify_llm(req: ClassifyRequest) -> ClassifyResponse:
             "anthropic 패키지가 없습니다: pip install anthropic"
         ) from exc
 
+    # SDK 는 키가 없어도 **생성에는 성공한다.** 실패는 첫 호출 때 TypeError 로
+    # 터지고, 그것은 EngineUnavailable 이 아니어서 500 이 나간다. 배포본에는 키가
+    # 없으므로 이 경로가 기본값이다 — 먼저 확인해서 503 으로 돌려준다.
+    if not (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")):
+        raise EngineUnavailable(
+            "ANTHROPIC_API_KEY 가 없어 LLM 엔진을 쓸 수 없습니다. "
+            "규칙(rule) 엔진은 키 없이 동작합니다."
+        )
+
     try:
         client = anthropic.Anthropic()
     except Exception as exc:  # pragma: no cover - 자격증명 여부에 달림
@@ -85,6 +95,10 @@ def _classify_llm(req: ClassifyRequest) -> ClassifyResponse:
         result = classify_one(client, row, task)
     except FatalApiError as exc:
         raise EngineUnavailable(f"계정 수준 오류: {exc}") from exc
+    except TypeError as exc:
+        # SDK 가 자격증명을 못 찾으면 호출 시점에 TypeError 를 낸다. 위에서 이미
+        # 걸렀지만, 다른 형태의 자격증명이 반쯤 설정된 경우까지 여기서 받는다.
+        raise EngineUnavailable(f"자격증명을 확인할 수 없습니다: {exc}") from exc
 
     if "error" in result:
         raise EngineUnavailable(

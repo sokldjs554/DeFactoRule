@@ -97,7 +97,10 @@
   }
   h2 { font-size: 20px; margin: 0 0 5px; letter-spacing: -.02em; }
   .sub { margin: 0; color: var(--dim); font-size: 13.5px; max-width: 74ch; }
-  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 22px; }
+  .panel {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 22px;
+    overflow-x: auto;   /* 좁은 화면에서 표가 페이지를 늘리지 않고 패널 안에서 스크롤한다 */
+  }
   .row { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
   .grow { flex: 1 1 380px; min-width: 0; }
 
@@ -149,6 +152,8 @@
   .bar { height: 9px; border-radius: 3px; background: var(--raise); overflow: hidden; display: flex; }
   .bar i { display: block; height: 100%; }
   .muted { color: var(--dim); }
+  /* 법령 문구에는 꺾일 자리가 없는 긴 토막이 있다. keep-all 이면 화면을 넘친다. */
+  .quote, .ev .txt, .case .detail { overflow-wrap: anywhere; }
   .quote {
     margin: 10px 0 0; padding: 12px 14px; border-left: 3px solid var(--line2);
     background: var(--raise); border-radius: 0 8px 8px 0; font-size: 13.5px; color: var(--soft, var(--ink));
@@ -333,6 +338,7 @@
     <div class="panel">
       <label for="case">사례 (커밋된 clean test에서 업권별 한 건)</label>
       <select id="case"><option>불러오는 중…</option></select>
+      <p class="meta" id="case-note"></p>
       <div class="quote" id="case-text">사례를 불러오는 중입니다.</div>
       <button id="find">근거 찾기</button>
       <div id="ev" class="placeholder" style="margin-top:18px">선례가 여기에 표시됩니다.</div>
@@ -407,6 +413,11 @@ const el = (tag, attrs = {}, kids = []) => {
   return n;
 };
 const put = (id, v) => { const n = document.getElementById(id); if (n) n.textContent = v; };
+// 서버가 JSON 이 아닌 오류 본문을 줄 수도 있다. 그때 화면에 파서 오류가 뜨면 안 된다.
+const readBody = async r => {
+  const raw = await r.text();
+  try { return JSON.parse(raw); } catch { return {detail: raw.slice(0, 200) || r.statusText}; }
+};
 
 // ── 0. 요약 ────────────────────────────────────────────────────
 async function drawSummary() {
@@ -519,7 +530,7 @@ async function classify() {
         min_confidence: minConf
       })
     });
-    const body = await r.json();
+    const body = await readBody(r);
     if (!r.ok) {
       out.className = 'err';
       out.textContent = (r.status === 503 ? '엔진을 쓸 수 없습니다 — ' : '오류 — ') +
@@ -569,7 +580,9 @@ async function loadSamples() {
   try {
     const r = await fetch('/rag/samples');
     if (!r.ok) throw new Error(r.statusText);
-    SAMPLES = (await r.json()).cases;
+    const data = await r.json();
+    SAMPLES = data.cases;
+    document.getElementById('case-note').textContent = data.note || '';
     sel.innerHTML = '';
     SAMPLES.forEach((c, i) => sel.appendChild(
       el('option', {value: i, text: `${c.sector} · ${c.serial} · ${c.source} p.${c.page}`})));
@@ -594,7 +607,7 @@ async function findEvidence() {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({request_text: c.request, request_serial: c.serial, top_k: 3})
     });
-    const d = await r.json();
+    const d = await readBody(r);
     if (!r.ok) {
       out.className = 'err';
       out.textContent = '오류 — ' + (typeof d.detail === 'string' ? d.detail : JSON.stringify(d.detail));
