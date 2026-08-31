@@ -158,6 +158,21 @@ python3 scripts/check_env.py
 python3 scripts/serve.py
 ```
 
+### 배포
+
+Render Blueprint(`render.yaml`)로 배포한다. 빌드 단계에서 서비스가 읽을 산출물이 다 있는지 먼저 확인하고,
+하나라도 없으면 빌드를 실패시켜 **배포 자체가 일어나지 않게** 한다. 그러면 이미 떠 있는 인스턴스가 그대로 서빙한다.
+
+```yaml
+buildCommand: pip install -r requirements.txt && python3 scripts/check_release.py
+healthCheckPath: /health
+```
+
+`/health` 는 산출물이 없어도 2xx 를 돌려준다. Render 의 health check 는 배포 때만 도는 것이 아니라 살아 있는
+인스턴스에도 계속 요청을 보내고, 5xx 가 60초 이어지면 인스턴스를 재시작한다. 파일이 빠진 것은 재시작으로 낫지
+않으므로, 거기서 5xx 를 내면 낫지 않는 상태를 고치려고 무한히 재시작하다 서비스가 죽는다. **살아 있는가**와
+**준비됐는가**는 다른 질문이고, 준비 여부는 되돌릴 수 있는 빌드 단계에서 막는다.
+
 최종 clean 결과는 외부 API 없이 다시 계산할 수 있다.
 
 ```bash
