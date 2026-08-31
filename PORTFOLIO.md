@@ -221,7 +221,7 @@ S5 qualitative audit은 안전 veto로는 채택했지만 safe recovery는 검�
 
 Core CI:
 
-- **574 collected = 563 passed + 11 skipped**
+- **577 collected = 566 passed + 11 skipped**
 - Python 3.9 / 3.11
 - Evidence RAG offline audit
 - final 168-row profile invariant

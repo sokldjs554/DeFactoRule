@@ -4,7 +4,9 @@ services:
     runtime: python
     plan: free
     region: singapore
-    buildCommand: pip install -r requirements.txt
+    # 산출물이 빠지면 여기서 빌드가 실패하고 배포가 일어나지 않는다.
+    # 기존 인스턴스가 그대로 서빙한다. health check 로 막으면 재시작 루프에 빠진다.
+    buildCommand: pip install -r requirements.txt && python3 scripts/check_release.py
     startCommand: uvicorn app.api.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:

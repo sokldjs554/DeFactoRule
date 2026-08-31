@@ -209,3 +209,55 @@ def test_ui_does_not_hardcode_the_headline_numbers():
     html = client.get("/").text
     for literal in ("82.89", "45.24", "1,122", "1,095", "168건 중"):
         assert literal not in html, f"화면에 {literal} 이 박혀 있습니다"
+
+def test_health_stays_2xx_when_an_artifact_is_missing(monkeypatch):
+    """산출물이 없어도 health check 는 5xx 를 돌려주지 않는다.
+
+    Render 의 health check 는 배포 때만 도는 것이 아니다. 살아 있는 인스턴스에도
+    계속 요청이 오고, 5xx 가 60초 이어지면 인스턴스를 재시작한다. 파일이 빠진 것은
+    재시작으로 낫지 않으므로, 여기서 5xx 를 내면 낫지 않는 상태를 고치려고 무한히
+    재시작하다 서비스가 아예 죽는다.
+
+    그래서 이 자리는 **살아 있는가**만 답하고, **준비됐는가**는 빌드 단계에서
+    막는다(scripts/check_release.py). 이 테스트가 그 경계를 지킨다.
+    """
+    from pathlib import Path
+
+    from app.api import main as api
+
+    monkeypatch.setattr(api, "GOLD", Path("/nonexistent/gold.jsonl"))
+    resp = client.get("/health")
+    assert resp.status_code < 400, "5xx 를 내면 Render 가 재시작을 반복한다"
+
+    body = resp.json()
+    assert body["ready"] is False, "준비되지 않았다는 사실 자체는 알려야 한다"
+    assert "gold_set" in body["missing"]
+
+
+def test_release_gate_is_wired_into_the_build():
+    """산출물 확인은 빌드 명령에 붙어 있어야 의미가 있다.
+
+    스크립트만 있고 render.yaml 에 연결되지 않으면 아무것도 막지 못한다 —
+    만들어 놓고 아무도 부르지 않는 코드(IN-15)와 같은 실패다.
+    """
+    from app.core.paths import ROOT
+
+    assert (ROOT / "scripts" / "check_release.py").exists()
+    blueprint = (ROOT / "render.yaml").read_text(encoding="utf-8")
+    assert "scripts/check_release.py" in blueprint, (
+        "render.yaml 의 buildCommand 에 없으면 빈 배포를 막지 못한다"
+    )
+
+
+def test_release_gate_passes_on_this_checkout():
+    """지금 트리는 배포 가능해야 한다."""
+    import importlib.util
+
+    from app.core.paths import ROOT
+
+    spec = importlib.util.spec_from_file_location(
+        "check_release", ROOT / "scripts" / "check_release.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert module.main() == 0

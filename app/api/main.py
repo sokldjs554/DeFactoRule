@@ -64,11 +64,27 @@ def index() -> FileResponse:
 
 @app.get("/health", summary="서비스 상태 확인")
 def health() -> dict:
-    return {
-        "status": "ok",
+    """서비스가 살아 있는지, 그리고 산출물이 제자리에 있는지 알립니다.
+
+    산출물이 없어도 **2xx 를 유지한다.** Render 의 health check 는 배포 때만
+    도는 것이 아니라 살아 있는 인스턴스에도 계속 요청을 보내고, 5xx 가 60초
+    이어지면 인스턴스를 재시작한다. 파일이 빠진 것은 재시작으로 낫지 않으므로
+    여기서 5xx 를 돌려주면 재시작만 반복하다 서비스가 아예 죽는다.
+
+    준비 여부는 더 앞에서 막는다 — `scripts/check_release.py` 가 빌드 단계에서
+    확인하고, 없으면 빌드를 실패시켜 배포 자체가 일어나지 않게 한다.
+    """
+    ready = {
         "gold_set": GOLD.exists(),
         "base_rates": DEV_BASE_RATES.exists(),
         "predictions": sorted(p.name for p in PROCESSED.glob("pred_nonaction_*.jsonl")),
+    }
+    missing = [k for k, v in ready.items() if not v]
+    return {
+        "status": "ok",
+        **ready,
+        "ready": not missing,
+        "missing": missing,
     }
 
 
