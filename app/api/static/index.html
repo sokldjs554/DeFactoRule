@@ -86,7 +86,6 @@
     background: var(--warn); color: #fff; font-size: 10px; font-weight: 700;
     display: grid; place-items: center; transform: translateY(2px);
   }
-  .prov { margin: 7px 0 0; font-size: 11.5px; color: var(--faint); font-family: var(--mono); }
 
   /* ── 섹션 ────────────────────────────────────────────── */
   main { padding-bottom: 88px; }
@@ -203,7 +202,6 @@
     </nav>
     <span class="out">
       <a href="https://github.com/sokldjs554/DeFactoRule" target="_blank" rel="noopener">GitHub</a>
-      <a href="/docs">API 문서</a>
     </span>
   </div>
 </div>
@@ -246,7 +244,6 @@
       </div>
     </div>
     <p class="caveat" id="caveat">수치를 불러오는 중입니다.</p>
-    <p class="prov" id="prov"></p>
   </div>
 </header>
 
@@ -350,9 +347,7 @@
       실행하지 않습니다.
     </p>
     <p>
-      <a href="https://github.com/sokldjs554/DeFactoRule" target="_blank" rel="noopener">저장소</a> ·
-      <a href="/docs">API 문서</a> ·
-      <a href="/health">상태</a>
+      <a href="https://github.com/sokldjs554/DeFactoRule" target="_blank" rel="noopener">저장소</a>
     </p>
   </div>
 </footer>
@@ -394,7 +389,6 @@ async function drawSummary() {
     put('k-qa', num.format(c.qa_pairs) + '쌍');
     put('k-qa-d', `사례 ${num.format(c.cases)}건에서 구조화`);
     put('caveat', d.caveat);
-    put('prov', d.source);
   } catch (e) {
     put('caveat', '요약을 불러오지 못했습니다: ' + e.message);
     ['k-acc-d','k-cov-d','k-abs-d','k-qa-d'].forEach(id => put(id, '—'));
@@ -597,7 +591,11 @@ async function drawFailures() {
       div.appendChild(el('span', {class: 'chip', style: 'margin-left:8px',
         text: `${m.name} ${m.before} → ${m.after}${m.unit ? ' ' + m.unit : ''}`}));
     }
-    if (c.probe_detail) div.appendChild(el('div', {class: 'detail', text: c.probe_detail}));
+    // 통과한 검사의 상세는 내부 진단 출력이라 화면에 내지 않는다.
+    // 실패했을 때만 무엇이 어긋났는지 보여준다.
+    if (c.probe_detail && c.probe_passed === false) {
+      div.appendChild(el('div', {class: 'detail', text: c.probe_detail}));
+    }
     list.appendChild(div);
   });
 }
