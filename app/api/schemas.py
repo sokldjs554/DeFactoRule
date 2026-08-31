@@ -136,3 +136,31 @@ class FailureReport(BaseModel):
     by_layer: dict
     open_cases: List[str]
     cases: List[FailureCase]
+
+class FrozenProfile(BaseModel):
+    """최종 평가에서 얼어붙은 프로파일입니다."""
+
+    n: int = Field(..., description="평가 세트 전체 건수")
+    answered: int = Field(..., description="결과를 낸 건수")
+    abstained: int = Field(..., description="판단을 보류한 건수")
+    correct: int = Field(..., description="결과를 낸 것 중 맞힌 건수")
+    wrong: int = Field(..., description="결과를 낸 것 중 틀린 건수")
+    coverage: float = Field(..., description="전체 중 결과를 낸 비율")
+    accuracy_on_answered: float = Field(
+        ..., description="결과를 낸 것만 놓고 계산한 정확도입니다."
+    )
+
+
+class CorpusSize(BaseModel):
+    """데이터 파일에서 직접 센 규모입니다."""
+
+    cases: int = Field(..., description="구조화한 사례 수")
+    qa_pairs: int = Field(..., description="질의·회답 쌍의 수")
+    test_set: int = Field(..., description="최종 평가에 쓴 test 세트 건수")
+
+
+class SummaryResponse(BaseModel):
+    profile: FrozenProfile
+    corpus: CorpusSize
+    caveat: str = Field(..., description="수치를 읽을 때 함께 봐야 하는 조건입니다.")
+    source: str = Field(..., description="수치를 읽어 온 산출물 경로입니다.")

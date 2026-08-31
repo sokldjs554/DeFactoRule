@@ -135,13 +135,29 @@ def test_ui_is_served_and_self_contained():
 
     CDN 을 걸면 네트워크가 없는 환경에서 화면이 조용히 깨진다. 심사자가
     처음 여는 순간이 그런 환경일 수 있다.
+
+    막아야 하는 것은 **자산**이다 — script·link·img 처럼 그리기 전에 받아와야
+    하는 것. 본문의 <a> 는 자산이 아니다. 누르지 않으면 나가지 않고, 네트워크가
+    없어도 화면은 그대로 그려진다. 그래서 태그를 보고 판단한다.
     """
+    import re
+
     resp = client.get("/")
     assert resp.status_code == 200
     assert "text/html" in resp.headers["content-type"]
     html = resp.text
-    assert "http://" not in html.replace("http://www.w3.org/2000/svg", "")
-    assert "https://" not in html
+
+    assets = re.findall(
+        r"<(?:script|link|img|iframe|source|embed|object)\b[^>]*?"
+        r'\b(?:src|href|data)="([^"]+)"',
+        html,
+        re.IGNORECASE,
+    )
+    external = [u for u in assets if u.startswith(("http://", "https://", "//"))]
+    assert not external, f"화면이 외부 자산을 부릅니다: {external}"
+
+    assert "@import" not in html, "CSS 가 외부를 불러오면 같은 문제가 생긴다"
+    assert "url(http" not in html.replace(" ", ""), "스타일이 외부 자산을 참조합니다"
     assert "cdn" not in html.lower()
 
 
@@ -155,3 +171,41 @@ def test_ui_only_calls_endpoints_that_exist():
     called = set(re.findall(r"fetch\('([^']+)'", client.get("/").text))
     missing = {c.split("?")[0] for c in called} - routes
     assert not missing, f"화면이 없는 경로를 부릅니다: {sorted(missing)}"
+
+
+
+def test_summary_reads_the_frozen_artifact_rather_than_recomputing():
+    """상단 요약은 커밋된 최종 산출물을 그대로 읽는다."""
+    import json
+
+    from app.api.main import FINAL_FREEZE
+
+    body = client.get("/evaluation/summary").json()
+    anchor = json.loads(FINAL_FREEZE.read_text(encoding="utf-8"))["c3_anchor_recomputed"]
+    for field in ("n", "answered", "abstained", "correct", "wrong"):
+        assert body["profile"][field] == anchor[field]
+
+    p = body["profile"]
+    assert p["answered"] + p["abstained"] == p["n"], "답한 것과 보류한 것의 합이 전체다"
+    assert p["correct"] + p["wrong"] == p["answered"], "맞고 틀린 것의 합은 답한 것이다"
+
+
+def test_summary_counts_the_data_files_it_reports():
+    """규모는 데이터 파일에서 직접 센다 — 문서에 적힌 값을 옮겨 적지 않는다."""
+    from app.api.main import QA_PAIRS
+
+    body = client.get("/evaluation/summary").json()
+    expected = sum(1 for line in QA_PAIRS.read_bytes().splitlines() if line.strip())
+    assert body["corpus"]["qa_pairs"] == expected
+    assert body["corpus"]["test_set"] == body["profile"]["n"]
+
+
+def test_ui_does_not_hardcode_the_headline_numbers():
+    """상단 카드의 숫자는 화면에 박아 두지 않는다.
+
+    박아 두면 재평가한 날 화면만 옛 숫자로 남는다. 실제로 문서 쪽에서 그런 일이
+    있었다(FAIL-DOC-*). 화면은 API 에서 받아 그린다.
+    """
+    html = client.get("/").text
+    for literal in ("82.89", "45.24", "1,122", "1,095", "168건 중"):
+        assert literal not in html, f"화면에 {literal} 이 박혀 있습니다"

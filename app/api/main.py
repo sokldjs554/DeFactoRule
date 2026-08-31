@@ -13,16 +13,19 @@ from app.api.schemas import (
     BaseRatesResponse,
     ClassifyRequest,
     ClassifyResponse,
+    CorpusSize,
     FailureReport,
+    FrozenProfile,
     ModelCurve,
     OperatingPoint,
     RiskCoverageResponse,
     SectorRate,
+    SummaryResponse,
 )
 from app.api.service import EngineUnavailable
 from app.api.service import classify as classify_service
 from app.core.io import key_of, load_jsonl
-from app.core.paths import DEV_BASE_RATES, EVAL, PROCESSED
+from app.core.paths import DEV_BASE_RATES, EVAL, PROCESSED, RESULTS
 from app.domain.labels import LABEL_SETS
 from app.evaluation.failure_taxonomy import load_registry
 from app.evaluation.metrics import macro_f1
@@ -40,6 +43,12 @@ app = FastAPI(
 
 GOLD = EVAL / "nonaction_test.jsonl"
 STATIC = Path(__file__).resolve().parent / "static"
+
+# 화면 상단 요약이 읽는 것. 전부 커밋된 산출물이다 — 여기서 모델을 돌리지 않는다.
+FINAL_FREEZE = RESULTS / "clean" / "final_clean_temporal.json"
+CORPUS_FILES = ("cases_interpretation.jsonl", "cases_nonaction.jsonl")
+QA_PAIRS = PROCESSED / "qa_pairs.jsonl"
+TEST_CLEAN = EVAL / "nonaction_test_clean.jsonl"
 
 
 @app.get("/", include_in_schema=False)
@@ -171,6 +180,46 @@ def risk_coverage(
         note += f" 결측이 있어 제외된 예측: {', '.join(skipped)}."
     return RiskCoverageResponse(
         n=len(keys), label_set="nonaction", curves=curves, note=note
+    )
+
+
+def _count_lines(path: Path) -> int:
+    """빈 줄을 뺀 줄 수. 파일 전체를 메모리에 올리지 않는다."""
+    if not path.exists():
+        return 0
+    with path.open("rb") as fh:
+        return sum(1 for line in fh if line.strip())
+
+
+@app.get(
+    "/evaluation/summary",
+    response_model=SummaryResponse,
+    summary="최종 평가 요약",
+)
+def summary() -> SummaryResponse:
+    """화면 상단에 표시하는 최종 평가 요약입니다.
+
+    커밋된 산출물과 데이터 파일만 읽습니다. 모델을 새로 실행하지 않습니다.
+    """
+    if not FINAL_FREEZE.exists():
+        raise HTTPException(status_code=404, detail="최종 평가 산출물이 없습니다.")
+    anchor = json.loads(FINAL_FREEZE.read_text(encoding="utf-8"))["c3_anchor_recomputed"]
+    fields = (
+        "n", "answered", "abstained", "correct", "wrong",
+        "coverage", "accuracy_on_answered",
+    )
+    return SummaryResponse(
+        profile=FrozenProfile(**{f: anchor[f] for f in fields}),
+        corpus=CorpusSize(
+            cases=sum(_count_lines(PROCESSED / name) for name in CORPUS_FILES),
+            qa_pairs=_count_lines(QA_PAIRS),
+            test_set=_count_lines(TEST_CLEAN),
+        ),
+        caveat=(
+            "답변 정확도는 답하지 않은 사례를 빼고 계산한 값입니다. "
+            "반드시 답변 비율과 함께 읽어야 합니다."
+        ),
+        source="experiments/results/clean/final_clean_temporal.json",
     )
 
 

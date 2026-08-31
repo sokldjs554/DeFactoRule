@@ -202,7 +202,7 @@ checks/document_ai Document AI 전용 contract / OCR checks
 experiments/       frozen result artifacts
 ```
 
-Core suite는 테스트 <!--TESTS-->571<!--/TESTS-->개를 수집하며 현재 CI 기준 **560 passed / 11 skipped**다. Python 3.9와 3.11에서 core suite와 Evidence RAG 오프라인 평가를 함께 실행한다. 별도 Document AI suite는 **17 checks**이며, 실제 Tesseract 한국어 OCR과 60문서 × 3프로필 benchmark는 Python 3.11 job에서 실행한다.
+Core suite는 테스트 <!--TESTS-->574<!--/TESTS-->개를 수집하며 현재 CI 기준 **563 passed / 11 skipped**다. Python 3.9와 3.11에서 core suite와 Evidence RAG 오프라인 평가를 함께 실행한다. 별도 Document AI suite는 **17 checks**이며, 실제 Tesseract 한국어 OCR과 60문서 × 3프로필 benchmark는 Python 3.11 job에서 실행한다.
 
 ### OCR-aware Document AI intake
 
@@ -446,4 +446,4 @@ pip3 install -r requirements-dev.txt
 python3 -m pytest tests -q
 ```
 
-**현재 규모:** 1,095건 · 1,122쌍 · 실패 케이스 78건 · core tests <!--TESTS-->571<!--/TESTS-->개 + Document AI dedicated checks 17개.
+**현재 규모:** 1,095건 · 1,122쌍 · 실패 케이스 78건 · core tests <!--TESTS-->574<!--/TESTS-->개 + Document AI dedicated checks 17개.

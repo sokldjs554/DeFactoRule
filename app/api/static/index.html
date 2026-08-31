@@ -1,119 +1,292 @@
 <!doctype html>
 <meta charset="utf-8">
-<title>DeFactoRule</title>
+<title>DeFactoRule — 금융 규제 문서 판정</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root {
-    --bg: #fbfaf8; --panel: #fff; --ink: #1b1a18; --dim: #6b6862;
-    --line: #e3e0da; --accent: #1f5c8b; --warn: #a8500f; --ok: #2c6e49;
-    --llm: #1f5c8b; --keyword: #a8500f; --majority: #8a8578; --prior: #6a4c93; --sector: #2c6e49;
+    --paper: #fcfbf9; --card: #fff; --raise: #f7f5f1;
+    --ink: #1a1815; --dim: #6e6a62; --faint: #9a958c;
+    --line: #e6e2db; --line2: #d4cfc6;
+    --accent: #1d5a86; --accent-soft: #eaf1f7;
+    --warn: #a8500f; --ok: #2c6e49; --bad: #9b2c1a;
+    --llm: #1d5a86; --keyword: #a8500f; --majority: #8a8578; --prior: #6a4c93; --sector: #2c6e49;
+    --sans: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", Pretendard,
+            "Noto Sans KR", "Malgun Gothic", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, "Cascadia Mono", monospace;
   }
   * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 68px; }
   body {
-    margin: 0; background: var(--bg); color: var(--ink);
-    font: 15px/1.65 -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", Pretendard, sans-serif;
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 14.5px/1.68 var(--sans);
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+    word-break: keep-all;  /* 한글이 단어 가운데에서 끊기지 않게 */
   }
-  header { padding: 44px 32px 28px; border-bottom: 1px solid var(--line); }
-  h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: -.02em; }
-  .thesis { margin: 0; max-width: 62ch; color: var(--dim); }
-  .thesis b { color: var(--ink); }
-  main { padding: 0 32px 80px; max-width: 1120px; }
-  section { margin-top: 44px; }
-  h2 { font-size: 18px; margin: 0 0 4px; letter-spacing: -.01em; }
-  .sub { margin: 0 0 18px; color: var(--dim); font-size: 13.5px; max-width: 72ch; }
-  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; }
-  .row { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 0 30px; }
+
+  /* ── 상단 바 ─────────────────────────────────────────── */
+  .topbar {
+    position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--paper) 86%, transparent);
+    backdrop-filter: saturate(180%) blur(12px); border-bottom: 1px solid var(--line);
+  }
+  .topbar .wrap { display: flex; align-items: center; gap: 22px; height: 54px; }
+  .brand { font-weight: 700; letter-spacing: -.02em; font-size: 15px; white-space: nowrap; }
+  .brand em { font-style: normal; font-weight: 500; color: var(--faint); font-size: 12px; margin-left: 8px; }
+  .nav { display: flex; gap: 2px; margin-left: auto; }
+  .nav a {
+    color: var(--dim); text-decoration: none; font-size: 12.5px; padding: 5px 10px;
+    border-radius: 7px; white-space: nowrap; transition: background .15s, color .15s;
+  }
+  .nav a:hover { background: var(--raise); color: var(--ink); }
+  .nav a.on { color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+  .out { display: flex; gap: 7px; }
+  .out a {
+    font-size: 12.5px; text-decoration: none; color: var(--ink); padding: 5px 12px;
+    border: 1px solid var(--line2); border-radius: 7px; white-space: nowrap;
+    transition: border-color .15s, background .15s;
+  }
+  .out a:hover { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  @media (max-width: 900px) { .nav { display: none; } .out { margin-left: auto; } }
+
+  /* ── 표제 ────────────────────────────────────────────── */
+  .hero { padding: 52px 0 6px; }
+  .kicker {
+    margin: 0 0 12px; font-family: var(--mono); font-size: 11.5px; letter-spacing: .09em;
+    text-transform: uppercase; color: var(--accent);
+  }
+  h1 { margin: 0 0 10px; font-size: 34px; line-height: 1.18; letter-spacing: -.03em; }
+  .lede { margin: 0 0 18px; font-size: 17px; line-height: 1.55; max-width: 40ch; letter-spacing: -.01em; }
+  .thesis { margin: 0; max-width: 64ch; color: var(--dim); }
+  .thesis b { color: var(--ink); font-weight: 600; }
+  .stack { margin: 20px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
+  .stack span {
+    font-size: 11.5px; font-family: var(--mono); color: var(--dim);
+    border: 1px solid var(--line); border-radius: 5px; padding: 3px 8px; background: var(--card);
+  }
+
+  /* ── 지표 카드 ───────────────────────────────────────── */
+  .kpis { margin: 34px 0 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+          background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .kpi { background: var(--card); padding: 18px 20px 16px; }
+  .kpi .k { display: block; font-size: 12px; color: var(--dim); letter-spacing: .01em; }
+  .kpi .v {
+    display: block; margin: 5px 0 3px; font-size: 27px; font-weight: 700; letter-spacing: -.025em;
+    font-variant-numeric: tabular-nums; color: var(--ink);
+  }
+  .kpi .d { display: block; font-size: 11.5px; color: var(--faint); font-variant-numeric: tabular-nums; }
+  .kpi.lead .v { color: var(--accent); }
+  @media (max-width: 860px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 460px) { .kpis { grid-template-columns: 1fr; } }
+  .caveat {
+    margin: 12px 0 0; font-size: 12.5px; color: var(--dim); display: flex; gap: 9px;
+    align-items: baseline; max-width: 78ch;
+  }
+  .caveat::before {
+    content: "!"; flex: none; width: 15px; height: 15px; border-radius: 50%;
+    background: var(--warn); color: #fff; font-size: 10px; font-weight: 700;
+    display: grid; place-items: center; transform: translateY(2px);
+  }
+  .prov { margin: 7px 0 0; font-size: 11.5px; color: var(--faint); font-family: var(--mono); }
+
+  /* ── 섹션 ────────────────────────────────────────────── */
+  main { padding-bottom: 88px; }
+  section { padding-top: 60px; }
+  .shead { display: flex; gap: 16px; margin-bottom: 16px; }
+  .snum {
+    flex: none; font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--accent);
+    padding-top: 5px; letter-spacing: .04em;
+  }
+  h2 { font-size: 20px; margin: 0 0 5px; letter-spacing: -.02em; }
+  .sub { margin: 0; color: var(--dim); font-size: 13.5px; max-width: 74ch; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 22px; }
+  .row { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
   .grow { flex: 1 1 380px; min-width: 0; }
-  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
-  th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+
+  /* ── 표 ──────────────────────────────────────────────── */
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: right; padding: 7px 9px; border-bottom: 1px solid var(--line); }
   th:first-child, td:first-child { text-align: left; }
-  th { color: var(--dim); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  th {
+    color: var(--faint); font-weight: 600; font-size: 11px; text-transform: uppercase;
+    letter-spacing: .06em; border-bottom-color: var(--line2);
+  }
+  tbody tr:last-child td { border-bottom: 0; }
   tr.best td { font-weight: 700; }
-  .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 7px; vertical-align: baseline; }
-  .flat { color: var(--warn); font-size: 12px; }
-  label { display: block; font-size: 12.5px; color: var(--dim); margin-bottom: 6px; }
-  textarea, select, input[type=range] { width: 100%; font: inherit; }
+  tr.best td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
+  .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 8px; vertical-align: baseline; }
+  .flat { color: var(--warn); font-size: 11.5px; }
+
+  /* ── 입력 ────────────────────────────────────────────── */
+  label { display: block; font-size: 12px; color: var(--dim); margin-bottom: 6px; font-weight: 500; }
+  textarea, select { width: 100%; font: inherit; }
   textarea {
-    min-height: 108px; padding: 11px; border: 1px solid var(--line);
-    border-radius: 8px; resize: vertical; background: #fff; color: var(--ink);
+    min-height: 112px; padding: 12px; border: 1px solid var(--line2); border-radius: 9px;
+    resize: vertical; background: var(--card); color: var(--ink); line-height: 1.6;
   }
-  select { padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+  select {
+    padding: 9px 10px; border: 1px solid var(--line2); border-radius: 9px;
+    background: var(--card); color: var(--ink);
+  }
+  textarea:focus, select:focus, button:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent);
+  }
   button {
-    margin-top: 12px; padding: 9px 18px; font: inherit; font-weight: 600; cursor: pointer;
-    background: var(--accent); color: #fff; border: 0; border-radius: 8px;
+    margin-top: 14px; padding: 10px 22px; font: inherit; font-weight: 600; cursor: pointer;
+    background: var(--accent); color: #fff; border: 0; border-radius: 9px; letter-spacing: -.01em;
   }
-  button:disabled { opacity: .5; cursor: progress; }
-  .verdict { margin-top: 16px; padding: 16px; border-radius: 8px; border: 1px solid var(--line); background: #fdfcfa; }
-  .verdict.abstain { border-color: #d9c9a3; background: #fdf8ec; }
-  .verdict .label { font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
-  .verdict .why { color: var(--dim); font-size: 13px; margin-top: 6px; }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-  .chip { font-size: 11.5px; padding: 3px 9px; border-radius: 999px; background: #f1efe9; color: var(--dim); }
-  .bar { height: 9px; border-radius: 3px; background: #eeece6; overflow: hidden; display: flex; }
+  button:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 88%, #000); }
+  button:disabled { opacity: .45; cursor: progress; }
+
+  /* ── 판정 결과 ───────────────────────────────────────── */
+  .verdict { padding: 18px; border-radius: 10px; border: 1px solid var(--line2); background: var(--raise); }
+  .verdict.abstain { border-color: #dcc79b; background: #fdf7ea; }
+  .verdict .label { font-size: 23px; font-weight: 700; letter-spacing: -.025em; }
+  .verdict .why { color: var(--dim); font-size: 13px; margin-top: 7px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 13px; }
+  .chip {
+    font-size: 11.5px; padding: 3px 9px; border-radius: 999px; background: var(--card);
+    border: 1px solid var(--line2); color: var(--dim); font-variant-numeric: tabular-nums;
+  }
+  .bar { height: 9px; border-radius: 3px; background: var(--raise); overflow: hidden; display: flex; }
   .bar i { display: block; height: 100%; }
   .muted { color: var(--dim); }
-  .tax { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 10px; }
-  .tax div { border: 1px solid var(--line); border-radius: 8px; padding: 11px 13px; background: #fff; }
-  .tax b { display: block; font-size: 13px; }
+  .placeholder {
+    border: 1px dashed var(--line2); border-radius: 10px; padding: 26px; text-align: center;
+    color: var(--faint); font-size: 13px;
+  }
+
+  /* ── 실패 사례 ───────────────────────────────────────── */
+  .tax { display: grid; grid-template-columns: repeat(auto-fill, minmax(198px, 1fr)); gap: 10px; }
+  .tax div { border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; background: var(--raise); }
+  .tax b { display: block; font-size: 13px; letter-spacing: -.01em; }
   .tax span { font-size: 12px; color: var(--dim); }
-  .case { border-bottom: 1px solid var(--line); padding: 9px 0; font-size: 13.5px; }
+  .case { border-bottom: 1px solid var(--line); padding: 10px 0; font-size: 13.5px; }
   .case:last-child { border-bottom: 0; }
-  .case .id { font-variant-numeric: tabular-nums; color: var(--dim); margin-right: 8px; }
-  .case .st { float: right; font-size: 11.5px; padding: 2px 8px; border-radius: 999px; }
+  .case .id { font-variant-numeric: tabular-nums; color: var(--faint); margin-right: 9px; font-family: var(--mono); font-size: 12px; }
+  .case .st { float: right; font-size: 11px; padding: 2px 9px; border-radius: 999px; font-weight: 600; }
   .st.ok { background: #e7f1ea; color: var(--ok); }
-  .st.bad { background: #fbe9e4; color: #9b2c1a; }
+  .st.bad { background: #fbe9e4; color: var(--bad); }
   .st.open { background: #fdf1dc; color: var(--warn); }
-  .case .detail { color: var(--dim); font-size: 12px; margin-top: 3px; word-break: break-word; }
-  .err { color: #9b2c1a; font-size: 13px; }
-  footer { padding: 28px 32px; border-top: 1px solid var(--line); color: var(--dim); font-size: 12.5px; }
+  .case .detail { color: var(--dim); font-size: 12px; margin-top: 4px; word-break: break-word; }
+  .err { color: var(--bad); font-size: 13px; }
+
+  footer { border-top: 1px solid var(--line); padding: 26px 0 40px; color: var(--dim); font-size: 12.5px; }
+  footer .wrap { display: flex; gap: 20px; flex-wrap: wrap; justify-content: space-between; }
+  footer p { margin: 0; max-width: 62ch; }
+  footer a { color: var(--dim); }
+
   @media (prefers-color-scheme: dark) {
-    :root { --bg:#161513; --panel:#1e1d1a; --ink:#eceae5; --dim:#9b968c; --line:#302e2a;
-            --accent:#6fa8d6; --llm:#6fa8d6; --keyword:#d69553; --majority:#7a756a;
-            --prior:#a68cd0; --sector:#6fbf95; }
-    textarea, select, .tax div { background: #1a1917; color: var(--ink); }
-    .verdict { background: #1a1917; } .verdict.abstain { background: #241f16; border-color: #4a3d24; }
-    .chip { background: #26241f; } .bar { background: #26241f; }
+    :root {
+      --paper: #131211; --card: #1c1b19; --raise: #232120;
+      --ink: #ecebe7; --dim: #9d988e; --faint: #7b766d;
+      --line: #2e2c29; --line2: #403d38;
+      --accent: #7bb0da; --accent-soft: #1a2733;
+      --llm: #7bb0da; --keyword: #d69553; --majority: #837e73;
+      --prior: #a68cd0; --sector: #6fbf95; --bad: #dd7a63;
+    }
+    .verdict.abstain { background: #241f16; border-color: #4c3f26; }
     .st.ok { background: #1c2f24; } .st.bad { background: #34211c; } .st.open { background: #33281a; }
-    button { color: #10201c; }
+    button { color: #0d1a22; }
+    .caveat::before { color: #1a1815; }
   }
 </style>
 
-<header>
-  <h1>DeFactoRule</h1>
-  <p class="thesis">
-    금융 규제 회신 사례를 분류하는 과정에서 단순 정확도만으로는 모델의 차이를 확인하기
-    어려웠습니다. 그래서 신뢰도가 낮은 결과를 보류했을 때 오류가 얼마나 줄어드는지도
-    함께 비교했습니다.
-  </p>
+<div class="topbar">
+  <div class="wrap">
+    <span class="brand">DeFactoRule<em>평가 대시보드</em></span>
+    <nav class="nav">
+      <a href="#summary">요약</a>
+      <a href="#risk">위험–커버리지</a>
+      <a href="#classify">판정</a>
+      <a href="#rates">분포</a>
+      <a href="#failures">실패 사례</a>
+    </nav>
+    <span class="out">
+      <a href="https://github.com/sokldjs554/DeFactoRule" target="_blank" rel="noopener">GitHub</a>
+      <a href="/docs">API 문서</a>
+    </span>
+  </div>
+</div>
+
+<header class="hero" id="summary">
+  <div class="wrap">
+    <p class="kicker">금융 규제 문서 판정 · AI Agent</p>
+    <h1>DeFactoRule</h1>
+    <p class="lede">근거를 찾아 판단하고,<br>근거가 약하면 판단을 보류합니다.</p>
+    <p class="thesis">
+      금융 규제 회신 사례를 분류하는 과정에서 단순 정확도만으로는 모델의 차이를 확인하기
+      어려웠습니다. 그래서 신뢰도가 낮은 결과를 보류했을 때 오류가 얼마나 줄어드는지도
+      함께 비교했습니다.
+    </p>
+    <div class="stack">
+      <span>FastAPI</span><span>Pydantic</span><span>규칙 + 근거 검색</span>
+      <span>LLM 판단 요인 분석</span><span>결정론적 검증</span><span>판단 보류 · 인계</span>
+    </div>
+
+    <div class="kpis" id="kpis">
+      <div class="kpi lead">
+        <span class="k">답변 정확도</span>
+        <span class="v" id="k-acc">—</span>
+        <span class="d" id="k-acc-d">불러오는 중</span>
+      </div>
+      <div class="kpi lead">
+        <span class="k">답변 비율</span>
+        <span class="v" id="k-cov">—</span>
+        <span class="d" id="k-cov-d">불러오는 중</span>
+      </div>
+      <div class="kpi">
+        <span class="k">판단 보류</span>
+        <span class="v" id="k-abs">—</span>
+        <span class="d" id="k-abs-d">불러오는 중</span>
+      </div>
+      <div class="kpi">
+        <span class="k">질의·회답 쌍</span>
+        <span class="v" id="k-qa">—</span>
+        <span class="d" id="k-qa-d">불러오는 중</span>
+      </div>
+    </div>
+    <p class="caveat" id="caveat">수치를 불러오는 중입니다.</p>
+    <p class="prov" id="prov"></p>
+  </div>
 </header>
 
-<main>
-  <section>
-    <h2>1. 위험–커버리지 비교</h2>
-    <p class="sub">
-      가로축은 모델이 결과를 낸 비율이고, 세로축은 그중 틀린 비율입니다. 같은 비율만큼
-      결과를 냈을 때 오류가 낮은 모델이 더 안정적입니다. AURC도 낮을수록 좋습니다.
-    </p>
+<main class="wrap">
+  <section id="risk">
+    <div class="shead">
+      <span class="snum">01</span>
+      <div>
+        <h2>위험–커버리지 비교</h2>
+        <p class="sub">
+          가로축은 모델이 결과를 낸 비율이고, 세로축은 그중 틀린 비율입니다. 같은 비율만큼
+          결과를 냈을 때 오류가 낮은 모델이 더 안정적입니다. AURC도 낮을수록 좋습니다.
+        </p>
+      </div>
+    </div>
     <div class="panel row">
       <div class="grow"><svg id="rc" viewBox="0 0 520 340" style="width:100%;height:auto"></svg></div>
       <div class="grow">
         <table id="aurc"><tbody><tr><td class="muted">불러오는 중…</td></tr></tbody></table>
-        <p class="sub" id="rc-note" style="margin-top:12px"></p>
+        <p class="sub" id="rc-note" style="margin-top:14px"></p>
       </div>
     </div>
   </section>
 
-  <section>
-    <h2>2. 신뢰도 기준 테스트</h2>
-    <p class="sub">
-      최소 신뢰도를 바꿔 결과가 어떻게 달라지는지 확인할 수 있습니다. 설정한 기준보다
-      신뢰도가 낮으면 결과 대신 ‘판단 보류’가 표시됩니다.
-    </p>
+  <section id="classify">
+    <div class="shead">
+      <span class="snum">02</span>
+      <div>
+        <h2>신뢰도 기준 테스트</h2>
+        <p class="sub">
+          최소 신뢰도를 바꿔 결과가 어떻게 달라지는지 확인할 수 있습니다. 설정한 기준보다
+          신뢰도가 낮으면 결과 대신 ‘판단 보류’가 표시됩니다.
+        </p>
+      </div>
+    </div>
     <div class="panel row">
       <div class="grow">
         <label for="text">요청대상행위 본문</label>
         <textarea id="text">내부망과 외부망 사이의 망연계 구간에 정보처리시스템을 연결하여 운영하고자 합니다.</textarea>
-        <div class="row" style="margin-top:12px">
+        <div class="row" style="margin-top:14px;gap:16px">
           <div class="grow">
             <label for="engine">엔진</label>
             <select id="engine">
@@ -132,36 +305,56 @@
         </div>
         <button id="go">판정</button>
       </div>
-      <div class="grow"><div id="out" class="muted">판정 결과가 여기에 표시됩니다.</div></div>
+      <div class="grow"><div id="out" class="placeholder">판정 결과가 여기에 표시됩니다.</div></div>
     </div>
   </section>
 
-  <section>
-    <h2>3. 업권별 라벨 분포</h2>
-    <p class="sub">
-      업권마다 조치·비조치 비율이 달라서 정확도만 보면 성능을 잘못 해석할 수 있습니다.
-      이를 확인할 수 있도록 dev 세트의 업권별 분포를 함께 표시했습니다. 표본이 5건
-      미만인 업권은 전체 분포를 사용합니다.
-    </p>
-    <div class="panel"><table id="rates"><tbody><tr><td class="muted">불러오는 중…</td></tr></tbody></table></div>
+  <section id="rates">
+    <div class="shead">
+      <span class="snum">03</span>
+      <div>
+        <h2>업권별 라벨 분포</h2>
+        <p class="sub">
+          업권마다 조치·비조치 비율이 달라서 정확도만 보면 성능을 잘못 해석할 수 있습니다.
+          이를 확인할 수 있도록 dev 세트의 업권별 분포를 함께 표시했습니다. 표본이 5건
+          미만인 업권은 전체 분포를 사용합니다.
+        </p>
+      </div>
+    </div>
+    <div class="panel"><table id="rates-t"><tbody><tr><td class="muted">불러오는 중…</td></tr></tbody></table></div>
   </section>
 
-  <section>
-    <h2>4. 실패 사례 관리</h2>
-    <p class="sub">
-      개발 중 발견한 오류와 이를 다시 확인하는 테스트 목록입니다. 수정한 문제가 다시
-      발생하면 ‘재발’로 표시됩니다.
-    </p>
+  <section id="failures">
+    <div class="shead">
+      <span class="snum">04</span>
+      <div>
+        <h2>실패 사례 관리</h2>
+        <p class="sub">
+          개발 중 발견한 오류와 이를 다시 확인하는 테스트 목록입니다. 수정한 문제가 다시
+          발생하면 ‘재발’로 표시됩니다. 실험 기록이나 방법론 결정처럼 다시 발생할 코드가
+          없는 사례, 그리고 다른 테스트가 이미 덮고 있는 사례는 개별 검사를 두지 않습니다.
+        </p>
+      </div>
+    </div>
     <div class="panel">
       <div class="tax" id="tax"></div>
-      <div id="cases" style="margin-top:18px"></div>
+      <div id="cases" style="margin-top:20px"></div>
     </div>
   </section>
 </main>
 
 <footer>
-  화면의 지표는 저장소에 저장된 평가 결과를 사용합니다. 페이지를 열 때 모델을 새로
-  실행하지 않습니다.
+  <div class="wrap">
+    <p>
+      화면의 지표는 저장소에 저장된 평가 결과를 사용합니다. 페이지를 열 때 모델을 새로
+      실행하지 않습니다.
+    </p>
+    <p>
+      <a href="https://github.com/sokldjs554/DeFactoRule" target="_blank" rel="noopener">저장소</a> ·
+      <a href="/docs">API 문서</a> ·
+      <a href="/health">상태</a>
+    </p>
+  </div>
 </footer>
 
 <script>
@@ -169,6 +362,9 @@ const COLORS = {llm:'--llm', keyword:'--keyword', majority:'--majority', prior:'
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || '#888';
 const color = name => css(COLORS[name] || '--dim');
 const pct = v => (v * 100).toFixed(1) + '%';
+// 상단 카드는 README·포트폴리오와 같은 자리수로 적는다.
+const pct2 = v => (v * 100).toFixed(2) + '%';
+const num = new Intl.NumberFormat('ko-KR');
 const el = (tag, attrs = {}, kids = []) => {
   const ns = 'http://www.w3.org/2000/svg';
   const svgTags = ['svg','g','path','circle','line','text','rect','polyline'];
@@ -181,6 +377,29 @@ const el = (tag, attrs = {}, kids = []) => {
   kids.forEach(c => n.appendChild(c));
   return n;
 };
+const put = (id, v) => { const n = document.getElementById(id); if (n) n.textContent = v; };
+
+// ── 0. 요약 ────────────────────────────────────────────────────
+async function drawSummary() {
+  try {
+    const r = await fetch('/evaluation/summary');
+    if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+    const d = await r.json(), p = d.profile, c = d.corpus;
+    put('k-acc', pct2(p.accuracy_on_answered));
+    put('k-acc-d', `${num.format(p.correct)} / ${num.format(p.answered)}건 정답`);
+    put('k-cov', pct2(p.coverage));
+    put('k-cov-d', `${num.format(p.n)}건 중 ${num.format(p.answered)}건 답변`);
+    put('k-abs', num.format(p.abstained) + '건');
+    put('k-abs-d', '근거가 약해 답하지 않음');
+    put('k-qa', num.format(c.qa_pairs) + '쌍');
+    put('k-qa-d', `사례 ${num.format(c.cases)}건에서 구조화`);
+    put('caveat', d.caveat);
+    put('prov', d.source);
+  } catch (e) {
+    put('caveat', '요약을 불러오지 못했습니다: ' + e.message);
+    ['k-acc-d','k-cov-d','k-abs-d','k-qa-d'].forEach(id => put(id, '—'));
+  }
+}
 
 // ── 1. 위험–커버리지 ────────────────────────────────────────────
 async function drawRiskCoverage() {
@@ -197,7 +416,7 @@ async function drawRiskCoverage() {
     return;
   }
 
-  const W = 520, H = 340, P = {t: 16, r: 16, b: 44, l: 52};
+  const W = 520, H = 340, P = {t: 16, r: 16, b: 44, l: 66};
   const maxRisk = Math.max(0.05, ...data.curves.flatMap(c => c.points.map(p => p.risk))) * 1.15;
   const X = v => P.l + v * (W - P.l - P.r);
   const Y = v => H - P.b - (v / maxRisk) * (H - P.t - P.b);
@@ -216,8 +435,8 @@ async function drawRiskCoverage() {
   })));
   svg.appendChild(el('text', {x: (P.l + W - P.r) / 2, y: H - 8, 'text-anchor': 'middle',
     'font-size': 11, fill: css('--dim'), text: '커버리지 — 답한 비율'}));
-  svg.appendChild(el('text', {x: 13, y: H / 2, 'text-anchor': 'middle', 'font-size': 11,
-    fill: css('--dim'), transform: `rotate(-90 13 ${H / 2})`, text: '위험 — 답한 것 중 오류율'}));
+  svg.appendChild(el('text', {x: 14, y: H / 2, 'text-anchor': 'middle', 'font-size': 11,
+    fill: css('--dim'), transform: `rotate(-90 14 ${H / 2})`, text: '위험 — 답한 것 중 오류율'}));
 
   for (const c of data.curves) {
     const pts = [...c.points].sort((a, b) => a.coverage - b.coverage);
@@ -260,7 +479,7 @@ async function drawRiskCoverage() {
 async function classify() {
   const btn = document.getElementById('go'), out = document.getElementById('out');
   btn.disabled = true;
-  out.className = 'muted';
+  out.className = 'placeholder';
   out.textContent = '판정 중…';
   try {
     const r = await fetch('/classify', {
@@ -292,11 +511,11 @@ async function classify() {
     ].filter(Boolean).forEach(t => chips.appendChild(el('span', {class: 'chip', text: t})));
     box.appendChild(chips);
     if (body.evidence && body.evidence.quote) {
-      box.appendChild(el('div', {class: 'why', style: 'margin-top:10px',
+      box.appendChild(el('div', {class: 'why', style: 'margin-top:11px',
         text: '근거 인용: ' + body.evidence.quote}));
     }
     if (body.base_rate_context) {
-      box.appendChild(el('div', {class: 'why', style: 'margin-top:6px', text: body.base_rate_context}));
+      box.appendChild(el('div', {class: 'why', style: 'margin-top:7px', text: body.base_rate_context}));
     }
     out.appendChild(box);
   } catch (e) {
@@ -309,7 +528,7 @@ async function classify() {
 
 // ── 3. 기저율 ───────────────────────────────────────────────────
 async function drawRates() {
-  const tbody = document.querySelector('#rates tbody');
+  const tbody = document.querySelector('#rates-t tbody');
   const r = await fetch('/base-rates');
   tbody.innerHTML = '';
   if (!r.ok) {
@@ -369,7 +588,7 @@ async function drawFailures() {
     let cls = 'st ok', label = '통과';
     if (c.status === 'open') { cls = 'st open'; label = '미해결'; }
     else if (c.probe_passed === false) { cls = 'st bad'; label = '재발'; }
-    else if (c.probe_passed === null) { cls = 'st'; label = '검사 없음'; }
+    else if (c.probe_passed === null) { cls = 'st'; label = '개별 검사 없음'; }
     div.appendChild(el('span', {class: cls, text: label}));
     div.appendChild(el('span', {class: 'id', text: c.id}));
     div.appendChild(document.createTextNode(c.title));
@@ -383,7 +602,18 @@ async function drawFailures() {
   });
 }
 
+// ── 상단 바에서 지금 보고 있는 절 표시 ──────────────────────────
+const links = [...document.querySelectorAll('.nav a')];
+const spy = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (!e.isIntersecting) return;
+    links.forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + e.target.id));
+  });
+}, {rootMargin: '-64px 0px -70% 0px'});
+document.querySelectorAll('main section, header.hero').forEach(s => { if (s.id) spy.observe(s); });
+
 document.getElementById('go').addEventListener('click', classify);
+drawSummary();
 drawRiskCoverage();
 drawRates();
 drawFailures();
