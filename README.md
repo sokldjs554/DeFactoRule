@@ -130,6 +130,24 @@ LLM 출력 스키마에는 `verdict`, `applies/differs`, `applicability_basis` �
 커밋된 산출물만 읽으므로 API 키가 필요 없다. 무료 플랜이라 15분 이상 접속이 없으면 잠들고,
 그 뒤 첫 요청은 30초에서 1분쯤 걸린다.
 
+![평가 대시보드 요약 — 답변 정확도와 답변 비율을 함께 보여준다](docs/assets/dashboard/summary.png)
+
+상단 수치는 화면에 적어 둔 값이 아니다. `GET /evaluation/summary` 가
+`experiments/results/clean/final_clean_temporal.json` 과 데이터 파일 행 수를 읽어
+돌려준다. 재평가하면 화면도 같이 움직인다.
+
+![위험–커버리지 곡선과 모델별 AURC](docs/assets/dashboard/risk_coverage.png)
+
+같은 비율만큼 답했을 때 어느 모델이 덜 틀리는지 본다. 점이 하나뿐인 모델은
+기권할 줄 모르는 모델이다.
+
+같은 요청이라도 최소 신뢰도를 올리면 답하지 않는다.
+
+| `min_confidence: low` | `min_confidence: high` |
+|---|---|
+| ![기준 low — 결론을 반환한다](docs/assets/dashboard/threshold_low.png) | ![기준 high — 판단을 보류한다](docs/assets/dashboard/threshold_high.png) |
+
+
 로컬에서 띄우려면 Python 3.9 이상이 필요하다.
 
 ```bash
@@ -162,6 +180,7 @@ FastAPI UI는 기존 연구 결과와 실패 레지스트리를 탐색하는 용
 | `POST /classify` | 기존 분류 서비스 + 기권 계약 |
 | `POST /rag/evidence` | temporal Evidence RAG retrieval + optional grounded memo |
 | `GET /base-rates` | dev 기반 기저율 |
+| `GET /evaluation/summary` | 최종 평가 요약 (커밋된 산출물을 읽는다) |
 | `GET /evaluation/models` | 판정기 비교 결과 |
 | `GET /evaluation/risk-coverage` | 위험–커버리지 곡선/AURC |
 | `GET /failures` | 실패 레지스트리와 재현 probe |
