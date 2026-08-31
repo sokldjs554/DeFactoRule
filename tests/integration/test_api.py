@@ -167,7 +167,19 @@ def test_ui_only_calls_endpoints_that_exist():
 
     from app.api.main import app as fastapi_app
 
-    routes = {r.path for r in fastapi_app.routes if hasattr(r, "path")}
+    def paths(routes) -> set:
+        """include_router 로 얹은 라우터는 app.routes 에 통째로 들어간다. 안쪽까지 편다."""
+        out = set()
+        for route in routes:
+            path = getattr(route, "path", None)
+            if path:
+                out.add(path)
+            inner = getattr(route, "original_router", None)
+            if inner is not None:
+                out |= paths(inner.routes)
+        return out
+
+    routes = paths(fastapi_app.routes)
     called = set(re.findall(r"fetch\('([^']+)'", client.get("/").text))
     missing = {c.split("?")[0] for c in called} - routes
     assert not missing, f"화면이 없는 경로를 부릅니다: {sorted(missing)}"
@@ -261,3 +273,48 @@ def test_release_gate_passes_on_this_checkout():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     assert module.main() == 0
+
+def test_rag_samples_do_not_leak_the_answer():
+    """화면이 고르는 사례에는 정답 라벨이 실리지 않는다.
+
+    이 절이 보여주는 것은 결론 예측이 아니라 어떤 선례를 근거로 찾아오는가다.
+    목록에 정답이 실리면 화면이 그것을 그대로 보여줄 수 있고, 그러면 검색이
+    한 일과 정답이 뒤섞인다.
+    """
+    body = client.get("/rag/samples").json()
+    assert body["cases"], "사례가 하나도 없으면 화면이 빈 채로 뜬다"
+    for case in body["cases"]:
+        assert {"serial", "sector", "source", "page", "request"} <= set(case)
+        assert "label" not in case
+        assert "outcome" not in case
+
+
+def test_rag_evidence_never_returns_a_future_precedent():
+    """선례는 요청보다 앞선 것만 쓴다.
+
+    미래 선례를 근거로 쓰는 것은 이 프로젝트가 실측에서 발견한 실패였고
+    (2024-03 요청이 2024-06 사례를 인용), 후보 단계에서 거르도록 고쳤다.
+    API 를 통해서도 그 계약이 지켜지는지 여기서 본다.
+    """
+    for case in client.get("/rag/samples").json()["cases"]:
+        body = client.post(
+            "/rag/evidence",
+            json={"request_text": case["request"], "request_serial": case["serial"], "top_k": 3},
+        ).json()
+        for hit in body["evidence"]:
+            assert int(hit["serial"]) < int(case["serial"]), (
+                f"{case['serial']} 요청이 미래 선례 {hit['serial']} 을 근거로 들었습니다"
+            )
+
+
+def test_rag_evidence_carries_provenance():
+    """근거에는 어디서 왔는지가 함께 실린다 — 출처·쪽수·유사도."""
+    case = client.get("/rag/samples").json()["cases"][0]
+    body = client.post(
+        "/rag/evidence",
+        json={"request_text": case["request"], "request_serial": case["serial"], "top_k": 3},
+    ).json()
+    assert body["temporal_policy"] == "serial"
+    for hit in body["evidence"]:
+        assert hit["evidence_id"] and hit["source"] and hit["serial"]
+        assert 0.0 <= hit["score"] <= 1.0

@@ -149,6 +149,17 @@
   .bar { height: 9px; border-radius: 3px; background: var(--raise); overflow: hidden; display: flex; }
   .bar i { display: block; height: 100%; }
   .muted { color: var(--dim); }
+  .quote {
+    margin: 10px 0 0; padding: 12px 14px; border-left: 3px solid var(--line2);
+    background: var(--raise); border-radius: 0 8px 8px 0; font-size: 13.5px; color: var(--soft, var(--ink));
+  }
+  .ev { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-top: 10px; }
+  .ev .top { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; font-size: 12px; color: var(--dim); }
+  .ev .eid { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--ink); }
+  .ev .sc { font-variant-numeric: tabular-nums; }
+  .ev .out { margin-left: auto; font-weight: 600; color: var(--ink); }
+  .ev .txt { margin-top: 9px; font-size: 13.5px; line-height: 1.6; }
+  .meta { margin: 12px 0 0; font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; }
   .placeholder {
     border: 1px dashed var(--line2); border-radius: 10px; padding: 26px; text-align: center;
     color: var(--faint); font-size: 13px;
@@ -197,6 +208,7 @@
       <a href="#summary">요약</a>
       <a href="#risk">위험–커버리지</a>
       <a href="#classify">판정</a>
+      <a href="#evidence">근거 검색</a>
       <a href="#rates">분포</a>
       <a href="#failures">실패 사례</a>
     </nav>
@@ -282,7 +294,7 @@
     <div class="panel row">
       <div class="grow">
         <label for="text">요청대상행위 본문</label>
-        <textarea id="text">내부망과 외부망 사이의 망연계 구간에 정보처리시스템을 연결하여 운영하고자 합니다.</textarea>
+        <textarea id="text">전자금융거래 기록을 클라우드에 보관하려 합니다.</textarea>
         <div class="row" style="margin-top:14px;gap:16px">
           <div class="grow">
             <label for="engine">엔진</label>
@@ -306,9 +318,31 @@
     </div>
   </section>
 
-  <section id="rates">
+  <section id="evidence">
     <div class="shead">
       <span class="snum">03</span>
+      <div>
+        <h2>근거 검색</h2>
+        <p class="sub">
+          요청과 닮은 선례를 찾되, 요청보다 나중에 나온 사례는 후보에서 뺍니다. 찾은 선례는
+          출처 문서와 쪽수, 유사도, 그때의 결론을 함께 표시합니다. 검색만 하므로 외부 API를
+          부르지 않습니다.
+        </p>
+      </div>
+    </div>
+    <div class="panel">
+      <label for="case">사례 (커밋된 clean test에서 업권별 한 건)</label>
+      <select id="case"><option>불러오는 중…</option></select>
+      <div class="quote" id="case-text">사례를 불러오는 중입니다.</div>
+      <button id="find">근거 찾기</button>
+      <div id="ev" class="placeholder" style="margin-top:18px">선례가 여기에 표시됩니다.</div>
+      <p class="meta" id="ev-meta"></p>
+    </div>
+  </section>
+
+  <section id="rates">
+    <div class="shead">
+      <span class="snum">04</span>
       <div>
         <h2>업권별 라벨 분포</h2>
         <p class="sub">
@@ -323,7 +357,7 @@
 
   <section id="failures">
     <div class="shead">
-      <span class="snum">04</span>
+      <span class="snum">05</span>
       <div>
         <h2>실패 사례 관리</h2>
         <p class="sub">
@@ -472,6 +506,7 @@ async function drawRiskCoverage() {
 // ── 2. 판정 데모 ────────────────────────────────────────────────
 async function classify() {
   const btn = document.getElementById('go'), out = document.getElementById('out');
+  const minConf = document.getElementById('conf').value;   // 응답을 설명할 때 쓴다
   btn.disabled = true;
   out.className = 'placeholder';
   out.textContent = '판정 중…';
@@ -481,7 +516,7 @@ async function classify() {
       body: JSON.stringify({
         request_text: document.getElementById('text').value,
         engine: document.getElementById('engine').value,
-        min_confidence: document.getElementById('conf').value
+        min_confidence: minConf
       })
     });
     const body = await r.json();
@@ -495,8 +530,8 @@ async function classify() {
     out.innerHTML = '';
     const box = el('div', {class: 'verdict' + (body.abstained ? ' abstain' : '')});
     box.appendChild(el('div', {class: 'label', text: body.abstained ? '판단 보류' : body.decision}));
-    box.appendChild(el('div', {class: 'why',
-      text: body.abstained ? body.abstain_reason : '최소 신뢰도 기준을 통과했습니다.'}));
+    box.appendChild(el('div', {class: 'why', text: body.abstained ? body.abstain_reason
+      : `신뢰도 ${body.confidence}가 설정한 최소 신뢰도 ${minConf} 이상이라 결과를 표시합니다.`}));
     const chips = el('div', {class: 'chips'});
     [`신뢰도 ${body.confidence}`, `엔진 ${body.engine}`,
      body.rule ? `규칙 ${body.rule}` : null,
@@ -512,6 +547,83 @@ async function classify() {
       box.appendChild(el('div', {class: 'why', style: 'margin-top:7px', text: body.base_rate_context}));
     }
     out.appendChild(box);
+  } catch (e) {
+    out.className = 'err';
+    out.textContent = '요청 실패: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── 3. 근거 검색 ────────────────────────────────────────────────
+let SAMPLES = [];
+
+function showCase() {
+  const i = +document.getElementById('case').value;
+  const c = SAMPLES[i];
+  document.getElementById('case-text').textContent = c ? c.request : '';
+}
+
+async function loadSamples() {
+  const sel = document.getElementById('case');
+  try {
+    const r = await fetch('/rag/samples');
+    if (!r.ok) throw new Error(r.statusText);
+    SAMPLES = (await r.json()).cases;
+    sel.innerHTML = '';
+    SAMPLES.forEach((c, i) => sel.appendChild(
+      el('option', {value: i, text: `${c.sector} · ${c.serial} · ${c.source} p.${c.page}`})));
+    showCase();
+  } catch (e) {
+    sel.innerHTML = '';
+    document.getElementById('case-text').textContent = '사례를 불러오지 못했습니다: ' + e.message;
+  }
+}
+
+async function findEvidence() {
+  const btn = document.getElementById('find'), out = document.getElementById('ev');
+  const meta = document.getElementById('ev-meta');
+  const c = SAMPLES[+document.getElementById('case').value];
+  if (!c) return;
+  btn.disabled = true;
+  out.className = 'placeholder';
+  out.textContent = '선례를 찾는 중…';
+  meta.textContent = '';
+  try {
+    const r = await fetch('/rag/evidence', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({request_text: c.request, request_serial: c.serial, top_k: 3})
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      out.className = 'err';
+      out.textContent = '오류 — ' + (typeof d.detail === 'string' ? d.detail : JSON.stringify(d.detail));
+      return;
+    }
+    out.innerHTML = '';
+    if (!d.evidence.length) {
+      out.className = 'placeholder';
+      out.textContent = d.abstain_reason
+        ? '쓸 수 있는 선례가 없어 근거를 제시하지 않습니다. ' + d.abstain_reason
+        : '유사도 기준을 넘는 선례가 없습니다. 근거 없이 답하지 않는 것이 정상 동작입니다.';
+    } else {
+      out.className = '';
+      d.evidence.forEach(e => {
+        const box = el('div', {class: 'ev'});
+        const top = el('div', {class: 'top'}, [
+          el('span', {class: 'eid', text: e.evidence_id}),
+          el('span', {class: 'sc', text: `유사도 ${e.score.toFixed(3)}`}),
+          el('span', {text: `${e.source} p.${e.page}`}),
+          el('span', {text: e.sector || ''}),
+        ]);
+        if (e.outcome) top.appendChild(el('span', {class: 'out', text: `선례 결론 ${e.outcome}`}));
+        box.appendChild(top);
+        box.appendChild(el('div', {class: 'txt', text: e.request}));
+        out.appendChild(box);
+      });
+    }
+    meta.textContent =
+      `검색기 ${d.retriever} · 시간 정책 ${d.temporal_policy} · 선례 ${d.evidence_count}건 · 외부 API 호출 0회`;
   } catch (e) {
     out.className = 'err';
     out.textContent = '요청 실패: ' + e.message;
@@ -611,7 +723,10 @@ const spy = new IntersectionObserver(entries => {
 document.querySelectorAll('main section, header.hero').forEach(s => { if (s.id) spy.observe(s); });
 
 document.getElementById('go').addEventListener('click', classify);
+document.getElementById('find').addEventListener('click', findEvidence);
+document.getElementById('case').addEventListener('change', showCase);
 drawSummary();
+loadSamples();
 drawRiskCoverage();
 drawRates();
 drawFailures();

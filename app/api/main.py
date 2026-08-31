@@ -31,6 +31,7 @@ from app.evaluation.failure_taxonomy import load_registry
 from app.evaluation.metrics import macro_f1
 from app.evaluation.probes import PROBES
 from app.evaluation.selective import aurc, operating_points, rank_of
+from app.rag.api import router as rag_router
 
 app = FastAPI(
     title="DeFactoRule",
@@ -49,6 +50,18 @@ FINAL_FREEZE = RESULTS / "clean" / "final_clean_temporal.json"
 CORPUS_FILES = ("cases_interpretation.jsonl", "cases_nonaction.jsonl")
 QA_PAIRS = PROCESSED / "qa_pairs.jsonl"
 TEST_CLEAN = EVAL / "nonaction_test_clean.jsonl"
+
+
+# 근거 검색 계층을 같은 서비스에 얹는다.
+#
+# app/rag/app.py 는 이것을 분리해 두었다 — 새 RAG 기능이 확정된 판정 프로파일을
+# 조용히 바꾸는 것을 막기 위해서다. 그 취지는 그대로다: 여기서 얹는 것은 읽기
+# 전용 검색이고 /classify 의 동작에 관여하지 않는다. 대신 화면에서 "무엇을
+# 근거로 삼았는가"를 보여줄 수 있게 된다.
+#
+# 대가는 배포가 묶인다는 것이다. RAG 쪽이 임포트에서 깨지면 판정 API 도 뜨지
+# 않는다. 그래서 scripts/check_release.py 가 빌드 단계에서 이 임포트를 확인한다.
+app.include_router(rag_router)
 
 
 @app.get("/", include_in_schema=False)
